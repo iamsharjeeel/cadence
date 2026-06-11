@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireActiveProfile } from "@/lib/auth";
+import { bankingToDbPayload, parseBankingFormData } from "@/lib/banking";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -34,4 +35,29 @@ export async function updateOwnName(
 
   revalidatePath("/app/profile");
   return { ok: true, message: "Name updated." };
+}
+
+/** Updates the caller's own banking & tax fields (employee-editable). */
+export async function updateOwnBanking(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  const input = parseBankingFormData(formData);
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update(
+      bankingToDbPayload(input, {
+        bank_account_number: profile.bank_account_number,
+        bank_bsb_swift: profile.bank_bsb_swift,
+      }),
+    )
+    .eq("id", profile.id);
+
+  if (error) return { ok: false, message: "Couldn't save banking details." };
+
+  revalidatePath("/app/profile");
+  return { ok: true, message: "Banking details saved." };
 }

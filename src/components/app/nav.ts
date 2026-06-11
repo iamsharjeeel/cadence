@@ -10,6 +10,7 @@ export type NavItem = {
     | "timesheets"
     | "employees"
     | "organizations"
+    | "documents"
     | "settings";
 };
 
@@ -30,6 +31,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/app/timesheets",
     roles: ["superadmin", "admin", "employee"],
     icon: "timesheets",
+  },
+  {
+    label: "Documents",
+    href: "/app/documents",
+    roles: ["superadmin", "admin", "employee"],
+    icon: "documents",
   },
   {
     label: "Profile",

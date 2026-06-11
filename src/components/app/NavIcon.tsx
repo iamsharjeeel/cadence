@@ -34,6 +34,12 @@ const PATHS: Record<NavItem["icon"], React.ReactNode> = {
       <path d="M9 20v-4h6v4M9 4h6v4H9z" />
     </>
   ),
+  documents: (
+    <>
+      <path d="M7 4h7l5 5v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
+      <path d="M14 4v5h5M9 13h6M9 17h4" />
+    </>
+  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />

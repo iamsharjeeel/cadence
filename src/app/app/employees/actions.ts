@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
+import { bankingToDbPayload, parseBankingFormData } from "@/lib/banking";
 import { validateCurrency, validateRate } from "@/lib/validation";
 import type { Profile, RateType, UserRole, UserStatus } from "@/types/db";
 import { RATE_TYPES } from "@/types/db";
@@ -198,6 +199,31 @@ export async function setRate(
 
   revalidatePath("/app/employees");
   return { ok: true, message: "Rate updated." };
+}
+
+export async function setEmployeeBanking(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const targetId = String(formData.get("id") ?? "");
+  const auth = await authorizeTarget(targetId);
+  if (!auth.ok) return { ok: false, message: auth.message };
+
+  const input = parseBankingFormData(formData);
+  const db = createAdminClient();
+  const { error } = await db
+    .from("profiles")
+    .update(
+      bankingToDbPayload(input, {
+        bank_account_number: auth.target.bank_account_number,
+        bank_bsb_swift: auth.target.bank_bsb_swift,
+      }),
+    )
+    .eq("id", targetId);
+  if (error) return { ok: false, message: "Couldn't save banking details." };
+
+  revalidatePath("/app/employees");
+  return { ok: true, message: "Banking details saved." };
 }
 
 function displayName(p: Profile): string {

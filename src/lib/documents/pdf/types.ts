@@ -1,0 +1,44 @@
+export type PayAdvicePdfData = {
+  orgName: string;
+  orgLogoUrl: string | null;
+  documentNumber: string;
+  issueDate: string;
+  employeeName: string;
+  employeeEmail: string;
+  employeeRole: string;
+  periodStart: string;
+  periodEnd: string;
+  totalHours: number;
+  rateLabel: string;
+  subtotalLabel: string;
+  gstEnabled: boolean;
+  gstRate: number;
+  gstLabel: string;
+  totalLabel: string;
+  approvedBy: string;
+  approvedAt: string;
+};
+
+export type InvoicePdfData = {
+  orgName: string;
+  documentNumber: string;
+  issueDate: string;
+  dueDate: string;
+  contractorName: string;
+  contractorAddress: string | null;
+  taxId: string | null;
+  periodStart: string;
+  periodEnd: string;
+  totalHours: number;
+  rateLabel: string;
+  subtotalLabel: string;
+  gstEnabled: boolean;
+  gstRate: number;
+  gstLabel: string;
+  totalLabel: string;
+  bankName: string | null;
+  accountName: string | null;
+  accountNumber: string | null;
+  bsbSwift: string | null;
+  paymentTermsDays: number;
+};

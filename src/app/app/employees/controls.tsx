@@ -10,6 +10,7 @@ import { fieldBase } from "@/components/ui/Input";
 import { cn, titleCase } from "@/lib/utils";
 import {
   approveMember,
+  setEmployeeBanking,
   setRate,
   setRole,
   setStatus,
@@ -163,6 +164,57 @@ export function RateEditor({
       >
         Cancel
       </Button>
+    </form>
+  );
+}
+
+export function BankingEditor({
+  id,
+  defaults,
+  accountMasked,
+  bsbMasked,
+}: {
+  id: string;
+  defaults: {
+    bank_name: string;
+    bank_account_name: string;
+    tax_id: string;
+    address: string;
+    payment_terms_days: number;
+  };
+  accountMasked: string;
+  bsbMasked: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, action] = useFormState(setEmployeeBanking, null);
+  useResultToast(state);
+
+  useEffect(() => {
+    if (state?.ok) setOpen(false);
+  }, [state]);
+
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        Banking
+      </Button>
+    );
+  }
+
+  return (
+    <form action={action} className="flex min-w-[20rem] flex-col gap-2 rounded-[var(--radius)] border bg-surface p-3">
+      <input type="hidden" name="id" value={id} />
+      <Input label="Bank name" name="bank_name" defaultValue={defaults.bank_name} className="h-9 text-sm" />
+      <Input label="Account name" name="bank_account_name" defaultValue={defaults.bank_account_name} className="h-9 text-sm" />
+      <Input label="Account number" name="bank_account_number" placeholder={accountMasked} className="h-9 text-sm" />
+      <Input label="BSB / SWIFT" name="bank_bsb_swift" placeholder={bsbMasked} className="h-9 text-sm" />
+      <Input label="Tax ID" name="tax_id" defaultValue={defaults.tax_id} className="h-9 text-sm" />
+      <Input label="Address" name="address" defaultValue={defaults.address} className="h-9 text-sm" />
+      <Input label="Payment terms (days)" name="payment_terms_days" type="number" defaultValue={String(defaults.payment_terms_days)} className="h-9 text-sm" />
+      <div className="flex gap-2">
+        <SubmitButton size="sm">Save</SubmitButton>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+      </div>
     </form>
   );
 }

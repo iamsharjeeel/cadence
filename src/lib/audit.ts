@@ -12,7 +12,10 @@ export type AuditAction =
   | "org.update"
   | "timesheet_submitted"
   | "timesheet_approved"
-  | "timesheet_rejected";
+  | "timesheet_rejected"
+  | "document_generated"
+  | "document_emailed"
+  | "document_status_changed";
 
 /**
  * Writes an entry to `audit_log`. Uses the service-role client so the record is

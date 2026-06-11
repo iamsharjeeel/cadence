@@ -11,6 +11,8 @@ import {
 import { RolePill, StatusPill } from "@/components/ui/Badge";
 import { requireActiveProfile } from "@/lib/auth";
 import { formatMoney, titleCase } from "@/lib/utils";
+import { maskSensitive } from "@/lib/bank-crypto";
+import { ProfileBankingForm } from "./ProfileBankingForm";
 import { ProfileNameForm } from "./ProfileNameForm";
 
 export const metadata: Metadata = { title: "Profile" };
@@ -64,6 +66,28 @@ export default async function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Banking &amp; tax</CardTitle>
+          <CardDescription>
+            Used on contractor invoices. Sensitive fields are encrypted.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProfileBankingForm
+            defaults={{
+              bank_name: profile.bank_name ?? "",
+              bank_account_name: profile.bank_account_name ?? "",
+              tax_id: profile.tax_id ?? "",
+              address: profile.address ?? "",
+              payment_terms_days: profile.payment_terms_days ?? 14,
+            }}
+            accountMasked={maskSensitive(profile.bank_account_number)}
+            bsbMasked={maskSensitive(profile.bank_bsb_swift)}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

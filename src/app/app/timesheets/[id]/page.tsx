@@ -14,6 +14,7 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Badge, TimesheetStatusPill } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { requireActiveProfile, hasRole } from "@/lib/auth";
+import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
 import { ApprovalControls } from "./ApprovalControls";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDate, formatMoney, titleCase } from "@/lib/utils";
@@ -78,6 +79,9 @@ export default async function TimesheetDetailPage({
   const totalHours = rows.reduce((sum, r) => sum + Number(r.hours), 0);
   const status = timesheet.status as TimesheetStatus;
   const canApprove = hasRole(profile, ["admin", "superadmin"]);
+  const canGenerateDoc =
+    status === "approved" &&
+    (timesheet.employee_id === profile.id || canApprove);
 
   // Signed URL for the raw artifact (1-hour expiry) — never a public URL.
   let rawUrl: string | null = null;
@@ -96,11 +100,21 @@ export default async function TimesheetDetailPage({
           timesheet.period_end,
         )} · ${nameById.get(timesheet.employee_id) ?? ""}`}
         action={
-          <Link href="/app/timesheets">
-            <Button variant="ghost" size="sm">
-              Back
-            </Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {canGenerateDoc && timesheet.calculated_total !== null && (
+              <GenerateDocumentButton
+                timesheetIds={[timesheet.id]}
+                periodLabel={`${formatDate(timesheet.period_start)} – ${formatDate(timesheet.period_end)}`}
+                subtotal={timesheet.calculated_total}
+                currency={timesheet.currency_snapshot ?? "USD"}
+              />
+            )}
+            <Link href="/app/timesheets">
+              <Button variant="ghost" size="sm">
+                Back
+              </Button>
+            </Link>
+          </div>
         }
       />
 

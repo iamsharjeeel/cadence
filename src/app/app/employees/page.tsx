@@ -17,8 +17,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney, titleCase } from "@/lib/utils";
 import type { Organization, Profile } from "@/types/db";
+import { maskSensitive } from "@/lib/bank-crypto";
 import {
   ApproveButton,
+  BankingEditor,
   RateEditor,
   RoleSelect,
   StatusSelect,
@@ -154,6 +156,7 @@ export default async function EmployeesPage() {
                   <TH>Role</TH>
                   <TH>Status</TH>
                   <TH>Rate</TH>
+                  <TH>Banking</TH>
                 </TR>
               </THead>
               <TBody>
@@ -207,6 +210,22 @@ export default async function EmployeesPage() {
                             />
                           )}
                         </div>
+                      </TD>
+                      <TD>
+                        {!isSuper && (
+                          <BankingEditor
+                            id={m.id}
+                            defaults={{
+                              bank_name: m.bank_name ?? "",
+                              bank_account_name: m.bank_account_name ?? "",
+                              tax_id: m.tax_id ?? "",
+                              address: m.address ?? "",
+                              payment_terms_days: m.payment_terms_days ?? 14,
+                            }}
+                            accountMasked={maskSensitive(m.bank_account_number)}
+                            bsbMasked={maskSensitive(m.bank_bsb_swift)}
+                          />
+                        )}
                       </TD>
                     </TR>
                   );

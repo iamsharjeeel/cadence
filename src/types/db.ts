@@ -98,40 +98,61 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_bsb_swift: string | null
+          bank_name: string | null
           created_at: string
           currency: string
           email: string
           full_name: string | null
           id: string
           org_id: string | null
+          payment_terms_days: number | null
           rate: number | null
           rate_type: Database["public"]["Enums"]["rate_type"]
           role: Database["public"]["Enums"]["user_role"]
           status: Database["public"]["Enums"]["user_status"]
+          tax_id: string | null
         }
         Insert: {
+          address?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_bsb_swift?: string | null
+          bank_name?: string | null
           created_at?: string
           currency?: string
           email: string
           full_name?: string | null
           id: string
           org_id?: string | null
+          payment_terms_days?: number | null
           rate?: number | null
           rate_type?: Database["public"]["Enums"]["rate_type"]
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["user_status"]
+          tax_id?: string | null
         }
         Update: {
+          address?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_bsb_swift?: string | null
+          bank_name?: string | null
           created_at?: string
           currency?: string
           email?: string
           full_name?: string | null
           id?: string
           org_id?: string | null
+          payment_terms_days?: number | null
           rate?: number | null
           rate_type?: Database["public"]["Enums"]["rate_type"]
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["user_status"]
+          tax_id?: string | null
         }
         Relationships: [
           {
@@ -266,6 +287,97 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          created_at: string
+          currency: string
+          document_number: string
+          emailed_at: string | null
+          employee_id: string
+          file_path: string | null
+          generated_by: string | null
+          gst_amount: number
+          gst_enabled: boolean
+          gst_rate: number | null
+          id: string
+          org_id: string
+          status: string
+          status_changed_at: string | null
+          status_changed_by: string | null
+          subtotal: number
+          timesheet_id: string
+          total: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency: string
+          document_number: string
+          emailed_at?: string | null
+          employee_id: string
+          file_path?: string | null
+          generated_by?: string | null
+          gst_amount?: number
+          gst_enabled?: boolean
+          gst_rate?: number | null
+          id?: string
+          org_id: string
+          status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          subtotal: number
+          timesheet_id: string
+          total: number
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          document_number?: string
+          emailed_at?: string | null
+          employee_id?: string
+          file_path?: string | null
+          generated_by?: string | null
+          gst_amount?: number
+          gst_enabled?: boolean
+          gst_rate?: number | null
+          id?: string
+          org_id?: string
+          status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          subtotal?: number
+          timesheet_id?: string
+          total?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_timesheet_id_fkey"
+            columns: ["timesheet_id"]
+            isOneToOne: false
+            referencedRelation: "timesheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_deliveries: {
         Row: {
           attempts: number
@@ -328,6 +440,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       is_active: { Args: never; Returns: boolean }
+      next_document_number: {
+        Args: { p_org_id: string; p_type: string }
+        Returns: string
+      }
     }
     Enums: {
       period_cadence: "weekly" | "biweekly" | "monthly"
@@ -476,6 +592,7 @@ export const Constants = {
 export type Organization = Tables<"organizations">
 export type Profile = Tables<"profiles">
 export type AuditLog = Tables<"audit_log">
+export type Document = Tables<"documents">
 export type Timesheet = Tables<"timesheets">
 export type TimesheetRow = Tables<"timesheet_rows">
 export type WebhookDelivery = Tables<"webhook_deliveries">
@@ -493,6 +610,13 @@ export const TIMESHEET_STATUSES: TimesheetStatus[] = [
   "approved",
   "rejected",
 ]
+
+export type DocumentType = "pay_advice" | "invoice"
+export type DocumentStatus =
+  | "draft"
+  | "in_progress"
+  | "verified"
+  | "corrections_needed"
 
 export const USER_ROLES = Constants.public.Enums.user_role
 export const USER_STATUSES = Constants.public.Enums.user_status

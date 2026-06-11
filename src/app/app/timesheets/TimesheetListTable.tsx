@@ -10,6 +10,8 @@ import { TimesheetStatusPill } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type { TimesheetStatus } from "@/types/db";
+import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
+import { GenerateDocumentModal } from "@/components/documents/GenerateDocumentModal";
 import {
   ApproveTimesheetButton,
   RejectTimesheetControl,
@@ -47,6 +49,7 @@ export function TimesheetListTable({
   dir: "asc" | "desc";
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [generateOpen, setGenerateOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
@@ -56,8 +59,14 @@ export function TimesheetListTable({
   const submittedIds = timesheets
     .filter((t) => t.status === "submitted")
     .map((t) => t.id);
+  const approvedIds = timesheets
+    .filter((t) => t.status === "approved" && t.calculated_total !== null)
+    .map((t) => t.id);
   const allSubmittedSelected =
     submittedIds.length > 0 && submittedIds.every((id) => selected.has(id));
+  const selectedApproved = timesheets.filter(
+    (t) => selected.has(t.id) && t.status === "approved" && t.calculated_total !== null,
+  );
 
   function toggleAll() {
     if (allSubmittedSelected) {
@@ -109,31 +118,53 @@ export function TimesheetListTable({
 
   return (
     <div>
-      {isManager && selected.size > 0 && (
-        <div className="flex items-center gap-3 border-b px-6 py-3">
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 border-b px-6 py-3">
           <span className="text-sm text-muted">
             {selected.size} selected
           </span>
-          <Button size="sm" onClick={bulkApprove} disabled={pending}>
-            {pending ? "Approving…" : "Approve selected"}
-          </Button>
+          {isManager && (
+            <Button size="sm" onClick={bulkApprove} disabled={pending}>
+              {pending ? "Approving…" : "Approve selected"}
+            </Button>
+          )}
+          {selectedApproved.length > 0 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setGenerateOpen(true)}
+            >
+              Generate documents ({selectedApproved.length})
+            </Button>
+          )}
         </div>
+      )}
+      {generateOpen && selectedApproved.length > 0 && (
+        <GenerateDocumentModal
+          timesheetIds={selectedApproved.map((t) => t.id)}
+          periodLabel={`${selectedApproved.length} approved timesheet${selectedApproved.length === 1 ? "" : "s"}`}
+          subtotal={selectedApproved.reduce((s, t) => s + (t.calculated_total ?? 0), 0)}
+          currency={selectedApproved[0]?.currency_snapshot ?? "USD"}
+          onClose={() => setGenerateOpen(false)}
+          onSuccess={() => {
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
       )}
       <Table>
         <THead>
           <TR>
-            {isManager && (
-              <TH className="w-10">
-                <input
-                  type="checkbox"
-                  checked={allSubmittedSelected}
-                  onChange={toggleAll}
-                  disabled={submittedIds.length === 0}
-                  aria-label="Select all submitted"
-                  className="h-4 w-4 accent-[var(--accent)]"
-                />
-              </TH>
-            )}
+            <TH className="w-10">
+              <input
+                type="checkbox"
+                checked={allSubmittedSelected}
+                onChange={toggleAll}
+                disabled={submittedIds.length === 0 && approvedIds.length === 0}
+                aria-label="Select all submitted"
+                className="h-4 w-4 accent-[var(--accent)]"
+              />
+            </TH>
             {isManager && <TH>Employee</TH>}
             {isSuperadmin && <TH>Org</TH>}
             <TH>
@@ -170,19 +201,17 @@ export function TimesheetListTable({
         <TBody>
           {timesheets.map((t) => (
             <TR key={t.id}>
-              {isManager && (
-                <TD>
-                  {t.status === "submitted" && (
-                    <input
-                      type="checkbox"
-                      checked={selected.has(t.id)}
-                      onChange={() => toggleOne(t.id)}
-                      aria-label={`Select timesheet ${t.period_start}`}
-                      className="h-4 w-4 accent-[var(--accent)]"
-                    />
-                  )}
-                </TD>
-              )}
+              <TD>
+                {(t.status === "submitted" || t.status === "approved") && (
+                  <input
+                    type="checkbox"
+                    checked={selected.has(t.id)}
+                    onChange={() => toggleOne(t.id)}
+                    aria-label={`Select timesheet ${t.period_start}`}
+                    className="h-4 w-4 accent-[var(--accent)]"
+                  />
+                )}
+              </TD>
               {isManager && (
                 <TD className="text-sm font-medium text-ink">
                   {t.employeeName}
@@ -225,6 +254,16 @@ export function TimesheetListTable({
                       <ApproveTimesheetButton id={t.id} />
                       <RejectTimesheetControl id={t.id} />
                     </>
+                  )}
+                  {t.status === "approved" && t.calculated_total !== null && (
+                    <GenerateDocumentButton
+                      timesheetIds={[t.id]}
+                      periodLabel={`${formatDate(t.period_start)} – ${formatDate(t.period_end)}`}
+                      subtotal={t.calculated_total}
+                      currency={t.currency_snapshot ?? "USD"}
+                      label="Document"
+                      variant="ghost"
+                    />
                   )}
                   <Link href={`/app/timesheets/${t.id}`}>
                     <Button variant="ghost" size="sm">
