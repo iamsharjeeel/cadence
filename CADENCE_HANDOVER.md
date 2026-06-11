@@ -57,20 +57,24 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 
 ### Tables
 - `organizations`: id, name, slug, base_currency, allowed_domains[], default_cadence, logo_url, created_at
-- `profiles`: id=auth.users.id, org_id, full_name, email, role, status, rate, rate_type, currency, created_at
+- `profiles`: id=auth.users.id, org_id, full_name, email, role, status, rate, rate_type, currency, bank_name, bank_account_name, bank_account_number (encrypted), bank_bsb_swift (encrypted), tax_id, address, payment_terms_days, created_at
 - `audit_log`: id, org_id, actor_id, action, entity, payload jsonb, created_at
 - `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), raw_file_path, rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, created_at, updated_at
 - `timesheet_rows`: id, timesheet_id, org_id, row_date, hours, project, description, billable, created_at
 - `webhook_deliveries`: id, org_id, timesheet_id, payload jsonb, status (pending|delivered|failed), attempts, last_attempted_at, delivered_at, created_at
+- `documents`: id, org_id, timesheet_id, employee_id, type (pay_advice|invoice), status (draft|in_progress|verified|corrections_needed), document_number, gst_enabled, gst_rate, subtotal, gst_amount, total, currency, file_path, emailed_at, generated_by, status_changed_by, status_changed_at, created_at, updated_at
 
 ### Helper functions (SECURITY DEFINER)
-`auth_role()`, `auth_org()`, `is_active()`
+`auth_role()`, `auth_org()`, `is_active()`, `next_document_number(org_id, type)`
 
 ### Trigger
 `on_auth_user_created` — auto-creates a pending profile on signup
 
 ### Storage
-Private bucket: `timesheets`. Paths: `timesheets/{org_id}/{employee_id}/{timesheet_id}/raw`. Signed URLs only (1hr expiry).
+- Private bucket: `timesheets`. Paths: `{org_id}/{employee_id}/{timesheet_id}/raw`. Signed URLs only (1hr expiry).
+- Private bucket: `documents`. Paths: `{org_id}/{employee_id}/{document_id}.pdf`. Signed URLs only (1hr expiry).
+
+**Apply Phase 4 migration:** run `supabase/migrations/20260611000000_phase4_documents.sql` in Supabase SQL editor (or `supabase db push`).
 
 ## Security requirements (non-negotiable)
 - Org-scoped RLS on every table + Storage bucket.
@@ -203,6 +207,46 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 - `src/app/app/dashboard/AdminDashboardView.tsx` — shared admin dashboard
 - `src/app/app/orgs/[slug]/dashboard/page.tsx` — org drill-down
 - `src/app/app/organizations/OrgTableRow.tsx` — clickable org rows
+
+### Phase 4 ✅ — Document generation (Pay Advice + Contractor Invoice)
+
+#### Database
+- Profile banking columns: `bank_name`, `bank_account_name`, `bank_account_number`, `bank_bsb_swift`, `tax_id`, `address`, `payment_terms_days` (default 14).
+- `documents` table with RLS + `next_document_number()` function.
+- `documents` storage bucket with org-scoped policies.
+
+#### Profile — banking & tax (`/app/profile`)
+- Employee-editable Banking & Tax section.
+- Account number + BSB/SWIFT encrypted at rest (`DOCUMENT_ENCRYPTION_KEY`, AES-256-GCM).
+- Client sees masked values only (last 4 digits).
+
+#### Employees — admin banking edit
+- Admins edit employee banking via **Banking** button on team table (`/app/employees`).
+
+#### Document generation flow
+- Entry points: timesheet detail **Generate document**, timesheet list per-row + bulk select on approved timesheets.
+- Modal: type (Pay Advice / Invoice), GST toggle + rate, preview summary, **Generate & send**.
+- Server route: `POST /api/documents/generate` — role re-validated; employee own approved only; admin org-scoped; superadmin unrestricted.
+- PDF via `@react-pdf/renderer` (serverless-safe, no headless browser).
+- Storage upload + `documents` row + Resend email with PDF attachment + `emailed_at`.
+- Audit: `document_generated`, `document_emailed`, `document_status_changed`.
+
+#### Documents list (`/app/documents` — all roles in nav)
+- Employee: own documents, status badge (read-only), download (signed URL), re-send email.
+- Admin/superadmin: org/all orgs list, employee column, status dropdown, filters (type, status, employee, date range).
+
+#### Env vars (Vercel, server-only unless noted)
+- `DOCUMENT_ENCRYPTION_KEY` — 16+ char secret for bank field encryption.
+- `RESEND_API_KEY` — Resend API key.
+- `RESEND_FROM_EMAIL` — e.g. `hello@cadencemail.s1mplesolutions.cc`
+
+#### Key files
+- `supabase/migrations/20260611000000_phase4_documents.sql`
+- `src/lib/bank-crypto.ts`, `src/lib/banking.ts`
+- `src/lib/documents/generate.tsx`, `src/lib/documents/pdf/*`
+- `src/app/api/documents/generate/route.ts`
+- `src/app/app/documents/`
+- `src/components/documents/GenerateDocumentModal.tsx`
 
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
