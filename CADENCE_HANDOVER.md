@@ -176,6 +176,34 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 - `src/app/api/timesheets/export/route.ts` — CSV stream handler
 - `bulkApproveTimesheets` in `src/app/app/timesheets/actions.ts`
 
+### Phase 3 fixes + enhancements ✅
+
+#### Click responsiveness
+- **Root cause:** GSAP entrance animations on interactive elements suppressed clicks during/after transitions.
+- **Fix:** `Reveal` and `PageTransition` now use `onComplete` + `enablePointerEvents`; animated shells get `pointer-events: none` during tween while links/buttons inside keep `pointer-events: auto`.
+- **Structure:** interactive cards/links wrapped in `.reveal-item` shells (animated) so the link/button itself is never the GSAP target.
+- Visual timing unchanged — pointer-events only.
+
+#### Start / end time in upload wizard
+- Preview table shows **Start** and **End** columns when mapped.
+- **Hours resolution** (`resolveRowHours` in `validation.ts`): start/end → calculated hours takes precedence; falls back to TOTAL HOURS column. Overnight shifts handled (end < start → +24h).
+- Preview shows **calc** vs **manual** badge on the hours cell.
+- Server submit re-validates with the same `resolveRowHours` logic — never trusts client hours.
+
+#### Superadmin org drill-down
+- New route: `/app/orgs/[slug]/dashboard` — full admin dashboard (pending count, team summary, employee breakdown, activity feed, charts) scoped to that org.
+- Breadcrumb: "All organizations / {org name}" with back link.
+- Superadmin overview cards + Organizations table rows navigate to this route.
+- Shared UI: `AdminDashboardView.tsx`.
+
+#### New / updated files (fixes session)
+- `src/lib/motion.ts` — pointer-event helpers, `REVEAL_ITEM_CLASS`
+- `src/components/motion/Reveal.tsx`, `PageTransition.tsx` — click fix
+- `src/lib/timesheets/validation.ts` — `parseTimeMinutes`, `hoursFromStartEnd`, `resolveRowHours`
+- `src/app/app/dashboard/AdminDashboardView.tsx` — shared admin dashboard
+- `src/app/app/orgs/[slug]/dashboard/page.tsx` — org drill-down
+- `src/app/app/organizations/OrgTableRow.tsx` — clickable org rows
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)
