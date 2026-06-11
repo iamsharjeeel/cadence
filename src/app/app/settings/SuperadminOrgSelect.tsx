@@ -3,6 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import { Select } from "@/components/ui/Select";
+import { ensureArray } from "@/lib/org-utils";
 import { currentSearchParams } from "@/lib/search-params";
 
 export function SuperadminOrgSelect({
@@ -31,7 +32,7 @@ export function SuperadminOrgSelect({
       className="h-10 max-w-md text-sm"
       options={[
         { label: "Select an organization…", value: "" },
-        ...orgs.map((o) => ({ label: o.name, value: o.id })),
+        ...ensureArray(orgs).map((o) => ({ label: o.name, value: o.id })),
       ]}
     />
   );

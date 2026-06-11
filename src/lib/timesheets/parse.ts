@@ -103,6 +103,50 @@ function nonEmptyCount(row: string[]): number {
   return row.filter((c) => String(c).trim() !== "").length;
 }
 
+const URL_LIKE = /^https?:\/\//i;
+
+function isUrlLikeCell(value: string): boolean {
+  const v = value.trim();
+  return URL_LIKE.test(v) || v.includes("docs.google.com/spreadsheets");
+}
+
+/** Rows that are sheet links, titles, or other pre-header metadata. */
+function isJunkLeadingRow(row: string[]): boolean {
+  const cells = row.map((c) => String(c ?? "").trim()).filter(Boolean);
+  if (cells.length === 0) return true;
+  if (cells.length === 1 && isUrlLikeCell(cells[0]!)) return true;
+  if (cells.every(isUrlLikeCell)) return true;
+  return false;
+}
+
+/**
+ * Strips leading blank / URL / title rows before header detection.
+ * Shared by file upload, paste, and Google Sheets import.
+ */
+export function sanitizeImportGrid(grid: Grid): Grid {
+  let start = 0;
+  while (start < grid.rows.length && isJunkLeadingRow(grid.rows[start]!)) {
+    start += 1;
+  }
+  if (start === 0) return grid;
+  return { rows: grid.rows.slice(start) };
+}
+
+/**
+ * Full import pipeline: sanitize → detect header offset → derive table.
+ * Used by all three upload methods so behaviour is identical.
+ */
+export function prepareImportTable(
+  grid: Grid,
+  skipOverride?: number,
+): { grid: Grid; skip: number; table: RawTable } {
+  const cleaned = sanitizeImportGrid(grid);
+  const detected = detectHeaderOffset(cleaned);
+  const skip = skipOverride ?? detected;
+  const table = tableFromGrid(cleaned, skip);
+  return { grid: cleaned, skip, table };
+}
+
 function normalizeHeaderCell(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -136,16 +180,20 @@ function isPayrollHeaderRow(row: string[]): boolean {
  *      most common row width marks where columns stabilise.
  */
 export function detectHeaderOffset(grid: Grid): number {
-  const payrollIdx = grid.rows.findIndex(isPayrollHeaderRow);
+  const payrollIdx = grid.rows.findIndex(
+    (row) => !isJunkLeadingRow(row) && isPayrollHeaderRow(row),
+  );
   if (payrollIdx >= 0) return payrollIdx;
 
   const widths = grid.rows.map(nonEmptyCount);
-  const candidates = widths.filter((w) => w >= 2);
+  const candidates = widths
+    .map((w, i) => ({ w, i }))
+    .filter(({ w, i }) => w >= 2 && !isJunkLeadingRow(grid.rows[i]!));
   if (candidates.length === 0) return 0;
 
-  // Mode of widths; ties resolve to the larger width.
+  const filteredWidths = candidates.map((c) => c.w);
   const freq = new Map<number, number>();
-  for (const w of candidates) freq.set(w, (freq.get(w) ?? 0) + 1);
+  for (const w of filteredWidths) freq.set(w, (freq.get(w) ?? 0) + 1);
   let mode = 0;
   let best = -1;
   for (const [w, count] of freq) {
@@ -155,8 +203,8 @@ export function detectHeaderOffset(grid: Grid): number {
     }
   }
 
-  const idx = widths.findIndex((w) => w >= mode);
-  return idx === -1 ? 0 : idx;
+  const match = candidates.find(({ w }) => w >= mode);
+  return match?.i ?? 0;
 }
 
 /** Derives a header+body table from a grid, skipping `skip` leading rows. */

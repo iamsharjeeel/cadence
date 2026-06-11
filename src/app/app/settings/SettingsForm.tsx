@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { PERIOD_CADENCES } from "@/types/db";
 import { titleCase } from "@/lib/utils";
+import { formatAllowedDomains } from "@/lib/org-utils";
 import type { Organization } from "@/types/db";
 import { updateOwnOrg, type ActionResult } from "./actions";
 
@@ -64,16 +65,20 @@ export function SettingsForm({ org }: { org: Organization }) {
           label="Default cadence"
           name="default_cadence"
           defaultValue={org.default_cadence}
-          options={PERIOD_CADENCES.map((c) => ({
-            label: titleCase(c),
-            value: c,
-          }))}
+          options={
+            Array.isArray(PERIOD_CADENCES)
+              ? PERIOD_CADENCES.map((c) => ({
+                  label: titleCase(c),
+                  value: c,
+                }))
+              : []
+          }
         />
       </div>
       <Input
         label="Allowed domains"
         name="allowed_domains"
-        defaultValue={org.allowed_domains.join(", ")}
+        defaultValue={formatAllowedDomains(org.allowed_domains)}
         placeholder="acme.com, acme.io"
         hint="Comma or space separated."
       />

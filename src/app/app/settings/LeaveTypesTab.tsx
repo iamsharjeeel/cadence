@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import type { LeaveType } from "@/types/db";
+import { ensureArray } from "@/lib/org-utils";
 import {
   applyDefaultsToAll,
   upsertLeaveType,
@@ -58,6 +59,8 @@ export function LeaveTypesTab({
     }
   }
 
+  const safeTypes = ensureArray(types);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -85,7 +88,7 @@ export function LeaveTypesTab({
           </TR>
         </THead>
         <TBody>
-          {types.map((t) => (
+          {safeTypes.map((t) => (
             <TR key={t.id}>
               <TD className="text-sm font-medium">{t.name}</TD>
               <TD className="text-sm capitalize text-muted">

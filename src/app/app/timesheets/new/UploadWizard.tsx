@@ -15,11 +15,10 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
-  detectHeaderOffset,
   parseCsvText,
   parsePastedText,
+  prepareImportTable,
   sampleCsv,
-  tableFromGrid,
 } from "@/lib/timesheets/parse";
 import { autoMatch } from "@/lib/timesheets/columns";
 import {
@@ -94,13 +93,11 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
 
   /** Shared entry point for all three input methods. */
   function applyGrid(g: Grid, rawFile: File | null) {
-    const detected = detectHeaderOffset(g);
-    setGrid(g);
+    const { grid: cleaned, skip: detected, table: tbl } = prepareImportTable(g);
+    setGrid(cleaned);
     setFile(rawFile);
     setDetectedSkip(detected);
     setSkipRows(detected);
-
-    const tbl = tableFromGrid(g, detected);
     setTable(tbl);
 
     // Reuse a stored mapping when it still fits this header → straight to preview.
@@ -126,7 +123,7 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     if (!grid) return;
     const clamped = Math.max(0, Math.min(maxSkip, Math.floor(value)));
     setSkipRows(clamped);
-    const tbl = tableFromGrid(grid, clamped);
+    const { table: tbl } = prepareImportTable(grid, clamped);
     setTable(tbl);
     const { mapping: auto, matched } = autoMatch(tbl);
     setMapping(auto);
@@ -158,9 +155,13 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
       const res = await fetch(
         `/api/google-sheet?url=${encodeURIComponent(googleUrl)}`,
       );
-      const json = await res.json();
+      const json = (await res.json()) as { csv?: string; error?: string };
       if (!res.ok) {
         toast(json.error ?? "Couldn't import that sheet.", "error");
+        return;
+      }
+      if (typeof json.csv !== "string" || !json.csv.trim()) {
+        toast("That sheet came back empty.", "error");
         return;
       }
       const parsed = parseCsvText(json.csv);

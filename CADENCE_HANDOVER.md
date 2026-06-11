@@ -560,6 +560,22 @@ Run migration `20260613000000_phase6_notifications_org_logos.sql` against Supaba
 #### Manual step required
 Run migration `20260614000000_security_rls_storage.sql` against Supabase before deploying.
 
+### Settings `.map` crash + Google Sheets header mapping ✅
+
+#### Settings — `p.map is not a function`
+- **Root cause:** `GeneralSettingsTab` imported `COMMON_CURRENCIES` from `"use server"` `actions.ts` in a Client Component — Next.js does not reliably bundle non-action exports from server files, so the value was not an array at runtime. `Select` then called `options.map()` and threw.
+- **Fix:** Moved `COMMON_CURRENCIES` to `src/lib/constants.ts` (client-safe). Added `src/lib/org-utils.ts` with `normalizeAllowedDomains()`, `formatAllowedDomains()`, `ensureArray()`.
+- **Defensive checks:** `SettingsContent` normalizes `allowed_domains` from DB (null / Postgres literal / string → array); `ensureArray()` on orgs list and leave types; `GeneralSettingsTab`, `LeaveTypesTab`, `SuperadminOrgSelect`, `SettingsForm` guard all `.map()` calls.
+
+#### Google Sheets — URL showing as column header
+- **Root cause:** Google Sheet CSV often has a link or title row before real headers; `detectHeaderOffset` treated a single-cell URL row as the header row.
+- **Fix:** Shared import pipeline in `src/lib/timesheets/parse.ts`:
+  - `sanitizeImportGrid()` — strips leading blank / URL / link rows
+  - `prepareImportTable()` — sanitize → detectHeaderOffset → tableFromGrid (single entry point)
+  - `detectHeaderOffset()` — ignores junk rows when scanning for payroll header and width mode
+- **UploadWizard:** all three methods (file, paste, Google Sheets) call `prepareImportTable()` via `applyGrid()`; skip-rows changes use the same helper.
+- **HeaderMapping:** defensive `Array.isArray(table.headers)` before mapping.
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

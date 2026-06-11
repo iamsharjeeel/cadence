@@ -40,7 +40,7 @@ export function HeaderMapping({
       label: REQUIRED_FIELDS.includes(field) ? "Select a column…" : "Not mapped",
       value: "",
     },
-    ...table.headers.map((h, i) => ({
+    ...(Array.isArray(table.headers) ? table.headers : []).map((h, i) => ({
       label: h || `Column ${i + 1}`,
       value: String(i),
     })),
@@ -77,7 +77,9 @@ export function HeaderMapping({
         <p className="text-xs text-muted">
           Header row preview:{" "}
           <span className="text-ink">
-            {table.headers.filter(Boolean).join(" · ") || "—"}
+            {Array.isArray(table.headers)
+              ? table.headers.filter(Boolean).join(" · ")
+              : "—"}
           </span>
         </p>
       </div>

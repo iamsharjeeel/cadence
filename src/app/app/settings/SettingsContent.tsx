@@ -8,6 +8,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireRole } from "@/lib/auth";
 import { getOrgLeaveTypes } from "@/lib/leave/queries";
+import { ensureArray, normalizeAllowedDomains } from "@/lib/org-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Organization } from "@/types/db";
@@ -36,13 +37,15 @@ export async function SettingsContent({
   const adminDb = createAdminClient();
   const supabase = createClient();
 
-  const orgs = isSuperadmin
-    ? (
-        await adminDb.from("organizations").select("id, name").order("name")
-      ).data ?? []
-    : [];
+  const orgs = ensureArray(
+    isSuperadmin
+      ? (
+          await adminDb.from("organizations").select("id, name").order("name")
+        ).data
+      : [],
+  );
 
-  const { data: org } = selectedOrgId
+  const { data: orgRaw } = selectedOrgId
     ? await (isSuperadmin ? adminDb : supabase)
         .from("organizations")
         .select("*")
@@ -50,9 +53,16 @@ export async function SettingsContent({
         .single()
     : { data: null };
 
+  const org = orgRaw
+    ? ({
+        ...orgRaw,
+        allowed_domains: normalizeAllowedDomains(orgRaw.allowed_domains),
+      } as Organization)
+    : null;
+
   const leaveTypes =
     selectedOrgId && tab === "leave"
-      ? await getOrgLeaveTypes(selectedOrgId)
+      ? ensureArray(await getOrgLeaveTypes(selectedOrgId))
       : [];
 
   return (
@@ -97,7 +107,7 @@ export async function SettingsContent({
           />
         ) : org ? (
           <GeneralSettingsTab
-            org={org as Organization}
+            org={org}
             isAdmin={!isSuperadmin}
             orgIdField={isSuperadmin ? selectedOrgId : undefined}
           />

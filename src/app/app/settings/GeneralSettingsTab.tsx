@@ -11,13 +11,14 @@ import { MotionModal } from "@/components/motion/MotionModal";
 import { useToast } from "@/components/ui/Toast";
 import { PERIOD_CADENCES } from "@/types/db";
 import { titleCase } from "@/lib/utils";
+import { COMMON_CURRENCIES } from "@/lib/constants";
+import { formatAllowedDomains } from "@/lib/org-utils";
 import type { Organization } from "@/types/db";
 import {
   updateOrgDetails,
   updateOrgDomains,
   uploadOrgLogo,
   suspendAllEmployees,
-  COMMON_CURRENCIES,
   type ActionResult,
 } from "./actions";
 
@@ -70,6 +71,16 @@ export function GeneralSettingsTab({
     <input type="hidden" name="org_id" value={orgIdField} />
   ) : null;
 
+  const currencyOptions = Array.isArray(COMMON_CURRENCIES)
+    ? COMMON_CURRENCIES.map((c) => ({ label: c, value: c }))
+    : [];
+  const cadenceOptions = Array.isArray(PERIOD_CADENCES)
+    ? PERIOD_CADENCES.map((c) => ({
+        label: titleCase(c),
+        value: c,
+      }))
+    : [];
+
   return (
     <div className="flex flex-col gap-8">
       <section className="rounded-[var(--radius)] border bg-surface p-6">
@@ -101,16 +112,13 @@ export function GeneralSettingsTab({
               label="Base currency"
               name="base_currency"
               defaultValue={org.base_currency}
-              options={COMMON_CURRENCIES.map((c) => ({ label: c, value: c }))}
+              options={currencyOptions}
             />
             <Select
               label="Default pay period cadence"
               name="default_cadence"
               defaultValue={org.default_cadence}
-              options={PERIOD_CADENCES.map((c) => ({
-                label: titleCase(c),
-                value: c,
-              }))}
+              options={cadenceOptions}
             />
           </div>
           <div>
@@ -129,7 +137,7 @@ export function GeneralSettingsTab({
           <Input
             label="Domains"
             name="allowed_domains"
-            defaultValue={org.allowed_domains.join(", ")}
+            defaultValue={formatAllowedDomains(org.allowed_domains)}
             placeholder="acme.com, acme.io"
             hint="Comma or space separated. Removing a domain with active employees is blocked."
           />

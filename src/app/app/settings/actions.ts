@@ -10,23 +10,12 @@ import {
   validateDomains,
   validateOrgName,
 } from "@/lib/validation";
+import { normalizeAllowedDomains } from "@/lib/org-utils";
+import { COMMON_CURRENCIES } from "@/lib/constants";
 import type { PeriodCadence } from "@/types/db";
 import { PERIOD_CADENCES } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string };
-
-const COMMON_CURRENCIES = [
-  "USD",
-  "EUR",
-  "GBP",
-  "AUD",
-  "NZD",
-  "CAD",
-  "SGD",
-  "JPY",
-  "CHF",
-  "HKD",
-];
 
 export { COMMON_CURRENCIES };
 
@@ -110,7 +99,7 @@ export async function updateOrgDomains(
     .eq("id", orgId)
     .single();
 
-  const removed = (org?.allowed_domains ?? []).filter(
+  const removed = normalizeAllowedDomains(org?.allowed_domains).filter(
     (d) => !domains.value.includes(d),
   );
 
