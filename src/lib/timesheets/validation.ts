@@ -73,6 +73,72 @@ export function parseHours(input: string): number | null {
   return Math.round(n * 100) / 100;
 }
 
+/** Parses a clock time to minutes since midnight, or null if unparseable. */
+export function parseTimeMinutes(input: string): number | null {
+  const value = input.trim().toLowerCase();
+  if (!value) return null;
+
+  const h24 = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (h24) {
+    const hours = +h24[1];
+    const minutes = +h24[2];
+    if (hours > 23 || minutes > 59) return null;
+    return hours * 60 + minutes;
+  }
+
+  const h12 = value.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/);
+  if (h12) {
+    let hours = +h12[1];
+    const minutes = +h12[2];
+    const meridiem = h12[3];
+    if (hours < 1 || hours > 12 || minutes > 59) return null;
+    if (meridiem === "pm" && hours !== 12) hours += 12;
+    if (meridiem === "am" && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+
+  return null;
+}
+
+/**
+ * Hours between start and end clock times. When end < start the shift crosses
+ * midnight (+24h). Returns null when either time is unparseable.
+ */
+export function hoursFromStartEnd(start: string, end: string): number | null {
+  const startMin = parseTimeMinutes(start);
+  const endMin = parseTimeMinutes(end);
+  if (startMin === null || endMin === null) return null;
+
+  let diff = endMin - startMin;
+  if (diff <= 0) diff += 24 * 60;
+
+  return Math.round((diff / 60) * 100) / 100;
+}
+
+/**
+ * Resolves row hours: start/end calculation takes precedence over the hours
+ * column. Shared by client preview and server submit re-validation.
+ */
+export function resolveRowHours(raw: MappedRow): {
+  hours: number | null;
+  source: "calc" | "manual" | null;
+} {
+  const start = raw.start_time.trim();
+  const end = raw.end_time.trim();
+
+  if (start && end) {
+    const calculated = hoursFromStartEnd(start, end);
+    if (calculated !== null) {
+      return { hours: calculated, source: "calc" };
+    }
+  }
+
+  const manual = parseHours(raw.hours);
+  if (manual !== null) return { hours: manual, source: "manual" };
+
+  return { hours: null, source: null };
+}
+
 const TRUTHY = new Set(["true", "yes", "y", "1", "billable", "t"]);
 const FALSY = new Set(["false", "no", "n", "0", "nonbillable", "non-billable", "f"]);
 
@@ -95,17 +161,24 @@ export function validateMappedRow(raw: MappedRow, id: string): ValidatedRow {
   if (!raw.date.trim()) errors.date = "Date is required.";
   else if (!row_date) errors.date = "Unrecognized date format.";
 
-  const hours = parseHours(raw.hours);
-  if (!raw.hours.trim()) errors.hours = "Hours is required.";
-  else if (hours === null) errors.hours = "Hours must be a number.";
-  else if (hours <= 0 || hours > 24) errors.hours = "Hours must be 0–24.";
+  const { hours, source: hoursSource } = resolveRowHours(raw);
+  const start = raw.start_time.trim();
+  const end = raw.end_time.trim();
+
+  if (hours === null) {
+    if (!raw.hours.trim() && !(start && end)) {
+      errors.hours = "Hours is required.";
+    } else if (start && end) {
+      errors.hours = "Couldn't parse start/end times.";
+    } else {
+      errors.hours = "Hours must be a number.";
+    }
+  } else if (hours <= 0 || hours > 24) {
+    errors.hours = "Hours must be greater than 0 and at most 24.";
+  }
 
   const project = raw.project.trim() || null;
 
-  // start/end time are optional passthrough — folded into the description since
-  // the schema has no dedicated time columns.
-  const start = raw.start_time.trim();
-  const end = raw.end_time.trim();
   const timeRange =
     start && end ? `${start}–${end}` : start || end || "";
   const descText = raw.description.trim();
@@ -124,6 +197,7 @@ export function validateMappedRow(raw: MappedRow, id: string): ValidatedRow {
     raw,
     row_date,
     hours,
+    hoursSource,
     project,
     description,
     billable,

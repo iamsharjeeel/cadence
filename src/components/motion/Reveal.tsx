@@ -3,11 +3,20 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 
-import { DURATION, EASE, RISE, prefersReducedMotion } from "@/lib/motion";
+import {
+  DURATION,
+  EASE,
+  REVEAL_ITEM_CLASS,
+  RISE,
+  disablePointerEventsDuringAnim,
+  enablePointerEvents,
+  prefersReducedMotion,
+} from "@/lib/motion";
 
 /**
- * Staggered reveal for lists/cards on mount: direct children fade + rise 8px.
- * Respects prefers-reduced-motion (renders instantly, no transforms).
+ * Staggered reveal for lists/cards on mount. Animates `.reveal-item` children
+ * when present, otherwise direct children. Interactive descendants (links,
+ * buttons) keep pointer-events throughout; animated shells release on complete.
  */
 export function Reveal({
   children,
@@ -25,7 +34,16 @@ export function Reveal({
     if (!el) return;
     if (prefersReducedMotion()) return;
 
-    const targets = el.children.length ? Array.from(el.children) : [el];
+    const items = el.querySelectorAll(`.${REVEAL_ITEM_CLASS}`);
+    const targets =
+      items.length > 0
+        ? Array.from(items)
+        : el.children.length
+          ? Array.from(el.children)
+          : [el];
+
+    disablePointerEventsDuringAnim(targets);
+
     const ctx = gsap.context(() => {
       gsap.from(targets, {
         opacity: 0,
@@ -34,14 +52,20 @@ export function Reveal({
         ease: EASE,
         stagger,
         clearProps: "transform,opacity",
+        onComplete: () => {
+          enablePointerEvents(targets);
+        },
       });
     }, el);
 
-    return () => ctx.revert();
+    return () => {
+      enablePointerEvents(targets);
+      ctx.revert();
+    };
   }, [stagger]);
 
   return (
-    <div ref={ref} className={className}>
+    <div ref={ref} className={className} style={{ pointerEvents: "auto" }}>
       {children}
     </div>
   );

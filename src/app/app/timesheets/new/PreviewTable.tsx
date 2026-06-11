@@ -2,6 +2,7 @@
 
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { CountUp } from "@/components/motion/CountUp";
 import { cn } from "@/lib/utils";
 import type { CanonicalField, ValidatedRow } from "@/lib/timesheets/types";
@@ -11,9 +12,13 @@ const ERROR_BG = "bg-[rgba(220,38,38,0.08)]";
 export function PreviewTable({
   rows,
   onDelete,
+  showStartTime = false,
+  showEndTime = false,
 }: {
   rows: ValidatedRow[];
   onDelete: (id: string) => void;
+  showStartTime?: boolean;
+  showEndTime?: boolean;
 }) {
   const errorCount = rows.filter((r) => !r.isValid).length;
 
@@ -42,6 +47,8 @@ export function PreviewTable({
           <THead className="sticky top-0 bg-surface">
             <TR>
               <TH>Date</TH>
+              {showStartTime && <TH>Start</TH>}
+              {showEndTime && <TH>End</TH>}
               <TH>Hours</TH>
               <TH>Project</TH>
               <TH>Description</TH>
@@ -55,8 +62,29 @@ export function PreviewTable({
                 <Cell row={r} field="date">
                   {r.raw.date || "—"}
                 </Cell>
+                {showStartTime && (
+                  <Cell row={r} field="start_time">
+                    {r.raw.start_time || "—"}
+                  </Cell>
+                )}
+                {showEndTime && (
+                  <Cell row={r} field="end_time">
+                    {r.raw.end_time || "—"}
+                  </Cell>
+                )}
                 <Cell row={r} field="hours">
-                  {r.raw.hours || "—"}
+                  <span className="inline-flex items-center gap-2">
+                    <span>
+                      {r.hours !== null
+                        ? r.hours
+                        : r.raw.hours || "—"}
+                    </span>
+                    {r.hoursSource && (
+                      <Badge tone={r.hoursSource === "calc" ? "accent" : "muted"}>
+                        {r.hoursSource === "calc" ? "calc" : "manual"}
+                      </Badge>
+                    )}
+                  </span>
                 </Cell>
                 <Cell row={r} field="project">
                   {r.raw.project || "—"}

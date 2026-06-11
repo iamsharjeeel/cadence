@@ -419,6 +419,8 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
         <CardContent>
           <PreviewTable
             rows={rows}
+            showStartTime={mapping.start_time !== null}
+            showEndTime={mapping.end_time !== null}
             onDelete={(id) => setRows((rs) => rs.filter((r) => r.id !== id))}
           />
         </CardContent>

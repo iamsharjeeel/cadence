@@ -4,7 +4,14 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
 
-import { DURATION, EASE, RISE, prefersReducedMotion } from "@/lib/motion";
+import {
+  DURATION,
+  EASE,
+  INTERACTIVE_SELECTOR,
+  RISE,
+  enablePointerEvents,
+  prefersReducedMotion,
+} from "@/lib/motion";
 
 /**
  * Route transition: fade + 8px rise, 300ms, power2.out. Re-runs whenever the
@@ -19,6 +26,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     if (!el) return;
     if (prefersReducedMotion()) return;
 
+    el.querySelectorAll(INTERACTIVE_SELECTOR).forEach((child) => {
+      (child as HTMLElement).style.pointerEvents = "auto";
+    });
+
     const ctx = gsap.context(() => {
       gsap.fromTo(
         el,
@@ -29,12 +40,22 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
           duration: DURATION,
           ease: EASE,
           clearProps: "transform,opacity",
+          onComplete: () => {
+            enablePointerEvents(el);
+          },
         },
       );
     }, el);
 
-    return () => ctx.revert();
+    return () => {
+      enablePointerEvents(el);
+      ctx.revert();
+    };
   }, [pathname]);
 
-  return <div ref={ref}>{children}</div>;
+  return (
+    <div ref={ref} style={{ pointerEvents: "auto" }}>
+      {children}
+    </div>
+  );
 }

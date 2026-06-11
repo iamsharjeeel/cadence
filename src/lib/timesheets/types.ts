@@ -57,6 +57,8 @@ export type BuildOptions = {
 /** Validation outcome for one row (keyed by the fields that can error). */
 export type RowErrors = Partial<Record<CanonicalField, string>>;
 
+export type HoursSource = "calc" | "manual";
+
 export type ValidatedRow = {
   /** Stable client-side id for list operations (delete, keys). */
   id: string;
@@ -64,6 +66,8 @@ export type ValidatedRow = {
   /** Normalized values when valid. */
   row_date: string | null;
   hours: number | null;
+  /** Whether hours came from start/end times or the hours column. */
+  hoursSource: HoursSource | null;
   project: string | null;
   description: string | null;
   billable: boolean;

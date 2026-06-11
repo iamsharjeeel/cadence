@@ -148,7 +148,9 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 
 **Superadmin view:**
 - Org-level summary cards: name, employee count, pending approvals, approved hours.
-- Click org card → drill into that org's admin dashboard (`?org=<id>`, server-validated).
+- Click org card → dedicated org drill-down at `/app/orgs/[slug]/dashboard` (full admin view scoped to that org).
+- Legacy `?org=<uuid>` links redirect to the slug route.
+- Organizations tab (`/app/organizations`): each org row is clickable → same drill-down route.
 
 #### CSV export (`GET /api/timesheets/export`)
 - Admin/superadmin only; role re-checked server-side.

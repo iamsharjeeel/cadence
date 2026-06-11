@@ -1,4 +1,8 @@
-import { normalizeDate, parseHours, validateMappedRow } from "./validation";
+import {
+  normalizeDate,
+  resolveRowHours,
+  validateMappedRow,
+} from "./validation";
 import type {
   BuildOptions,
   ColumnMapping,
@@ -86,7 +90,7 @@ export function buildValidatedRows(
     const filled: MappedRow = { ...raw, date: filledDate };
 
     // 3. Optionally skip zero-hour rows instead of flagging them.
-    if (options.skipZeroHours && parseHours(filled.hours) === 0) continue;
+    if (options.skipZeroHours && resolveRowHours(filled).hours === 0) continue;
 
     out.push(validateMappedRow(filled, nextId()));
   }

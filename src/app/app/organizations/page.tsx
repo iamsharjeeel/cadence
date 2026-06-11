@@ -8,14 +8,14 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
+import { Table, THead, TBody, TR, TH } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, titleCase } from "@/lib/utils";
 import type { Organization } from "@/types/db";
 import { CreateOrgForm } from "./CreateOrgForm";
+import { OrgTableRow } from "./OrgTableRow";
 
 export const metadata: Metadata = { title: "Organizations" };
 
@@ -68,35 +68,7 @@ export default async function OrganizationsPage() {
                   </THead>
                   <TBody>
                     {orgs.map((org) => (
-                      <TR key={org.id}>
-                        <TD>
-                          <p className="text-sm font-medium text-ink">
-                            {org.name}
-                          </p>
-                          <p className="text-xs text-muted">
-                            /{org.slug} · {org.base_currency}
-                          </p>
-                        </TD>
-                        <TD>
-                          {org.allowed_domains.length === 0 ? (
-                            <span className="text-xs text-muted">—</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {org.allowed_domains.map((d) => (
-                                <Badge key={d} tone="accent">
-                                  {d}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </TD>
-                        <TD className="text-sm text-muted">
-                          {titleCase(org.default_cadence)}
-                        </TD>
-                        <TD className="tnum text-sm text-muted">
-                          {formatDate(org.created_at)}
-                        </TD>
-                      </TR>
+                      <OrgTableRow key={org.id} org={org} />
                     ))}
                   </TBody>
                 </Table>
