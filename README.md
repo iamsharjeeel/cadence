@@ -1,12 +1,39 @@
 # Cadence
 
 A premium, multi-tenant timesheet portal. Employees submit timesheets; admins
-approve them. **This repo is Phase 1 — the foundation only:** authentication,
-multi-tenant organizations, role-based access, profile/employee management, and
-the design system.
+approve them.
 
-> Not yet built (later phases): timesheet upload, CSV mapping, dashboards,
-> charts, FX, CFO webhook. Clean, typed seams are left where these plug in.
+- **Phase 1 — foundation:** auth, multi-tenant orgs, role-based access,
+  profile/employee management, and the design system.
+- **Phase 2 — timesheets:** three-method upload (file / paste / Google Sheet),
+  fuzzy header mapping, live validation, period overlap guard, submit/approve/
+  reject with rate snapshots, and a dormant webhook seam.
+
+> Not yet built (later phases): dashboards, charts, FX, live CFO webhook
+> delivery. Clean, typed seams are left where these plug in.
+
+## Phase 2 — Timesheets
+
+- **Upload** (`/app/timesheets/new`) — one pipeline (parse → map → validate →
+  submit) fed by three inputs:
+  1. Drag/drop or browse (`.csv` / `.xlsx`; `.xlsm`/legacy rejected; 10MB cap;
+     parsed in-browser via PapaParse + SheetJS).
+  2. Clipboard paste (⌘/Ctrl + V) of tab-separated spreadsheet data.
+  3. Public Google Sheet link (fetched server-side via `/api/google-sheet` to
+     avoid CORS; never uses Google OAuth).
+  - Header mapping auto-matches columns fuzzily and is **persisted per org** in
+    `localStorage`, so repeat uploads skip straight to preview.
+  - Live row-by-row validation; invalid rows are highlighted and deletable;
+    submit is blocked while errors remain.
+- **Submit** re-validates every row server-side, enforces a period-overlap
+  guard, uploads the raw file to `timesheets/{org_id}/{employee_id}/{id}/raw`,
+  inserts the timesheet + rows, and audits `timesheet_submitted`.
+- **Review** (`/app/timesheets`) — employees see their own; admins see their
+  org; superadmins see all (filter by status + employee). Approve snapshots the
+  employee's **current** rate from the DB, computes the total server-side
+  (`hourly = Σhours × rate`; salaried/fixed = rate), records approver/timestamp,
+  inserts a dormant `webhook_deliveries` row, and audits `timesheet_approved`.
+  Reject requires a note. File reads always use 1-hour **signed URLs**.
 
 ## Stack
 
@@ -61,8 +88,12 @@ bundle.
 | Role | Can |
 | --- | --- |
 | `superadmin` | Platform layer — create/manage orgs, see everything (`/app/organizations`) |
-| `admin` | Manage own org's employees, rates, approvals, settings (`/app/employees`, `/app/settings`) |
-| `employee` | View own profile; submit timesheets (later phase) |
+| `admin` | Manage own org's employees, rates, approvals, settings; review/approve org timesheets |
+| `employee` | View own profile; submit and view own timesheets |
+
+> Superadmins also get the **Employees** tab — every member across all orgs (with
+> an Org column) and the same approve / role / rate / status controls, scoped so
+> superadmin can act on any org while admins are limited to their own.
 
 ## Bootstrapping the first superadmin
 
