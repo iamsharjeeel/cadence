@@ -3,19 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { writeAudit } from "@/lib/audit";
 import { requireActiveProfile } from "@/lib/auth";
-import { encryptBankField } from "@/lib/bank-crypto";
+import { bankingToDbPayload, parseBankingFormData } from "@/lib/banking";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateIsoDate, validateMaxLength } from "@/lib/validation";
 
 export type ActionResult = { ok: boolean; message: string };
 
-const STEPS = [
-  "personal",
-  "employment",
-  "banking",
-  "emergency",
-  "documents",
-  "complete",
-] as const;
+const REQUIRED_STEPS = ["personal", "employment", "banking"] as const;
 
 async function markStep(
   profileId: string,
@@ -38,13 +32,26 @@ export async function savePersonal(formData: FormData): Promise<ActionResult> {
   const profile = await requireActiveProfile();
   if (!profile.org_id) return { ok: false, message: "No organization." };
 
-  const fullName = String(formData.get("full_name") ?? "").trim();
-  const address = String(formData.get("address") ?? "").trim();
+  const fullNameV = validateMaxLength(
+    String(formData.get("full_name") ?? ""),
+    120,
+    "Name",
+  );
+  if (!fullNameV.ok) return { ok: false, message: fullNameV.error };
+  const addressV = validateMaxLength(
+    String(formData.get("address") ?? ""),
+    500,
+    "Address",
+  );
+  if (!addressV.ok) return { ok: false, message: addressV.error };
 
   const db = createAdminClient();
   const { error } = await db
     .from("profiles")
-    .update({ full_name: fullName || profile.full_name, address: address || null })
+    .update({
+      full_name: fullNameV.value || profile.full_name,
+      address: addressV.value || null,
+    })
     .eq("id", profile.id);
   if (error) return { ok: false, message: "Couldn't save personal details." };
 
@@ -57,15 +64,26 @@ export async function saveEmployment(formData: FormData): Promise<ActionResult> 
   const profile = await requireActiveProfile();
   if (!profile.org_id) return { ok: false, message: "No organization." };
 
-  const jobTitle = String(formData.get("job_title") ?? "").trim();
-  const startDate = String(formData.get("start_date") ?? "") || null;
+  const jobTitleV = validateMaxLength(
+    String(formData.get("job_title") ?? ""),
+    80,
+    "Job title",
+  );
+  if (!jobTitleV.ok) return { ok: false, message: jobTitleV.error };
+  const startDateRaw = String(formData.get("start_date") ?? "");
+  let startDate: string | null = null;
+  if (startDateRaw && !profile.start_date) {
+    const startV = validateIsoDate(startDateRaw, "Start date");
+    if (!startV.ok) return { ok: false, message: startV.error };
+    startDate = startV.value;
+  }
 
   const db = createAdminClient();
   const { error } = await db
     .from("profiles")
     .update({
-      ...(jobTitle ? { job_title: jobTitle } : {}),
-      ...(startDate && !profile.start_date ? { start_date: startDate } : {}),
+      ...(jobTitleV.value ? { job_title: jobTitleV.value } : {}),
+      ...(startDate ? { start_date: startDate } : {}),
     })
     .eq("id", profile.id);
   if (error) return { ok: false, message: "Couldn't save employment details." };
@@ -80,20 +98,10 @@ export async function saveBanking(formData: FormData): Promise<ActionResult> {
   if (!profile.org_id) return { ok: false, message: "No organization." };
 
   const db = createAdminClient();
+  const banking = parseBankingFormData(formData);
   const { error } = await db
     .from("profiles")
-    .update({
-      bank_name: String(formData.get("bank_name") ?? "") || null,
-      bank_account_name: String(formData.get("bank_account_name") ?? "") || null,
-      bank_account_number: encryptBankField(
-        String(formData.get("bank_account_number") ?? ""),
-      ),
-      bank_bsb_swift: encryptBankField(
-        String(formData.get("bank_bsb_swift") ?? ""),
-      ),
-      tax_id: String(formData.get("tax_id") ?? "") || null,
-      payment_terms_days: Number(formData.get("payment_terms_days") ?? 14) || 14,
-    })
+    .update(bankingToDbPayload(banking, profile))
     .eq("id", profile.id);
   if (error) return { ok: false, message: "Couldn't save banking details." };
 
@@ -139,12 +147,27 @@ export async function completeOnboarding(): Promise<ActionResult> {
   if (!profile.org_id) return { ok: false, message: "No organization." };
 
   const db = createAdminClient();
+  const { data: steps } = await db
+    .from("onboarding_steps")
+    .select("step")
+    .eq("employee_id", profile.id)
+    .not("completed_at", "is", null);
+
+  const done = new Set((steps ?? []).map((s) => s.step));
+  const missing = REQUIRED_STEPS.filter((s) => !done.has(s));
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      message: `Complete required steps first: ${missing.join(", ")}.`,
+    };
+  }
+
   await db
     .from("profiles")
     .update({ onboarding_complete: true })
     .eq("id", profile.id);
 
-  for (const step of STEPS) {
+  for (const step of [...REQUIRED_STEPS, "emergency", "documents", "complete"]) {
     await markStep(profile.id, profile.org_id, step);
   }
 

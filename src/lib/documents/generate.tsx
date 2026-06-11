@@ -17,6 +17,15 @@ export type GenerateResult =
   | { ok: true; documentId: string; documentNumber: string }
   | { ok: false; message: string };
 
+async function rollbackDocument(
+  db: ReturnType<typeof createAdminClient>,
+  documentId: string,
+  filePath: string,
+): Promise<void> {
+  await db.from("documents").delete().eq("id", documentId);
+  await db.storage.from("documents").remove([filePath]);
+}
+
 export async function generateAndEmailDocument(params: {
   actor: Profile;
   timesheet: Timesheet;
@@ -38,6 +47,26 @@ export async function generateAndEmailDocument(params: {
 
   if (!employee || !org) {
     return { ok: false, message: "Missing employee or organization data." };
+  }
+
+  const bankAccount = decryptBankField(employee.bank_account_number);
+  const bankBsb = decryptBankField(employee.bank_bsb_swift);
+
+  if (type === "invoice") {
+    if (!employee.bank_name || !employee.bank_account_name) {
+      return {
+        ok: false,
+        message:
+          "Employee banking details are incomplete. Add bank name and account name on their profile before generating an invoice.",
+      };
+    }
+    if (!bankAccount) {
+      return {
+        ok: false,
+        message:
+          "Employee account number is missing. Add banking details on their profile before generating an invoice.",
+      };
+    }
   }
 
   const totalHours = (rows ?? []).reduce(
@@ -86,68 +115,70 @@ export async function generateAndEmailDocument(params: {
   const dueDate = new Date(issueDate);
   dueDate.setDate(dueDate.getDate() + paymentTerms);
 
-  const bankAccount = decryptBankField(employee.bank_account_number);
-  const bankBsb = decryptBankField(employee.bank_bsb_swift);
-
   let pdfBuffer: Buffer;
-  if (type === "pay_advice") {
-    pdfBuffer = await renderToBuffer(
-      <PayAdvicePdf
-        data={{
-          orgName: org.name,
-          orgLogoUrl: org.logo_url,
-          documentNumber: docNumber,
-          issueDate: issueLabel,
-          employeeName: employee.full_name?.trim() || employee.email,
-          employeeEmail: employee.email,
-          employeeRole: titleCase(employee.role),
-          periodStart: formatDate(timesheet.period_start),
-          periodEnd: formatDate(timesheet.period_end),
-          totalHours,
-          rateLabel,
-          subtotalLabel,
-          gstEnabled,
-          gstRate,
-          gstLabel,
-          totalLabel,
-          approvedBy: approverName,
-          approvedAt: formatDate(timesheet.approved_at),
-        }}
-      />,
-    );
-  } else {
-    pdfBuffer = await renderToBuffer(
-      <InvoicePdf
-        data={{
-          orgName: org.name,
-          orgLogoUrl: org.logo_url,
-          documentNumber: docNumber,
-          issueDate: issueLabel,
-          dueDate: dueDate.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          }),
-          contractorName: employee.full_name?.trim() || employee.email,
-          contractorAddress: employee.address,
-          taxId: employee.tax_id,
-          periodStart: formatDate(timesheet.period_start),
-          periodEnd: formatDate(timesheet.period_end),
-          totalHours,
-          rateLabel,
-          subtotalLabel,
-          gstEnabled,
-          gstRate,
-          gstLabel,
-          totalLabel,
-          bankName: employee.bank_name,
-          accountName: employee.bank_account_name,
-          accountNumber: bankAccount || null,
-          bsbSwift: bankBsb || null,
-          paymentTermsDays: paymentTerms,
-        }}
-      />,
-    );
+  try {
+    if (type === "pay_advice") {
+      pdfBuffer = await renderToBuffer(
+        <PayAdvicePdf
+          data={{
+            orgName: org.name,
+            orgLogoUrl: org.logo_url,
+            documentNumber: docNumber,
+            issueDate: issueLabel,
+            employeeName: employee.full_name?.trim() || employee.email,
+            employeeEmail: employee.email,
+            employeeRole: titleCase(employee.role),
+            periodStart: formatDate(timesheet.period_start),
+            periodEnd: formatDate(timesheet.period_end),
+            totalHours,
+            rateLabel,
+            subtotalLabel,
+            gstEnabled,
+            gstRate,
+            gstLabel,
+            totalLabel,
+            approvedBy: approverName,
+            approvedAt: formatDate(timesheet.approved_at),
+          }}
+        />,
+      );
+    } else {
+      pdfBuffer = await renderToBuffer(
+        <InvoicePdf
+          data={{
+            orgName: org.name,
+            orgLogoUrl: org.logo_url,
+            documentNumber: docNumber,
+            issueDate: issueLabel,
+            dueDate: dueDate.toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            }),
+            contractorName: employee.full_name?.trim() || employee.email,
+            contractorAddress: employee.address,
+            taxId: employee.tax_id,
+            periodStart: formatDate(timesheet.period_start),
+            periodEnd: formatDate(timesheet.period_end),
+            totalHours,
+            rateLabel,
+            subtotalLabel,
+            gstEnabled,
+            gstRate,
+            gstLabel,
+            totalLabel,
+            bankName: employee.bank_name,
+            accountName: employee.bank_account_name,
+            accountNumber: bankAccount || null,
+            bsbSwift: bankBsb || null,
+            paymentTermsDays: paymentTerms,
+          }}
+        />,
+      );
+    }
+  } catch (e) {
+    console.error("[documents/generate] PDF render failed:", e);
+    return { ok: false, message: "Couldn't generate the PDF." };
   }
 
   const filePath = `${timesheet.org_id}/${timesheet.employee_id}/${documentId}.pdf`;
@@ -179,6 +210,7 @@ export async function generateAndEmailDocument(params: {
     generated_by: actor.id,
   });
   if (insertErr) {
+    await db.storage.from("documents").remove([filePath]);
     return { ok: false, message: "Couldn't create the document record." };
   }
 
@@ -221,26 +253,33 @@ export async function generateAndEmailDocument(params: {
       ],
     });
 
-    if (!emailErr) {
-      await db
-        .from("documents")
-        .update({ emailed_at: new Date().toISOString() })
-        .eq("id", documentId);
-
-      await writeAudit({
-        actorId: actor.id,
-        orgId: timesheet.org_id,
-        action: "document_emailed",
-        entity: "documents",
-        payload: { document_id: documentId, to: employee.email },
-      });
+    if (emailErr) {
+      console.error("[resend] email failed:", emailErr);
+      await rollbackDocument(db, documentId, filePath);
+      return {
+        ok: false,
+        message: "Document was generated but email delivery failed. Try again.",
+      };
     }
+
+    await db
+      .from("documents")
+      .update({ emailed_at: new Date().toISOString() })
+      .eq("id", documentId);
+
+    await writeAudit({
+      actorId: actor.id,
+      orgId: timesheet.org_id,
+      action: "document_emailed",
+      entity: "documents",
+      payload: { document_id: documentId, to: employee.email },
+    });
   } catch (e) {
     console.error("[resend] email failed:", e);
+    await rollbackDocument(db, documentId, filePath);
     return {
-      ok: true,
-      documentId,
-      documentNumber: docNumber,
+      ok: false,
+      message: "Document was generated but email delivery failed. Try again.",
     };
   }
 

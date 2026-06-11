@@ -18,10 +18,16 @@ function csvEscape(value: string | number | null | undefined): string {
 export async function GET(request: NextRequest) {
   const profile = await getProfile();
   if (!profile || profile.status !== "active") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    );
   }
   if (profile.role !== "admin" && profile.role !== "superadmin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   const from = request.nextUrl.searchParams.get("from") ?? "";
@@ -29,13 +35,13 @@ export async function GET(request: NextRequest) {
   if (!ISO_DATE.test(from) || !ISO_DATE.test(to)) {
     return NextResponse.json(
       { error: "Valid from and to dates are required." },
-      { status: 400 },
+      { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
   if (from > to) {
     return NextResponse.json(
       { error: "From date must be on or before to date." },
-      { status: 400 },
+      { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
 

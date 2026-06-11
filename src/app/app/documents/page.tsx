@@ -130,7 +130,7 @@ export default async function DocumentsPage({
           title="Documents"
           description="Pay documents and official contracts, policies, and offer letters."
         />
-        <DocumentsTabs />
+        <DocumentsTabs tab={tab} />
         <OfficialDocumentsSection
           documents={withNames}
           isManager={isManager}

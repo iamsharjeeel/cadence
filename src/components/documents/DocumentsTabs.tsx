@@ -4,14 +4,14 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
+import { currentSearchParams } from "@/lib/search-params";
 
-export function DocumentsTabs() {
+export function DocumentsTabs({ tab = "pay" }: { tab?: string }) {
   const pathname = usePathname();
-  const params = useSearchParams();
-  const tab = params.get("tab") ?? "pay";
+  const searchParams = useSearchParams();
 
   function href(t: string) {
-    const next = new URLSearchParams(params.toString());
+    const next = currentSearchParams(searchParams);
     next.set("tab", t);
     return `${pathname}?${next.toString()}`;
   }

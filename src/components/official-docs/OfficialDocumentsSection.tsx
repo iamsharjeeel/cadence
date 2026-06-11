@@ -14,6 +14,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import type { OfficialDocument } from "@/types/db";
+import { currentSearchParams } from "@/lib/search-params";
 import { OfficialDocumentsPanel } from "./OfficialDocumentsPanel";
 import { OfficialDocumentUploadModal } from "./OfficialDocumentUploadModal";
 
@@ -37,7 +38,7 @@ export function OfficialDocumentsSection({
   const [uploadOpen, setUploadOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
 
   const orgId = selectedOrgId ?? orgOptions?.[0]?.id ?? "";
 
@@ -47,7 +48,7 @@ export function OfficialDocumentsSection({
   }, [employees, isSuperadmin, orgId]);
 
   function setOrg(id: string) {
-    const next = new URLSearchParams(params.toString());
+    const next = currentSearchParams(searchParams);
     next.set("tab", "official");
     if (id) next.set("org", id);
     else next.delete("org");

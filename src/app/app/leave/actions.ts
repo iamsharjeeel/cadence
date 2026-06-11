@@ -8,6 +8,12 @@ import { requireActiveProfile, requireRole } from "@/lib/auth";
 import { countBusinessDays } from "@/lib/leave/days";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  validateDateRange,
+  validateMaxLength,
+  validateNonNegativeNumber,
+  validateYear,
+} from "@/lib/validation";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -21,9 +27,17 @@ export async function requestLeave(input: {
   const profile = await requireActiveProfile();
   if (!profile.org_id) return { ok: false, message: "No organization." };
 
+  const dates = validateDateRange(input.startDate, input.endDate);
+  if (!dates.ok) return { ok: false, message: dates.error };
+
+  const noteV = input.note
+    ? validateMaxLength(input.note, 500, "Note")
+    : { ok: true as const, value: "" };
+  if (!noteV.ok) return { ok: false, message: noteV.error };
+
   const days = countBusinessDays(
-    input.startDate,
-    input.endDate,
+    dates.value.start,
+    dates.value.end,
     input.halfDay,
   );
   if (days <= 0) {
@@ -31,7 +45,7 @@ export async function requestLeave(input: {
   }
 
   const db = createAdminClient();
-  const year = new Date(input.startDate).getFullYear();
+  const year = new Date(dates.value.start).getFullYear();
 
   const { data: lt } = await db
     .from("leave_types")
@@ -87,11 +101,11 @@ export async function requestLeave(input: {
     org_id: profile.org_id,
     employee_id: profile.id,
     leave_type_id: input.leaveTypeId,
-    start_date: input.startDate,
-    end_date: input.endDate,
+    start_date: dates.value.start,
+    end_date: dates.value.end,
     days_requested: days,
     half_day: input.halfDay,
-    note: input.note ?? null,
+    note: noteV.value || null,
     status: "pending",
   });
   if (error) return { ok: false, message: "Couldn't submit request." };
@@ -101,7 +115,7 @@ export async function requestLeave(input: {
     orgId: profile.org_id,
     type: "leave_requested",
     title: `Leave request from ${employeeName}`,
-    body: `${input.startDate} – ${input.endDate}`,
+    body: `${dates.value.start} – ${dates.value.end}`,
     entity: "leave_requests",
     excludeUserId: profile.id,
   });
@@ -269,7 +283,9 @@ export async function applyDefaultBalances(
   if (actor.role === "admin" && actor.org_id !== orgId) {
     return { ok: false, message: "Forbidden." };
   }
-  const count = await applyDefaultBalancesForOrg(orgId, year);
+  const yearV = validateYear(year);
+  if (!yearV.ok) return { ok: false, message: yearV.error };
+  const count = await applyDefaultBalancesForOrg(orgId, yearV.value);
   revalidatePath("/app/settings");
   revalidatePath("/app/leave");
   return {
@@ -295,9 +311,12 @@ export async function updateLeaveBalance(
     return { ok: false, message: "Forbidden." };
   }
 
+  const daysV = validateNonNegativeNumber(allocatedDays, "Allocated days");
+  if (!daysV.ok) return { ok: false, message: daysV.error };
+
   const { error } = await db
     .from("leave_balances")
-    .update({ allocated_days: allocatedDays })
+    .update({ allocated_days: daysV.value })
     .eq("id", id);
   if (error) return { ok: false, message: "Couldn't update balance." };
 

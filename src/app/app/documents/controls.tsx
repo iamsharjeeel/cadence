@@ -12,6 +12,7 @@ import {
   DOCUMENT_STATUSES,
   type DocumentStatus,
 } from "@/lib/documents/types";
+import { currentSearchParams } from "@/lib/search-params";
 import {
   resendDocumentEmail,
   updateDocumentStatus,
@@ -98,10 +99,10 @@ export function DocumentFilters({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
 
   function setParam(key: string, value: string) {
-    const next = new URLSearchParams(params.toString());
+    const next = currentSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
     router.replace(`${pathname}?${next.toString()}`);

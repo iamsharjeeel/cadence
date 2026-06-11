@@ -3,6 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import { Select } from "@/components/ui/Select";
+import { currentSearchParams } from "@/lib/search-params";
 
 export function LeaveOrgSelect({
   orgs,
@@ -13,10 +14,10 @@ export function LeaveOrgSelect({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
 
   function onChange(orgId: string) {
-    const next = new URLSearchParams(params.toString());
+    const next = currentSearchParams(searchParams);
     if (orgId) next.set("org", orgId);
     else next.delete("org");
     router.replace(`${pathname}?${next.toString()}`);

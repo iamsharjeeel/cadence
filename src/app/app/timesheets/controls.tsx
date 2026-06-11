@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { fieldBase } from "@/components/ui/Input";
+import { currentSearchParams } from "@/lib/search-params";
 import {
   approveTimesheet,
   rejectTimesheet,
@@ -132,10 +133,10 @@ export function TimesheetFilters({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
 
   function setParam(key: string, value: string) {
-    const next = new URLSearchParams(params.toString());
+    const next = currentSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
     router.replace(`${pathname}?${next.toString()}`);

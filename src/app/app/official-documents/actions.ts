@@ -6,10 +6,27 @@ import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { requireActiveProfile, requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  validateEnum,
+  validateMaxLength,
+} from "@/lib/validation";
+import type { OfficialDocCategory } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string };
 
+const OFFICIAL_CATEGORIES = [
+  "contract",
+  "offer_letter",
+  "policy",
+  "nda",
+  "other",
+] as const satisfies readonly OfficialDocCategory[];
+
+const SIGNING_TYPES = ["e_signature", "acknowledgement"] as const;
+
 const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_SIGNATURE_BYTES = 500_000;
+const MAX_NOTE_LENGTH = 500;
 const ALLOWED_EXT = [".pdf", ".docx"];
 const ALLOWED_MIME = [
   "application/pdf",
@@ -25,14 +42,31 @@ export async function uploadOfficialDocument(
     actor.role === "admin" ? actor.org_id : String(formData.get("org_id") ?? "");
   if (!orgId) return { ok: false, message: "Organization required." };
 
-  const name = String(formData.get("name") ?? "").trim();
-  const category = String(formData.get("category") ?? "");
-  const signingType = String(formData.get("signing_type") ?? "");
-  const assignee = String(formData.get("employee_id") ?? "");
+  const nameV = validateMaxLength(String(formData.get("name") ?? ""), 120, "Name");
+  if (!nameV.ok) return { ok: false, message: nameV.error };
+  const name = nameV.value;
+
+  const categoryV = validateEnum(
+    String(formData.get("category") ?? ""),
+    OFFICIAL_CATEGORIES,
+    "category",
+  );
+  if (!categoryV.ok) return { ok: false, message: categoryV.error };
+  const category = categoryV.value;
+
+  const signingV = validateEnum(
+    String(formData.get("signing_type") ?? ""),
+    SIGNING_TYPES,
+    "signing type",
+  );
+  if (!signingV.ok) return { ok: false, message: signingV.error };
+  const signingType = signingV.value;
+
+  const assignee = String(formData.get("employee_id") ?? "").trim();
   const assignAll = formData.get("assign_all") === "on";
   const file = formData.get("file") as File | null;
 
-  if (!name || !file?.size) {
+  if (!file?.size) {
     return { ok: false, message: "Name and file are required." };
   }
   if (file.size > MAX_BYTES) {
@@ -60,7 +94,18 @@ export async function uploadOfficialDocument(
       .eq("role", "employee");
     employeeIds = (people ?? []).map((p) => p.id);
   } else if (assignee) {
-    employeeIds = [assignee];
+    const { data: assigneeProfile } = await db
+      .from("profiles")
+      .select("id")
+      .eq("id", assignee)
+      .eq("org_id", orgId)
+      .eq("status", "active")
+      .eq("role", "employee")
+      .maybeSingle();
+    if (!assigneeProfile) {
+      return { ok: false, message: "Invalid employee for this organization." };
+    }
+    employeeIds = [assigneeProfile.id];
   } else {
     return { ok: false, message: "Assign to an employee or all employees." };
   }
@@ -227,6 +272,9 @@ export async function signOfficialDocument(
   if (!signatureData?.startsWith("data:image/png;base64,")) {
     return { ok: false, message: "Invalid signature." };
   }
+  if (signatureData.length > MAX_SIGNATURE_BYTES) {
+    return { ok: false, message: "Signature image is too large." };
+  }
 
   const { error } = await db
     .from("official_documents")
@@ -278,11 +326,14 @@ export async function rejectOfficialDocument(
     return { ok: false, message: "Document not found." };
   }
 
+  const noteV = validateMaxLength(note, MAX_NOTE_LENGTH, "Note");
+  if (!noteV.ok) return { ok: false, message: noteV.error };
+
   const { error } = await db
     .from("official_documents")
     .update({
       status: "rejected",
-      employee_note: note.trim(),
+      employee_note: noteV.value,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

@@ -4,14 +4,20 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
+import { currentSearchParams } from "@/lib/search-params";
 
-export function SettingsTabs({ isSuperadmin = false }: { isSuperadmin?: boolean }) {
+export function SettingsTabs({
+  tab,
+  isSuperadmin = false,
+}: {
+  tab: string;
+  isSuperadmin?: boolean;
+}) {
   const pathname = usePathname();
-  const params = useSearchParams();
-  const tab = params.get("tab") ?? "general";
+  const searchParams = useSearchParams();
 
   function href(t: string) {
-    const next = new URLSearchParams(params.toString());
+    const next = currentSearchParams(searchParams);
     next.set("tab", t);
     return `${pathname}?${next.toString()}`;
   }

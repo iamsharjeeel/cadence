@@ -2,7 +2,7 @@
 
 import { RouteError } from "@/components/app/RouteError";
 
-export default function AuditError({
+export default function AppError({
   error,
   reset,
 }: {
@@ -11,7 +11,7 @@ export default function AuditError({
 }) {
   return (
     <RouteError
-      title="Couldn't load the audit log"
+      title="Something went wrong"
       error={error}
       reset={reset}
     />

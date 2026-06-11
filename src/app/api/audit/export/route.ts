@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { summarizePayload } from "@/lib/audit/summarize";
+import { ISO_DATE } from "@/lib/validation";
 
 function csvEscape(value: string | number | null | undefined): string {
   const s = value === null || value === undefined ? "" : String(value);
@@ -23,26 +24,58 @@ function defaultDateRange(): { from: string; to: string } {
 export async function GET(request: NextRequest) {
   const profile = await getProfile();
   if (!profile || profile.status !== "active") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    );
   }
   if (profile.role !== "admin" && profile.role !== "superadmin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   const sp = request.nextUrl.searchParams;
   const defaults = defaultDateRange();
-  const from = sp.get("from")?.trim() || defaults.from;
-  const to = sp.get("to")?.trim() || defaults.to;
+  const fromRaw = sp.get("from")?.trim() || defaults.from;
+  const toRaw = sp.get("to")?.trim() || defaults.to;
+  if (!ISO_DATE.test(fromRaw) || !ISO_DATE.test(toRaw)) {
+    return NextResponse.json(
+      { error: "Invalid date range." },
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+  const from = fromRaw;
+  const to = toRaw;
   const orgId =
     profile.role === "superadmin"
       ? sp.get("org") || null
       : profile.org_id;
 
   if (profile.role === "admin" && !orgId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   const db = createAdminClient();
+
+  if (orgId) {
+    const { data: orgExists } = await db
+      .from("organizations")
+      .select("id")
+      .eq("id", orgId)
+      .maybeSingle();
+    if (!orgExists) {
+      return NextResponse.json(
+        { error: "Organization not found." },
+        { status: 404, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  }
+
   let query = db
     .from("audit_log")
     .select("created_at, action, entity, payload, org_id, actor_id")

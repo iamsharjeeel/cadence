@@ -16,11 +16,16 @@ export type NotificationRow = {
   created_at: string;
 };
 
-export async function fetchNotifications(): Promise<{
-  ok: boolean;
-  notifications: NotificationRow[];
-  unreadCount: number;
-}> {
+export type NotificationActionResult =
+  | { ok: true; notifications?: NotificationRow[]; unreadCount?: number }
+  | { ok: false; message: string };
+
+export async function fetchNotifications(): Promise<
+  NotificationActionResult & {
+    notifications: NotificationRow[];
+    unreadCount: number;
+  }
+> {
   const profile = await requireActiveProfile();
   const supabase = createClient();
 
@@ -32,7 +37,12 @@ export async function fetchNotifications(): Promise<{
     .limit(50);
 
   if (error) {
-    return { ok: false, notifications: [], unreadCount: 0 };
+    return {
+      ok: false,
+      message: "Couldn't load notifications.",
+      notifications: [],
+      unreadCount: 0,
+    };
   }
 
   const notifications = (data ?? []) as NotificationRow[];
@@ -41,23 +51,33 @@ export async function fetchNotifications(): Promise<{
   return { ok: true, notifications, unreadCount };
 }
 
-export async function markNotificationRead(id: string): Promise<void> {
+export async function markNotificationRead(
+  id: string,
+): Promise<NotificationActionResult> {
   const profile = await requireActiveProfile();
   const supabase = createClient();
-  await supabase
+  const { error } = await supabase
     .from("notifications")
     .update({ read: true })
     .eq("id", id)
     .eq("user_id", profile.id);
+
+  if (error) return { ok: false, message: "Couldn't mark notification read." };
+  return { ok: true };
 }
 
-export async function markAllNotificationsRead(): Promise<void> {
+export async function markAllNotificationsRead(): Promise<NotificationActionResult> {
   const profile = await requireActiveProfile();
   const supabase = createClient();
-  await supabase
+  const { error } = await supabase
     .from("notifications")
     .update({ read: true })
     .eq("user_id", profile.id)
     .eq("read", false);
+
+  if (error) {
+    return { ok: false, message: "Couldn't mark notifications read." };
+  }
   revalidatePath("/app");
+  return { ok: true };
 }

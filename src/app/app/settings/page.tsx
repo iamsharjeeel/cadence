@@ -1,122 +1,36 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/app/PageHeader";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { CardSkeleton } from "@/components/ui/Skeleton";
 import { requireRole } from "@/lib/auth";
-import { getOrgLeaveTypes } from "@/lib/leave/queries";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import type { Organization } from "@/types/db";
-import { SettingsTabs } from "./SettingsTabs";
-import { LeaveTypesTab } from "./LeaveTypesTab";
-import { SuperadminOrgSelect } from "./SuperadminOrgSelect";
-import { GeneralSettingsTab } from "./GeneralSettingsTab";
+import { SettingsContent } from "./SettingsContent";
 
 export const metadata: Metadata = { title: "Settings" };
+
+function parseParams(searchParams: { tab?: string; org?: string }) {
+  return {
+    tab: searchParams.tab?.trim() || "general",
+    org: searchParams.org?.trim() ?? "",
+  };
+}
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: { tab?: string; org?: string };
 }) {
-  const admin = await requireRole(["admin", "superadmin"]);
-  const isSuperadmin = admin.role === "superadmin";
-  const tab = searchParams.tab ?? "general";
-  const selectedOrgId = isSuperadmin
-    ? searchParams.org ?? admin.org_id ?? ""
-    : admin.org_id ?? "";
-
-  const adminDb = createAdminClient();
-  const supabase = createClient();
-
-  const orgs = isSuperadmin
-    ? (
-        await adminDb.from("organizations").select("id, name").order("name")
-      ).data ?? []
-    : [];
-
-  const { data: org } = selectedOrgId
-    ? await (isSuperadmin ? adminDb : supabase)
-        .from("organizations")
-        .select("*")
-        .eq("id", selectedOrgId)
-        .single()
-    : { data: null };
-
-  const leaveTypes =
-    selectedOrgId && tab === "leave"
-      ? await getOrgLeaveTypes(selectedOrgId)
-      : [];
+  await requireRole(["admin", "superadmin"]);
 
   return (
     <div>
       <PageHeader
         title="Organization settings"
-        description={
-          isSuperadmin
-            ? "Select an organization to manage settings and leave types."
-            : "Manage your organization's identity, leave types, and domains."
-        }
+        description="Manage your organization's identity, leave types, and domains."
       />
-
-      <SettingsTabs isSuperadmin={isSuperadmin} />
-
-      {isSuperadmin && (
-        <div className="mb-6 max-w-md">
-          <SuperadminOrgSelect orgs={orgs} selectedOrgId={selectedOrgId} />
-        </div>
-      )}
-
-      <div className="w-full">
-        {tab === "leave" ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Leave types</CardTitle>
-              <CardDescription>
-                Default types are seeded when an organization is created.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isSuperadmin && !selectedOrgId ? (
-                <EmptyState
-                  title="Select an organization"
-                  description="Choose an organization above to manage leave types and apply default balances."
-                />
-              ) : selectedOrgId ? (
-                <LeaveTypesTab types={leaveTypes} orgId={selectedOrgId} />
-              ) : (
-                <EmptyState
-                  title="No organization linked"
-                  description="Your admin account isn't attached to an organization."
-                />
-              )}
-            </CardContent>
-          </Card>
-        ) : isSuperadmin && !selectedOrgId ? (
-          <EmptyState
-            title="Select an organization"
-            description="Choose an organization above to edit general settings."
-          />
-        ) : org ? (
-          <GeneralSettingsTab
-            org={org as Organization}
-            isAdmin={!isSuperadmin}
-            orgIdField={isSuperadmin ? selectedOrgId : undefined}
-          />
-        ) : (
-          <EmptyState
-            title="No organization linked"
-            description="Your admin account isn't attached to an organization yet."
-          />
-        )}
-      </div>
+      <Suspense fallback={<CardSkeleton bars={6} />}>
+        <SettingsContent filters={parseParams(searchParams)} />
+      </Suspense>
     </div>
   );
 }

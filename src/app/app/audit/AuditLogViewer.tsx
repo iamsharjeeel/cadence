@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { summarizePayload } from "@/lib/audit/summarize";
+import { currentSearchParams } from "@/lib/search-params";
 import type { AuditLogEntry } from "@/lib/audit/queries";
 import { titleCase } from "@/lib/utils";
 
@@ -50,7 +51,7 @@ export function AuditLogViewer({
   }, [filters.entity]);
 
   function currentParams(): URLSearchParams {
-    return new URLSearchParams(searchParams?.toString() ?? "");
+    return currentSearchParams(searchParams);
   }
 
   function updateFilter(key: string, value: string) {

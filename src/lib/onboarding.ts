@@ -35,17 +35,18 @@ export async function runOnboarding(
 
   if (!profile) return null;
 
-  // 1. Superadmin backstop.
+  // 1. Superadmin backstop — only promote pending profiles; never demote active users.
   const superadminEmail = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();
   if (
     superadminEmail &&
     email.toLowerCase() === superadminEmail &&
-    (profile.role !== "superadmin" || profile.status !== "active")
+    profile.status === "pending"
   ) {
     const { data: promoted } = await admin
       .from("profiles")
       .update({ role: "superadmin", status: "active" })
       .eq("id", userId)
+      .eq("status", "pending")
       .select("*")
       .single();
     return promoted ?? profile;

@@ -82,3 +82,83 @@ export function validateRate(input: string): Validated<number | null> {
     return { ok: false, error: "Rate must be a non-negative number." };
   return { ok: true, value: Math.round(n * 100) / 100 };
 }
+
+export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function validateIsoDate(
+  input: string,
+  label = "Date",
+): Validated<string> {
+  const trimmed = input.trim();
+  if (!trimmed) return { ok: false, error: `${label} is required.` };
+  if (!ISO_DATE.test(trimmed))
+    return { ok: false, error: `${label} must be YYYY-MM-DD.` };
+  const parsed = new Date(`${trimmed}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime()))
+    return { ok: false, error: `${label} is invalid.` };
+  return { ok: true, value: trimmed };
+}
+
+export function validateDateRange(
+  start: string,
+  end: string,
+): Validated<{ start: string; end: string }> {
+  const startV = validateIsoDate(start, "Start date");
+  if (!startV.ok) return startV;
+  const endV = validateIsoDate(end, "End date");
+  if (!endV.ok) return endV;
+  if (startV.value > endV.value) {
+    return { ok: false, error: "Start date must be on or before end date." };
+  }
+  const minYear = 2000;
+  const maxYear = new Date().getFullYear() + 2;
+  for (const d of [startV.value, endV.value]) {
+    const y = parseInt(d.slice(0, 4), 10);
+    if (y < minYear || y > maxYear) {
+      return { ok: false, error: "Date is out of allowed range." };
+    }
+  }
+  return { ok: true, value: { start: startV.value, end: endV.value } };
+}
+
+export function validateMaxLength(
+  input: string,
+  max: number,
+  label: string,
+): Validated<string> {
+  const trimmed = input.trim();
+  if (trimmed.length > max) {
+    return { ok: false, error: `${label} must be ${max} characters or fewer.` };
+  }
+  return { ok: true, value: trimmed };
+}
+
+export function validateEnum<T extends string>(
+  input: string,
+  allowed: readonly T[],
+  label: string,
+): Validated<T> {
+  if (!allowed.includes(input as T)) {
+    return { ok: false, error: `Invalid ${label}.` };
+  }
+  return { ok: true, value: input as T };
+}
+
+export function validateYear(input: number): Validated<number> {
+  const y = Math.floor(input);
+  const current = new Date().getFullYear();
+  if (!Number.isFinite(y) || y < current - 1 || y > current + 2) {
+    return { ok: false, error: "Invalid year." };
+  }
+  return { ok: true, value: y };
+}
+
+export function validateNonNegativeNumber(
+  input: number,
+  label: string,
+): Validated<number> {
+  if (!Number.isFinite(input) || input < 0) {
+    return { ok: false, error: `${label} must be a non-negative number.` };
+  }
+  return { ok: true, value: input };
+}

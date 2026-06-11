@@ -17,6 +17,7 @@ import {
   RejectTimesheetControl,
 } from "./controls";
 import { bulkApproveTimesheets } from "./actions";
+import { currentSearchParams } from "@/lib/search-params";
 
 export type TimesheetListRow = {
   id: string;
@@ -54,7 +55,7 @@ export function TimesheetListTable({
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
 
   const submittedIds = timesheets
     .filter((t) => t.status === "submitted")
@@ -90,7 +91,7 @@ export function TimesheetListTable({
   }
 
   function sortLink(key: SortKey) {
-    const next = new URLSearchParams(params.toString());
+    const next = currentSearchParams(searchParams);
     const nextDir = sort === key && dir === "desc" ? "asc" : "desc";
     next.set("sort", key);
     next.set("dir", nextDir);

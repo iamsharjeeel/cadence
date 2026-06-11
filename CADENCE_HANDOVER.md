@@ -499,6 +499,67 @@ Run migration `20260613000000_phase6_notifications_org_logos.sql` against Supaba
 - `src/components/official-docs/OfficialDocumentRowActions.tsx`
 - `src/app/app/leave/LeaveOrgSelect.tsx`, updated `LeaveEmployeeView.tsx`, `page.tsx`
 
+### Security, settings fix, robustness pass ✅
+
+#### Settings page crash fix
+- **Root cause:** Same as audit — `SettingsTabs` called `useSearchParams().get("tab")` during render; params can be `null` on client navigation.
+- **Fix:** Server page parses `tab`/`org` into props; `SettingsContent` async child; `SettingsTabs` receives `tab` prop; `SuperadminOrgSelect` uses null-safe `currentSearchParams()` for URL updates only; `Suspense` + route `error.tsx`.
+
+#### useSearchParams audit (all `/app/**` consumers)
+- Shared helper: `src/lib/search-params.ts` → `currentSearchParams()`.
+- Updated: `SettingsTabs`, `SuperadminOrgSelect`, `DocumentsTabs` (receives `tab` prop), `GenerateFromTimesheetsButton`, `OfficialDocumentsSection`, `LeaveOrgSelect`, `TimesheetFilters`, `TimesheetListTable`, `DocumentFilters`, `AuditLogViewer`.
+- Pattern: never call `.get()` during render for display; props from server page; null-safe helper for filter URL building.
+
+#### Error & loading boundaries
+- `src/app/app/error.tsx` + `src/app/app/loading.tsx` (app-wide).
+- `src/app/app/settings/error.tsx`; audit error uses shared `RouteError`.
+- `src/components/app/RouteError.tsx` — reusable error UI.
+
+#### Security — server actions
+- **Official documents:** assignee verified in org; category/signing_type enum validation; signature size cap; rejection note max length.
+- **Leave:** ISO date range validation; allocated days / year validation; note max length.
+- **Leave types (settings):** category enum; default days validation; update payload whitelisted (no `org_id` on update).
+- **Onboarding:** `parseBankingFormData` for banking; employment date validation; `completeOnboarding` requires personal/employment/banking steps complete.
+- **Notifications:** typed `{ ok, message }` results; errors surfaced instead of `void`.
+- **Profile:** start date ISO validation.
+
+#### Security — API routes
+- **`/api/google-sheet`:** 10 req/min/user rate limit; 10s fetch timeout; 5MB response cap; explicit `Content-Type: application/json`.
+- **`/api/audit/export`:** ISO date validation; org existence check for superadmin; JSON error `Content-Type` headers.
+- **`/api/documents/generate`:** requires `application/json` body; explicit JSON response headers.
+- **`/api/timesheets/export`:** JSON error responses include `Content-Type`.
+
+#### Security — auth
+- **`SUPERADMIN_EMAIL` backstop:** only promotes profiles with `status = 'pending'`; never demotes or changes active users (`src/lib/onboarding.ts`).
+
+#### Security — document generation
+- Invoice generation blocked when employee banking incomplete (clear error before PDF).
+- Email or upload failure rolls back storage + DB row (`rollbackDocument` in `generate.tsx`).
+
+#### Security — RLS & storage migration
+- New migration: `supabase/migrations/20260614000000_security_rls_storage.sql`
+- **Timesheets bucket** policies (private, org/employee scoped).
+- **Documents / official-documents storage** — org-scoped read/write; admin-only inserts where appropriate.
+- **Org-logos** — write restricted to admin/superadmin in own org folder; public read unchanged.
+- **Documents insert RLS** — admin/superadmin only.
+- **Leave types write** — split into insert/update/delete with `is_active()` check.
+- **Leave RPCs** — caller role/org authorization inside `approve_leave_request` / `reject_leave_request`; `GRANT` to authenticated only.
+- **Onboarding steps** — employees insert/update only (no delete policy).
+- **Audit log / webhook_deliveries** — read policies for admin/superadmin.
+
+#### Robustness & performance
+- `src/lib/fetch.ts` — `fetchWithTimeout` (10s default).
+- `src/lib/supabase/server.ts` — `cache: 'no-store'` on all server Supabase fetches.
+- `src/lib/validation.ts` — extended helpers (ISO dates, enums, max length, year, non-negative numbers).
+- Installed `zod` (available for future schema migration; validation helpers used in this pass).
+
+#### Dependency audit
+- `npm audit`: remaining highs are **Next.js** (fix requires major upgrade to v16 — deferred) and **xlsx** (no upstream fix; required for spreadsheet import — mitigated by server-side MIME/size validation).
+- Updated `@supabase/ssr`, `framer-motion`, Next 14 patch line (already latest 14.2.x).
+
+#### Manual step required
+Run migration `20260614000000_security_rls_storage.sql` against Supabase before deploying.
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

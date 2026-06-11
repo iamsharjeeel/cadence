@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireActiveProfile } from "@/lib/auth";
 import { bankingToDbPayload, parseBankingFormData } from "@/lib/banking";
 import { createClient } from "@/lib/supabase/server";
+import { validateIsoDate, validateMaxLength } from "@/lib/validation";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -68,15 +69,27 @@ export async function updateOwnEmployment(
 ): Promise<ActionResult> {
   const profile = await requireActiveProfile();
 
-  const jobTitle = String(formData.get("job_title") ?? "").trim();
-  const startDate = String(formData.get("start_date") ?? "").trim() || null;
+  const jobTitleV = validateMaxLength(
+    String(formData.get("job_title") ?? ""),
+    80,
+    "Job title",
+  );
+  if (!jobTitleV.ok) return { ok: false, message: jobTitleV.error };
+
+  const startDateRaw = String(formData.get("start_date") ?? "").trim();
+  let startDate: string | null = null;
+  if (startDateRaw && !profile.start_date) {
+    const startV = validateIsoDate(startDateRaw, "Start date");
+    if (!startV.ok) return { ok: false, message: startV.error };
+    startDate = startV.value;
+  }
 
   const supabase = createClient();
   const { error } = await supabase
     .from("profiles")
     .update({
-      job_title: jobTitle || null,
-      ...(startDate && !profile.start_date ? { start_date: startDate } : {}),
+      job_title: jobTitleV.value || null,
+      ...(startDate ? { start_date: startDate } : {}),
     })
     .eq("id", profile.id);
 

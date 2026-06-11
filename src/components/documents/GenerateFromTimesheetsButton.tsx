@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate, formatMoney } from "@/lib/utils";
+import { currentSearchParams } from "@/lib/search-params";
 import type { TimesheetDocCandidate } from "@/lib/documents/queries";
 import { MotionModal } from "@/components/motion/MotionModal";
 import { GenerateDocumentModal } from "./GenerateDocumentModal";
@@ -28,7 +29,7 @@ export function GenerateFromTimesheetsButton({
   const searchParams = useSearchParams();
 
   function setOrg(orgId: string) {
-    const next = new URLSearchParams(searchParams.toString());
+    const next = currentSearchParams(searchParams);
     if (orgId) next.set("org", orgId);
     else next.delete("org");
     router.replace(`${pathname}?${next.toString()}`);
