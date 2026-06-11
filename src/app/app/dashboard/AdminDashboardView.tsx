@@ -13,6 +13,7 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import type { AdminDashboardData } from "@/lib/dashboard/queries";
 import { formatDate, formatMoney, titleCase } from "@/lib/utils";
 import { StatCard } from "./StatCard";
+import { StatCardGrid, StatCardItem } from "@/components/motion/StatCardGrid";
 import { CurrencyTotalsDisplay } from "./CurrencyTotals";
 import { HoursBarChart, HoursLineChart } from "./DashboardCharts";
 
@@ -76,22 +77,28 @@ export function AdminDashboardView({
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Pending approvals" value={data.pendingCount} />
-        <StatCard
-          label="Approved hours this month"
-          value={data.approvedHoursPeriod}
-          decimals={1}
-        />
-        <Card>
-          <CardContent className="flex flex-col gap-2">
-            <span className="text-xs uppercase tracking-wide text-muted">
-              Payroll estimate
-            </span>
-            <CurrencyTotalsDisplay totals={data.payrollByCurrency} />
-          </CardContent>
-        </Card>
-      </div>
+      <StatCardGrid>
+        <StatCardItem>
+          <StatCard label="Pending approvals" value={data.pendingCount} />
+        </StatCardItem>
+        <StatCardItem>
+          <StatCard
+            label="Approved hours this month"
+            value={data.approvedHoursPeriod}
+            decimals={1}
+          />
+        </StatCardItem>
+        <StatCardItem>
+          <Card>
+            <CardContent className="flex flex-col gap-2">
+              <span className="text-xs uppercase tracking-wide text-muted">
+                Payroll estimate
+              </span>
+              <CurrencyTotalsDisplay totals={data.payrollByCurrency} />
+            </CardContent>
+          </Card>
+        </StatCardItem>
+      </StatCardGrid>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>

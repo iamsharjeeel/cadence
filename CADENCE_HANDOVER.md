@@ -336,6 +336,59 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 #### Manual step required
 Run migration `20260612000000_phase5_leave_onboarding_docs.sql` against Supabase before deploying.
 
+### Phase 6 ✅ — Performance, notifications, org settings, audit log, landing
+
+#### Performance + snappiness
+- **Client shell:** Sidebar and topbar stay mounted; page content transitions via `template.tsx` only (not full layout re-render).
+- **NavigationProvider:** Teal top progress bar (Framer Motion, 2px, z-index 9999) on nav start; completes on route change.
+- **Optimistic nav:** `NavLink` highlights clicked item immediately before page loads.
+- **Motion tuning:** Page 120ms, cards 160ms, modals 120ms, dropdowns 80ms. Table rows fade together (no stagger); dashboard stat cards stagger max 3 at 40ms.
+- **Skeletons:** `loading.tsx` for timesheet detail; `DocumentViewModal` opens instantly with spinner then iframe; `Avatar` lazy-load + grey placeholder.
+- **RowActionsMenu:** Portal to `document.body` with `getBoundingClientRect()` positioning; opens upward near viewport bottom.
+
+#### In-app notifications
+- **Database:** `notifications` table + RLS (`supabase/migrations/20260613000000_phase6_notifications_org_logos.sql`).
+- **Triggers:** Inserted in existing server actions — timesheet submit/approve/reject, leave request/approve/reject, official document assign/sign/acknowledge.
+- **UI:** Bell in topbar; unread badge (teal, max 9+); dropdown panel 300×400px; mark all read; click → mark read + navigate; 60s poll.
+
+#### Org settings (General tab)
+- **Sections:** Organisation details (name, slug read-only + lock, currency dropdown, cadence dropdown), allowed domains (warn on remove if active employees), logo upload (PNG/JPG 2MB → `org-logos` bucket), danger zone suspend all employees (admin only, confirm modal).
+- **Save per section** with `org_settings_updated` audit entries.
+- **Logo:** Shown in sidebar bottom + embedded in generated PDFs via `@react-pdf/renderer` Image.
+
+#### Audit log viewer (`/app/audit`)
+- Admin + superadmin nav item (ClipboardList-style icon).
+- Table: timestamp, actor, action, entity, human-readable details summary.
+- Filters: actor, action, entity, date range; superadmin org selector.
+- Paginate 50/page with Load more; Export CSV via `GET /api/audit/export`.
+
+#### Profile completeness
+- Animated progress bar on `/app/profile` (10 checkpoints).
+- Missing-field chips scroll to section anchors.
+- Added job details + emergency contact sections/forms.
+
+#### Landing page enhancement
+- Detailed dashboard mockup (mini sidebar, topbar, stat cards, gradient fade).
+- Fourth feature card: Leave & onboarding.
+- Credibility bar: Google Sheets · Xero · Slack · Gmail · QuickBooks.
+- Hero headline word stagger (Framer Motion, 40ms, 200ms).
+- Feature cards scroll-triggered fade-up; mobile tap targets min 44px.
+
+#### New / updated files (this session)
+- `src/components/app/NavigationProvider.tsx`, `NavLink.tsx`, `NotificationsBell.tsx`
+- `src/app/app/template.tsx`, `src/app/app/notifications/actions.ts`
+- `src/lib/notifications.ts`, `src/lib/audit/queries.ts`, `src/lib/audit/summarize.ts`
+- `src/app/app/audit/`, `src/app/api/audit/export/route.ts`
+- `src/app/app/settings/GeneralSettingsTab.tsx`, updated `actions.ts`, `page.tsx`
+- `src/app/app/profile/ProfileCompleteness.tsx`, employment/emergency forms
+- `src/components/documents/DocumentViewModal.tsx`, `src/components/ui/Skeleton.tsx`
+- `src/components/motion/StatCardGrid.tsx`
+- `supabase/migrations/20260613000000_phase6_notifications_org_logos.sql`
+- `README.md` — full project description
+
+#### Manual step required
+Run migration `20260613000000_phase6_notifications_org_logos.sql` against Supabase before deploying.
+
 ### Phase 5 fixes + landing enhancement ✅
 
 #### Click responsiveness (definitive fix)

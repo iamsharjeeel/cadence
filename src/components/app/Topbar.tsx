@@ -1,25 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { SignOutButton } from "@/components/auth/SignOutButton";
-import { cn } from "@/lib/utils";
+import { NotificationsBell } from "@/components/app/NotificationsBell";
+import { NavLink } from "@/components/app/NavLink";
 import type { Profile } from "@/types/db";
 import { navForRole } from "./nav";
 import { NavIcon } from "./NavIcon";
-
-const MotionLink = motion(Link);
+import { useNavigation } from "./NavigationProvider";
+import { usePathname } from "next/navigation";
 
 export function Topbar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
+  const { optimisticPath } = useNavigation();
   const [open, setOpen] = useState(false);
   const items = navForRole(profile.role);
-  const current = items.find((i) => i.href === pathname);
+  const currentPath = optimisticPath ?? pathname;
+  const current = items.find((i) => i.href === currentPath);
+
+  const linkClass =
+    "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium min-h-11";
+  const activeClass =
+    "bg-[var(--accent-soft)] text-[var(--accent-strong)]";
+  const inactiveClass = "text-muted hover:bg-[var(--line)] hover:text-ink";
 
   return (
     <header className="sticky top-0 z-20 border-b bg-bg/80 backdrop-blur-xl">
@@ -29,7 +35,7 @@ export function Topbar({ profile }: { profile: Profile }) {
           aria-label="Toggle navigation"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius)] border text-muted hover:text-ink lg:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius)] border text-muted hover:text-ink lg:hidden"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -47,6 +53,7 @@ export function Topbar({ profile }: { profile: Profile }) {
 
         <div className="ml-auto flex items-center gap-3">
           <ThemeToggle />
+          <NotificationsBell userId={profile.id} />
           <div className="hidden items-center gap-2 sm:flex">
             <Avatar
               name={profile.full_name}
@@ -63,27 +70,19 @@ export function Topbar({ profile }: { profile: Profile }) {
 
       {open && (
         <nav className="flex flex-col gap-1 border-t px-3 py-3 lg:hidden">
-          {items.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <MotionLink
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                whileHover={{ x: 2 }}
-                transition={{ duration: 0.1 }}
-                className={cn(
-                  "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium",
-                  active
-                    ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
-                    : "text-muted hover:bg-[var(--line)] hover:text-ink",
-                )}
-              >
-                <NavIcon name={item.icon} />
-                {item.label}
-              </MotionLink>
-            );
-          })}
+          {items.map((item) => (
+            <NavLink
+              key={item.href}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              className={linkClass}
+              activeClassName={activeClass}
+              inactiveClassName={inactiveClass}
+            >
+              <NavIcon name={item.icon} />
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
       )}
     </header>

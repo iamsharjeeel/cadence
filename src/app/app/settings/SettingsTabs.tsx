@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 export function SettingsTabs({ isSuperadmin = false }: { isSuperadmin?: boolean }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const tab = params.get("tab") ?? (isSuperadmin ? "leave" : "org");
+  const tab = params.get("tab") ?? "general";
 
   function href(t: string) {
     const next = new URLSearchParams(params.toString());
@@ -16,12 +16,10 @@ export function SettingsTabs({ isSuperadmin = false }: { isSuperadmin?: boolean 
     return `${pathname}?${next.toString()}`;
   }
 
-  const tabs = isSuperadmin
-    ? [{ id: "leave", label: "Leave types" }]
-    : [
-        { id: "org", label: "Organization" },
-        { id: "leave", label: "Leave types" },
-      ];
+  const tabs = [
+    { id: "general", label: "General" },
+    { id: "leave", label: "Leave types" },
+  ];
 
   return (
     <div className="mb-6 flex gap-1 border-b">

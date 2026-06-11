@@ -1,4 +1,4 @@
-import { Document, Page, Text, View } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image } from "@react-pdf/renderer";
 
 import { pdfStyles as s } from "./styles";
 import type { InvoicePdfData } from "./types";
@@ -9,6 +9,9 @@ export function InvoicePdf({ data }: { data: InvoicePdfData }) {
       <Page size="A4" style={s.page}>
         <View style={s.row}>
           <View>
+            {data.orgLogoUrl ? (
+              <Image src={data.orgLogoUrl} style={{ width: 48, height: 48, marginBottom: 8 }} />
+            ) : null}
             <Text style={s.muted}>Bill To</Text>
             <Text style={{ fontSize: 14, fontWeight: 700 }}>{data.orgName}</Text>
           </View>

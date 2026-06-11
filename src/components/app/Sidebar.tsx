@@ -1,27 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 
 import { Wordmark } from "@/components/brand/Wordmark";
-import { cn } from "@/lib/utils";
+import { NavLink } from "@/components/app/NavLink";
 import { titleCase } from "@/lib/utils";
 import type { UserRole } from "@/types/db";
 import { navForRole } from "./nav";
 import { NavIcon } from "./NavIcon";
 
-const MotionLink = motion(Link);
-
 export function Sidebar({
   role,
   orgName,
+  orgLogoUrl,
 }: {
   role: UserRole;
   orgName: string | null;
+  orgLogoUrl: string | null;
 }) {
-  const pathname = usePathname();
   const items = navForRole(role);
+
+  const linkClass =
+    "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium transition-colors";
+  const activeClass =
+    "bg-[var(--accent-soft)] text-[var(--accent-strong)]";
+  const inactiveClass = "text-muted hover:bg-[var(--line)] hover:text-ink";
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r bg-surface lg:flex">
@@ -32,35 +35,42 @@ export function Sidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
-        {items.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <MotionLink
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              whileHover={{ x: 2 }}
-              transition={{ duration: 0.1 }}
-              className={cn(
-                "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium transition-colors",
-                active
-                  ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
-                  : "text-muted hover:bg-[var(--line)] hover:text-ink",
-              )}
-            >
-              <NavIcon name={item.icon} />
-              {item.label}
-            </MotionLink>
-          );
-        })}
+        {items.map((item) => (
+          <NavLink
+            key={item.href}
+            href={item.href}
+            className={linkClass}
+            activeClassName={activeClass}
+            inactiveClassName={inactiveClass}
+          >
+            <NavIcon name={item.icon} />
+            {item.label}
+          </NavLink>
+        ))}
       </nav>
 
       <div className="border-t px-6 py-4">
-        <p className="text-xs text-muted">Organization</p>
-        <p className="truncate text-sm font-medium text-ink">
-          {orgName ?? "—"}
-        </p>
-        <p className="mt-2 text-xs text-muted">{titleCase(role)}</p>
+        <div className="flex items-center gap-3">
+          {orgLogoUrl ? (
+            <img
+              src={orgLogoUrl}
+              alt=""
+              loading="lazy"
+              className="h-8 w-8 shrink-0 rounded-lg border bg-[var(--line)] object-cover"
+            />
+          ) : (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-xs font-semibold text-[var(--accent-strong)]">
+              {orgName?.charAt(0)?.toUpperCase() ?? "—"}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted">Organization</p>
+            <p className="truncate text-sm font-medium text-ink">
+              {orgName ?? "—"}
+            </p>
+            <p className="text-xs text-muted">{titleCase(role)}</p>
+          </div>
+        </div>
       </div>
     </aside>
   );

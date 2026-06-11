@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireActiveProfile, requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
+import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { calculateTotal } from "@/lib/timesheets/calc";
 import { validateMappedRow } from "@/lib/timesheets/validation";
 import type { MappedRow } from "@/lib/timesheets/types";
@@ -152,7 +153,8 @@ export async function submitTimesheet(formData: FormData): Promise<SubmitResult>
     return { ok: false, message: "Couldn't save the timesheet rows." };
   }
 
-  // 4. Audit.
+  // 4. Audit + notify admins.
+  const employeeName = profile.full_name?.trim() || profile.email;
   await writeAudit({
     actorId: profile.id,
     orgId: profile.org_id,
@@ -164,6 +166,16 @@ export async function submitTimesheet(formData: FormData): Promise<SubmitResult>
       period_end: periodEnd,
       row_count: rowsInsert.length,
     },
+  });
+
+  await notifyOrgAdmins({
+    orgId: profile.org_id,
+    type: "timesheet_submitted",
+    title: "New timesheet submitted",
+    body: `${employeeName} · ${periodStart} – ${periodEnd}`,
+    entity: "timesheets",
+    entityId: timesheetId,
+    excludeUserId: profile.id,
   });
 
   revalidatePath("/app/timesheets");
@@ -200,7 +212,7 @@ export async function approveTimesheet(
   // Rate is always pulled fresh from the DB, never the client.
   const { data: employee } = await db
     .from("profiles")
-    .select("rate, rate_type, currency")
+    .select("rate, rate_type, currency, full_name, email")
     .eq("id", ts.employee_id)
     .single();
   if (!employee) return { ok: false, message: "Employee profile not found." };
@@ -265,6 +277,16 @@ export async function approveTimesheet(
     },
   });
 
+  await notifyUser({
+    orgId: ts.org_id,
+    userId: ts.employee_id,
+    type: "timesheet_approved",
+    title: "Your timesheet has been approved",
+    body: `${ts.period_start} – ${ts.period_end} · ${total != null ? `${employee.currency ?? "USD"} ${total.toFixed(2)}` : ""}`,
+    entity: "timesheets",
+    entityId: id,
+  });
+
   revalidatePath("/app/timesheets");
   revalidatePath(`/app/timesheets/${id}`);
   revalidatePath("/app/dashboard");
@@ -300,7 +322,7 @@ export async function bulkApproveTimesheets(
 
     const { data: employee } = await db
       .from("profiles")
-      .select("rate, rate_type, currency")
+      .select("rate, rate_type, currency, full_name, email")
       .eq("id", ts.employee_id)
       .single();
     if (!employee) continue;
@@ -365,6 +387,16 @@ export async function bulkApproveTimesheets(
       },
     });
 
+    await notifyUser({
+      orgId: ts.org_id,
+      userId: ts.employee_id,
+      type: "timesheet_approved",
+      title: "Your timesheet has been approved",
+      body: `${ts.period_start} – ${ts.period_end}`,
+      entity: "timesheets",
+      entityId: id,
+    });
+
     approved++;
   }
 
@@ -395,7 +427,7 @@ export async function rejectTimesheet(
   const db = createAdminClient();
   const { data: ts } = await db
     .from("timesheets")
-    .select("org_id, status")
+    .select("org_id, status, employee_id, period_start, period_end")
     .eq("id", id)
     .single();
   if (!ts) return { ok: false, message: "Timesheet not found." };
@@ -418,6 +450,16 @@ export async function rejectTimesheet(
     action: "timesheet_rejected",
     entity: "timesheets",
     payload: { timesheet_id: id, note },
+  });
+
+  await notifyUser({
+    orgId: ts.org_id,
+    userId: ts.employee_id,
+    type: "timesheet_rejected",
+    title: "Your timesheet needs changes",
+    body: `${ts.period_start} – ${ts.period_end} · ${note}`,
+    entity: "timesheets",
+    entityId: id,
   });
 
   revalidatePath("/app/timesheets");
