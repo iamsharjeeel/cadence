@@ -14,7 +14,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { parseCsvText, parsePastedText, sampleCsv } from "@/lib/timesheets/parse";
+import {
+  detectHeaderOffset,
+  parseCsvText,
+  parsePastedText,
+  sampleCsv,
+  tableFromGrid,
+} from "@/lib/timesheets/parse";
 import { autoMatch } from "@/lib/timesheets/columns";
 import {
   buildValidatedRows,
@@ -24,8 +30,10 @@ import {
 } from "@/lib/timesheets/map";
 import {
   CANONICAL_FIELDS,
+  type BuildOptions,
   type CanonicalField,
   type ColumnMapping,
+  type Grid,
   type RawTable,
   type ValidatedRow,
 } from "@/lib/timesheets/types";
@@ -41,6 +49,8 @@ const EMPTY_MAPPING: ColumnMapping = {
   hours: null,
   project: null,
   description: null,
+  start_time: null,
+  end_time: null,
   billable: null,
 };
 
@@ -49,15 +59,21 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
   const { toast } = useToast();
 
   const [step, setStep] = useState<Step>("input");
-  const [table, setTable] = useState<RawTable | null>(null);
+  const [grid, setGrid] = useState<Grid | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [skipRows, setSkipRows] = useState(0);
+  const [detectedSkip, setDetectedSkip] = useState(0);
+  const [table, setTable] = useState<RawTable | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping>(EMPTY_MAPPING);
   const [autoMatched, setAutoMatched] = useState<Set<CanonicalField>>(new Set());
   const [rows, setRows] = useState<ValidatedRow[]>([]);
+  const [options, setOptions] = useState<BuildOptions>({ skipZeroHours: false });
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
   const [googleUrl, setGoogleUrl] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const maxSkip = grid ? Math.max(0, grid.rows.length - 1) : 0;
 
   // Clipboard paste (Method 2) — only while on the input step.
   useEffect(() => {
@@ -66,10 +82,10 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
       const text = e.clipboardData?.getData("text/plain");
       if (!text || !text.trim()) return;
       const parsed = parsePastedText(text);
-      if (parsed.headers.length === 0) return;
+      if (parsed.rows.length === 0) return;
       e.preventDefault();
       toast("Paste detected — mapping your columns.", "success");
-      ingest(parsed, null);
+      applyGrid(parsed, null);
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
@@ -77,30 +93,50 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
   }, [step]);
 
   /** Shared entry point for all three input methods. */
-  function ingest(parsed: RawTable, rawFile: File | null) {
-    setTable(parsed);
+  function applyGrid(g: Grid, rawFile: File | null) {
+    const detected = detectHeaderOffset(g);
+    setGrid(g);
     setFile(rawFile);
+    setDetectedSkip(detected);
+    setSkipRows(detected);
 
-    const stored = reconcileStoredMapping(loadMapping(orgSlug), parsed);
+    const tbl = tableFromGrid(g, detected);
+    setTable(tbl);
+
+    // Reuse a stored mapping when it still fits this header → straight to preview.
+    const stored = reconcileStoredMapping(loadMapping(orgSlug), tbl);
     if (stored) {
       setMapping(stored);
       setAutoMatched(new Set(CANONICAL_FIELDS.filter((f) => stored[f] !== null)));
-      setRows(buildValidatedRows(parsed, stored));
+      setRows(buildValidatedRows(tbl, stored, options));
       setStep("preview");
       return;
     }
 
-    const { mapping: auto, matched } = autoMatch(parsed);
+    // First upload (no reusable mapping): always show the mapping step so the
+    // user can confirm skip-rows and map any optional columns.
+    const { mapping: auto, matched } = autoMatch(tbl);
     setMapping(auto);
     setAutoMatched(matched);
+    setStep("map");
+  }
 
-    const allMatched = CANONICAL_FIELDS.every((f) => matched.has(f));
-    if (allMatched) {
-      setRows(buildValidatedRows(parsed, auto));
-      setStep("preview");
-    } else {
-      setStep("map");
-    }
+  /** Re-derive the header/table when the skip-rows offset changes. */
+  function changeSkip(value: number) {
+    if (!grid) return;
+    const clamped = Math.max(0, Math.min(maxSkip, Math.floor(value)));
+    setSkipRows(clamped);
+    const tbl = tableFromGrid(grid, clamped);
+    setTable(tbl);
+    const { mapping: auto, matched } = autoMatch(tbl);
+    setMapping(auto);
+    setAutoMatched(matched);
+  }
+
+  function toggleSkipZero(checked: boolean) {
+    const next = { ...options, skipZeroHours: checked };
+    setOptions(next);
+    if (table) setRows(buildValidatedRows(table, mapping, next));
   }
 
   function confirmMapping() {
@@ -110,7 +146,7 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     }
     if (table) {
       saveMapping(orgSlug, mapping);
-      setRows(buildValidatedRows(table, mapping));
+      setRows(buildValidatedRows(table, mapping, options));
       setStep("preview");
     }
   }
@@ -128,12 +164,12 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
         return;
       }
       const parsed = parseCsvText(json.csv);
-      if (parsed.headers.length === 0) {
+      if (parsed.rows.length === 0) {
         toast("That sheet came back empty.", "error");
         return;
       }
       toast("Sheet imported.", "success");
-      ingest(parsed, null);
+      applyGrid(parsed, null);
     } catch {
       toast("Couldn't import that sheet.", "error");
     } finally {
@@ -191,8 +227,11 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
 
   function reset() {
     setStep("input");
-    setTable(null);
+    setGrid(null);
     setFile(null);
+    setTable(null);
+    setSkipRows(0);
+    setDetectedSkip(0);
     setMapping(EMPTY_MAPPING);
     setAutoMatched(new Set());
     setRows([]);
@@ -235,7 +274,7 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
           </CardHeader>
           <CardContent>
             <UploadDropzone
-              onParsed={(t, f) => ingest(t, f)}
+              onParsed={(g, f) => applyGrid(g, f)}
               onError={(m) => toast(m, "error")}
             />
             <button
@@ -294,8 +333,8 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
         <CardHeader>
           <CardTitle>Map your columns</CardTitle>
           <CardDescription>
-            We matched what we could — confirm the rest. Date and Hours are
-            required.
+            Skip any metadata rows, then confirm the column mapping. Date and
+            Hours are required; everything else is optional.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
@@ -306,6 +345,10 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
             onChange={(field, index) =>
               setMapping((m) => ({ ...m, [field]: index }))
             }
+            skipRows={skipRows}
+            maxSkip={maxSkip}
+            detectedSkip={detectedSkip}
+            onSkipChange={changeSkip}
           />
           <div className="flex gap-3">
             <Button onClick={confirmMapping}>Continue to preview</Button>
@@ -348,11 +391,30 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Preview &amp; validate</CardTitle>
-          <CardDescription>
-            Review every row. Invalid rows are highlighted — fix them in the
-            source or remove them.
-          </CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <CardTitle>Preview &amp; validate</CardTitle>
+              <CardDescription>
+                Invalid rows are highlighted — fix them in the source or remove
+                them. Summary rows are excluded and blank dates carry down
+                automatically.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={options.skipZeroHours}
+                  onChange={(e) => toggleSkipZero(e.target.checked)}
+                  className="h-4 w-4 accent-[var(--accent)]"
+                />
+                Skip zero-hour rows
+              </label>
+              <Button variant="ghost" size="sm" onClick={() => setStep("map")}>
+                Adjust columns
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <PreviewTable

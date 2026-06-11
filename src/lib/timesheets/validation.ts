@@ -101,7 +101,17 @@ export function validateMappedRow(raw: MappedRow, id: string): ValidatedRow {
   else if (hours <= 0 || hours > 24) errors.hours = "Hours must be 0–24.";
 
   const project = raw.project.trim() || null;
-  const description = raw.description.trim() || null;
+
+  // start/end time are optional passthrough — folded into the description since
+  // the schema has no dedicated time columns.
+  const start = raw.start_time.trim();
+  const end = raw.end_time.trim();
+  const timeRange =
+    start && end ? `${start}–${end}` : start || end || "";
+  const descText = raw.description.trim();
+  const description =
+    [timeRange, descText].filter(Boolean).join(" · ") || null;
+
   const billable = parseBillable(raw.billable);
 
   // Guard against required fields slipping through (defensive).

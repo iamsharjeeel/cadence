@@ -11,9 +11,21 @@ import {
  */
 const ALIASES: Record<CanonicalField, string[]> = {
   date: ["date", "workdate", "day", "dateworked", "shiftdate", "entrydate"],
-  hours: ["hours", "hrs", "hoursworked", "time", "duration", "qty", "quantity"],
+  hours: [
+    "hours",
+    "hrs",
+    "hoursworked",
+    "totalhours",
+    "totalhrs",
+    "duration",
+    "qty",
+    "quantity",
+  ],
   project: ["project", "projectname", "client", "task", "job", "jobcode"],
   description: ["description", "notes", "details", "memo", "comment", "work"],
+  // Specific aliases only — bare "start"/"end"/"to"/"from" false-match too easily.
+  start_time: ["starttime", "timein", "clockin"],
+  end_time: ["endtime", "timeout", "clockout"],
   billable: ["billable", "isbillable", "chargeable", "billed"],
 };
 
@@ -38,6 +50,8 @@ export function autoMatch(table: RawTable): {
     hours: null,
     project: null,
     description: null,
+    start_time: null,
+    end_time: null,
     billable: null,
   };
   const matched = new Set<CanonicalField>();

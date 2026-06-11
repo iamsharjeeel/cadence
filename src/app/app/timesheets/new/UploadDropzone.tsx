@@ -10,13 +10,13 @@ import {
   checkFile,
   parseFile,
 } from "@/lib/timesheets/parse";
-import type { RawTable } from "@/lib/timesheets/types";
+import type { Grid } from "@/lib/timesheets/types";
 
 export function UploadDropzone({
   onParsed,
   onError,
 }: {
-  onParsed: (table: RawTable, file: File) => void;
+  onParsed: (grid: Grid, file: File) => void;
   onError: (message: string) => void;
 }) {
   const [dragging, setDragging] = useState(false);
@@ -50,12 +50,12 @@ export function UploadDropzone({
       return;
     }
     try {
-      const table = await parseFile(file, check.kind);
-      if (table.headers.length === 0) {
+      const grid = await parseFile(file, check.kind);
+      if (grid.rows.length === 0) {
         onError("That file appears to be empty.");
         return;
       }
-      onParsed(table, file);
+      onParsed(grid, file);
     } catch {
       onError("Couldn't parse that file.");
     }

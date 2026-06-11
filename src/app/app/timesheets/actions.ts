@@ -53,6 +53,8 @@ export async function submitTimesheet(formData: FormData): Promise<SubmitResult>
         hours: String(r?.hours ?? ""),
         project: String(r?.project ?? ""),
         description: String(r?.description ?? ""),
+        start_time: String(r?.start_time ?? ""),
+        end_time: String(r?.end_time ?? ""),
         billable: String(r?.billable ?? ""),
       },
       String(i),

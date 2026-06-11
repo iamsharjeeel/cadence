@@ -1,5 +1,6 @@
-import { validateMappedRow } from "./validation";
+import { normalizeDate, parseHours, validateMappedRow } from "./validation";
 import type {
+  BuildOptions,
   ColumnMapping,
   MappedRow,
   RawTable,
@@ -21,18 +22,76 @@ export function toMappedRows(
     hours: cell(cells, mapping.hours),
     project: cell(cells, mapping.project),
     description: cell(cells, mapping.description),
+    start_time: cell(cells, mapping.start_time),
+    end_time: cell(cells, mapping.end_time),
     billable: cell(cells, mapping.billable),
   }));
 }
 
-/** Builds validated preview rows with stable ids from a raw table + mapping. */
+// Words that mark a summary/total row when they appear in the date column.
+const SUMMARY_RE = /\b(total|totals|sum|subtotal|grand|average|avg)\b/i;
+const NUMERIC_RE = /^\d+([.,]\d+)?$/;
+const WEEKDAYS = new Set([
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "mon", "tue", "tues", "wed", "weds", "thu", "thur", "thurs", "fri", "sat", "sun",
+]);
+
+/**
+ * Decides whether a row is a summary/label row that should be auto-excluded,
+ * based on its date-column value: a summary keyword, or a value that is neither
+ * a valid date, a number, nor a weekday name (e.g. "Total Weekday hours").
+ */
+function isSummaryDateCell(value: string): boolean {
+  const v = value.trim();
+  if (!v) return false;
+  if (SUMMARY_RE.test(v)) return true;
+  const lower = v.toLowerCase();
+  if (WEEKDAYS.has(lower)) return false;
+  return normalizeDate(v) === null && !NUMERIC_RE.test(v);
+}
+
+let counter = 0;
+function nextId(): string {
+  counter = (counter + 1) % Number.MAX_SAFE_INTEGER;
+  return `r${counter}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * Builds validated preview rows from a table + mapping, applying:
+ *   1. summary/total row exclusion (label in the date column)
+ *   2. forward-fill of blank date cells from the row above
+ *   3. optional skip of zero-hour rows
+ * then validating each surviving row.
+ */
 export function buildValidatedRows(
   table: RawTable,
   mapping: ColumnMapping,
+  options: BuildOptions = { skipZeroHours: false },
 ): ValidatedRow[] {
-  return toMappedRows(table, mapping).map((raw, i) =>
-    validateMappedRow(raw, `${i}-${Math.random().toString(36).slice(2, 8)}`),
-  );
+  const mapped = toMappedRows(table, mapping);
+  const out: ValidatedRow[] = [];
+  let lastDate = "";
+
+  for (const raw of mapped) {
+    const dateCell = raw.date.trim();
+
+    // 1. Drop summary/label rows outright.
+    if (isSummaryDateCell(dateCell)) continue;
+
+    // 2. Forward-fill blank date cells from the previous row.
+    let filledDate = dateCell;
+    if (!filledDate) filledDate = lastDate;
+    else lastDate = filledDate;
+
+    const filled: MappedRow = { ...raw, date: filledDate };
+
+    // 3. Optionally skip zero-hour rows instead of flagging them.
+    if (options.skipZeroHours && parseHours(filled.hours) === 0) continue;
+
+    out.push(validateMappedRow(filled, nextId()));
+  }
+
+  return out;
 }
 
 const STORAGE_PREFIX = "cadence:tsmap:";
@@ -67,15 +126,17 @@ export function reconcileStoredMapping(
   const max = table.headers.length - 1;
   for (const key of ["date", "hours"] as const) {
     const idx = stored[key];
-    if (idx === null || idx < 0 || idx > max) return null;
+    if (idx === null || idx === undefined || idx < 0 || idx > max) return null;
   }
-  // Clamp any optional indexes that no longer exist.
-  const clamp = (i: number | null) => (i !== null && i >= 0 && i <= max ? i : null);
+  const clamp = (i: number | null | undefined) =>
+    i !== null && i !== undefined && i >= 0 && i <= max ? i : null;
   return {
     date: stored.date,
     hours: stored.hours,
     project: clamp(stored.project),
     description: clamp(stored.description),
+    start_time: clamp(stored.start_time),
+    end_time: clamp(stored.end_time),
     billable: clamp(stored.billable),
   };
 }
