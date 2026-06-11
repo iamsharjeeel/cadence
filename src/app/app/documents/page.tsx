@@ -18,7 +18,8 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DocumentsTabs } from "@/components/documents/DocumentsTabs";
 import { GenerateFromTimesheetsButton } from "@/components/documents/GenerateFromTimesheetsButton";
-import { OfficialDocumentsPanel } from "@/components/official-docs/OfficialDocumentsPanel";
+import { DocumentActions } from "@/components/documents/DocumentActions";
+import { OfficialDocumentsSection } from "@/components/official-docs/OfficialDocumentsSection";
 import { requireActiveProfile } from "@/lib/auth";
 import { getApprovedTimesheetsWithoutDocuments } from "@/lib/documents/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -65,23 +66,37 @@ export default async function DocumentsPage({
   const db = isSuperadmin ? adminDb : createClient();
 
   const nameById = new Map<string, string>();
-  let employeeOptions: { id: string; name: string }[] = [];
+  let employeeOptions: { id: string; name: string; org_id?: string }[] = [];
+  let orgOptions: { id: string; name: string }[] = [];
+
   if (isManager) {
-    let pq = adminDb.from("profiles").select("id, full_name, email, role");
+    let pq = adminDb.from("profiles").select("id, full_name, email, role, org_id");
     if (!isSuperadmin) pq = pq.eq("org_id", profile.org_id!);
     const { data: people } = await pq;
     for (const p of (people ?? []) as Pick<
       Profile,
-      "id" | "full_name" | "email" | "role"
+      "id" | "full_name" | "email" | "role" | "org_id"
     >[]) {
       const name = p.full_name?.trim() || p.email;
       nameById.set(p.id, name);
-      if (p.role === "employee") employeeOptions.push({ id: p.id, name });
+      if (p.role === "employee") {
+        employeeOptions.push({ id: p.id, name, org_id: p.org_id ?? undefined });
+      }
     }
     employeeOptions.sort((a, b) => a.name.localeCompare(b.name));
+
+    if (isSuperadmin) {
+      const { data: orgs } = await adminDb
+        .from("organizations")
+        .select("id, name")
+        .order("name");
+      orgOptions = (orgs ?? []).map((o) => ({ id: o.id, name: o.name }));
+    }
   }
 
   if (tab === "official") {
+    const officialOrgId = isSuperadmin ? searchParams.org : profile.org_id;
+
     let oq = adminDb
       .from("official_documents")
       .select(
@@ -90,16 +105,17 @@ export default async function DocumentsPage({
       .order("created_at", { ascending: false });
     if (!isManager) oq = oq.eq("employee_id", profile.id);
     else if (!isSuperadmin) oq = oq.eq("org_id", profile.org_id!);
+    else if (officialOrgId) oq = oq.eq("org_id", officialOrgId);
 
     const { data: officialDocs } = await oq;
     const docs = (officialDocs ?? []) as OfficialDocument[];
 
-    const officialUrls = new Map<string, string>();
+    const officialUrls: Record<string, string> = {};
     for (const d of docs) {
       const { data: signed } = await adminDb.storage
         .from("official-documents")
         .createSignedUrl(d.file_path, 60 * 60);
-      if (signed?.signedUrl) officialUrls.set(d.id, signed.signedUrl);
+      if (signed?.signedUrl) officialUrls[d.id] = signed.signedUrl;
     }
 
     const withNames = docs.map((d) => ({
@@ -116,38 +132,15 @@ export default async function DocumentsPage({
           description="Pay documents and official contracts, policies, and offer letters."
         />
         <DocumentsTabs />
-        <Card>
-          <CardHeader>
-            <CardTitle>Official documents</CardTitle>
-            <CardDescription>
-              Contracts, policies, and documents requiring signature or
-              acknowledgement.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {withNames.length === 0 ? (
-              <div className="px-6 py-10">
-                <EmptyState
-                  title="No official documents"
-                  description={
-                    isManager
-                      ? "Upload a contract or policy for your team."
-                      : "Documents assigned to you will appear here."
-                  }
-                />
-              </div>
-            ) : (
-              <div className="px-2 py-2">
-                <OfficialDocumentsPanel
-                  documents={withNames}
-                  isManager={isManager}
-                  employees={employeeOptions}
-                  downloadUrls={officialUrls}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <OfficialDocumentsSection
+          documents={withNames}
+          isManager={isManager}
+          isSuperadmin={isSuperadmin}
+          employees={employeeOptions}
+          orgOptions={isSuperadmin ? orgOptions : undefined}
+          selectedOrgId={officialOrgId ?? undefined}
+          downloadUrls={officialUrls}
+        />
       </div>
     );
   }
@@ -317,15 +310,10 @@ export default async function DocumentsPage({
                     <TD>
                       <div className="flex items-center justify-end gap-2">
                         {downloadUrls.get(doc.id) && (
-                          <a
-                            href={downloadUrls.get(doc.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <Button variant="ghost" size="sm">
-                              Download
-                            </Button>
-                          </a>
+                          <DocumentActions
+                            url={downloadUrls.get(doc.id)!}
+                            filename={`${doc.document_number}.pdf`}
+                          />
                         )}
                         <ResendEmailButton id={doc.id} />
                       </div>

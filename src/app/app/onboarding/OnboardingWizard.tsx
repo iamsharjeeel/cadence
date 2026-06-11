@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
 
@@ -40,7 +40,7 @@ export function OnboardingWizard({
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [signDoc, setSignDoc] = useState<OfficialDocument | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const completeRef = useRef<HTMLDivElement>(null);
@@ -53,8 +53,7 @@ export function OnboardingWizard({
       duration: 0.5,
       ease: "power2.out",
     });
-    const t = setTimeout(() => router.push("/app/dashboard"), 2000);
-    return () => clearTimeout(t);
+    router.push("/app/dashboard");
   }, [done, router]);
 
   async function runAction(
@@ -62,7 +61,8 @@ export function OnboardingWizard({
     form: HTMLFormElement,
   ) {
     const fd = new FormData(form);
-    startTransition(async () => {
+    setPending(true);
+    try {
       const result = await action(fd);
       toast(result.message, result.ok ? "success" : "error");
       if (result.ok) {
@@ -73,7 +73,36 @@ export function OnboardingWizard({
           setStep((s) => s + 1);
         }
       }
-    });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function runSkip(stepKey: "emergency" | "documents") {
+    setPending(true);
+    try {
+      const r = await skipStep(stepKey);
+      toast(r.message, r.ok ? "success" : "error");
+      if (!r.ok) return;
+      if (stepKey === "emergency") {
+        setStep(4);
+      } else {
+        const d = await completeOnboarding();
+        if (d.ok) setDone(true);
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function runFinish() {
+    setPending(true);
+    try {
+      const d = await completeOnboarding();
+      if (d.ok) setDone(true);
+    } finally {
+      setPending(false);
+    }
   }
 
   if (done) {
@@ -198,13 +227,7 @@ export function OnboardingWizard({
                 setStep={setStep}
                 pending={pending}
                 skippable
-                onSkip={() =>
-                  startTransition(async () => {
-                    const r = await skipStep("emergency");
-                    toast(r.message, r.ok ? "success" : "error");
-                    if (r.ok) setStep(4);
-                  })
-                }
+                onSkip={() => runSkip("emergency")}
               />
             </form>
           )}
@@ -237,22 +260,8 @@ export function OnboardingWizard({
                 setStep={setStep}
                 pending={pending}
                 skippable
-                onSkip={() =>
-                  startTransition(async () => {
-                    const r = await skipStep("documents");
-                    toast(r.message, r.ok ? "success" : "error");
-                    if (r.ok) {
-                      const d = await completeOnboarding();
-                      if (d.ok) setDone(true);
-                    }
-                  })
-                }
-                onContinue={() =>
-                  startTransition(async () => {
-                    const d = await completeOnboarding();
-                    if (d.ok) setDone(true);
-                  })
-                }
+                onSkip={() => runSkip("documents")}
+                onContinue={() => runFinish()}
                 continueLabel="Finish"
               />
             </div>

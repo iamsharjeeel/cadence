@@ -9,12 +9,24 @@ import type { LeaveCategory } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string };
 
+function resolveOrgId(
+  actor: { role: string; org_id: string | null },
+  formData: FormData,
+): string | null {
+  if (actor.role === "superadmin") {
+    const orgId = String(formData.get("org_id") ?? "").trim();
+    return orgId || null;
+  }
+  return actor.org_id;
+}
+
 export async function upsertLeaveType(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin"]);
-  if (!admin.org_id) return { ok: false, message: "No organization." };
+  const admin = await requireRole(["admin", "superadmin"]);
+  const orgId = resolveOrgId(admin, formData);
+  if (!orgId) return { ok: false, message: "Select an organization." };
 
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -27,7 +39,7 @@ export async function upsertLeaveType(
 
   const db = createAdminClient();
   const payload = {
-    org_id: admin.org_id,
+    org_id: orgId,
     name,
     category,
     color,
@@ -40,7 +52,7 @@ export async function upsertLeaveType(
       .from("leave_types")
       .update(payload)
       .eq("id", id)
-      .eq("org_id", admin.org_id);
+      .eq("org_id", orgId);
     if (error) return { ok: false, message: "Couldn't update leave type." };
   } else {
     const { error } = await db.from("leave_types").insert(payload);
@@ -54,10 +66,13 @@ export async function upsertLeaveType(
 
 export async function applyDefaultsToAll(
   year: number,
+  orgId?: string,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin"]);
-  if (!admin.org_id) return { ok: false, message: "No organization." };
-  const count = await applyDefaultBalancesForOrg(admin.org_id, year);
+  const admin = await requireRole(["admin", "superadmin"]);
+  const targetOrgId =
+    admin.role === "superadmin" ? orgId : admin.org_id ?? undefined;
+  if (!targetOrgId) return { ok: false, message: "Select an organization." };
+  const count = await applyDefaultBalancesForOrg(targetOrgId, year);
   revalidatePath("/app/leave");
   return { ok: true, message: `Applied defaults to ${count} balance records.` };
 }

@@ -32,11 +32,17 @@ export function LeaveEmployeeView({
   calendarMonth: string;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   async function cancel(id: string) {
-    const result = await cancelLeaveRequest(id);
-    toast(result.message, result.ok ? "success" : "error");
+    setCancellingId(id);
+    try {
+      const result = await cancelLeaveRequest(id);
+      toast(result.message, result.ok ? "success" : "error");
+    } finally {
+      setCancellingId(null);
+    }
   }
 
   const monthRequests = requests.filter(
@@ -155,8 +161,9 @@ export function LeaveEmployeeView({
                         variant="ghost"
                         size="sm"
                         onClick={() => cancel(r.id)}
+                        disabled={cancellingId === r.id}
                       >
-                        Cancel
+                        {cancellingId === r.id ? "Cancelling…" : "Cancel"}
                       </Button>
                     )}
                   </TD>

@@ -221,8 +221,7 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
       return;
     }
     toast("Timesheet submitted.", "success");
-    setStep("done");
-    setTimeout(() => router.push("/app/timesheets"), 1400);
+    router.push("/app/timesheets");
   }
 
   function reset() {

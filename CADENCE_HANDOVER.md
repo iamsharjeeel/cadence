@@ -336,6 +336,47 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 #### Manual step required
 Run migration `20260612000000_phase5_leave_onboarding_docs.sql` against Supabase before deploying.
 
+### Phase 5 fixes + landing enhancement ✅
+
+#### Click responsiveness (definitive fix)
+- **Root cause:** `startTransition(async () => …)` ends the transition when the async function returns a Promise — `isPending` flips off immediately, so buttons showed no loading state during the ~1s server round-trip.
+- **Fix:** Replaced async `startTransition` with synchronous `useState` loading flags set **before** `await` in: `LeaveAdminView`, `LeaveTypesTab`, `TimesheetListTable` (bulk approve), `OnboardingWizard`, `LeaveEmployeeView` (cancel).
+- **Removed artificial delays:** `UploadWizard` navigates immediately after submit; onboarding complete screen redirects without `setTimeout`.
+- **Button:** `transition-all` → targeted transitions; `active:scale-[0.98]` for instant press feedback.
+- **Landing hero:** Removed GSAP opacity fade on interactive hero content (text visible immediately; particle canvas unchanged).
+
+#### Documents — View + Download
+- Pay advices & invoices rows: **View** (opens 1hr signed URL in new tab) + **Download** (`download` attribute) via `DocumentActions.tsx`.
+- Official documents rows: same View/Download pattern.
+
+#### Superadmin — Settings & leave
+- **Settings** nav item now includes `superadmin`.
+- Superadmin settings defaults to **Leave types** tab with org dropdown (`?org=`).
+- `upsertLeaveType` / `applyDefaultsToAll` accept org scope for superadmin; **Apply defaults to all employees** works per selected org.
+
+#### Official documents — upload UI
+- **Upload document** button on Official Documents tab (admin/superadmin), including empty state.
+- Modal: file picker (PDF/DOCX, 20MB), name, category, assign employee or all, signing type.
+- Superadmin: org selector in modal + documents list filter.
+- Inline upload form removed from list panel; upload via modal only.
+
+#### Landing page enhancements
+- Larger hero headline (`text-8xl` on large screens) + dashboard mockup frame beside headline.
+- Features: Lucide icons, teal left-border accent, expanded copy.
+- Stats bar: 3 / 100% / 1 with GSAP `CountUp` on scroll-into-view (`startOnView` on `CountUp`).
+- How it works: large teal step numbers + Lucide icons.
+- Social proof: row of 3 testimonial cards.
+- Footer: product tagline, **Back to top**, `/privacy` and `/terms` placeholder pages.
+- Dependency: `lucide-react`.
+
+#### New / updated files (this session)
+- `src/components/documents/DocumentActions.tsx`
+- `src/components/official-docs/OfficialDocumentUploadModal.tsx`, `OfficialDocumentsSection.tsx`
+- `src/app/app/settings/SuperadminOrgSelect.tsx`
+- `src/app/(marketing)/privacy/page.tsx`, `terms/page.tsx`
+- `src/components/marketing/LandingPage.tsx` — full enhancement
+- `src/components/motion/CountUp.tsx` — `startOnView` prop
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

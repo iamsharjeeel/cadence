@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -29,28 +29,34 @@ export function LeaveAdminView({
   const { toast } = useToast();
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
-  const [pendingTx, startTransition] = useTransition();
+  const [actingId, setActingId] = useState<string | null>(null);
 
-  function approve(id: string) {
-    startTransition(async () => {
+  async function approve(id: string) {
+    setActingId(id);
+    try {
       const result = await approveLeaveRequest(id);
       toast(result.message, result.ok ? "success" : "error");
-    });
+    } finally {
+      setActingId(null);
+    }
   }
 
-  function reject(id: string) {
+  async function reject(id: string) {
     if (!rejectNote.trim()) {
       toast("Rejection note required.", "error");
       return;
     }
-    startTransition(async () => {
+    setActingId(id);
+    try {
       const result = await rejectLeaveRequest(id, rejectNote);
       toast(result.message, result.ok ? "success" : "error");
       if (result.ok) {
         setRejectId(null);
         setRejectNote("");
       }
-    });
+    } finally {
+      setActingId(null);
+    }
   }
 
   return (
@@ -78,9 +84,9 @@ export function LeaveAdminView({
                     <Button
                       size="sm"
                       onClick={() => approve(r.id)}
-                      disabled={pendingTx}
+                      disabled={actingId === r.id}
                     >
-                      Approve
+                      {actingId === r.id ? "Approving…" : "Approve"}
                     </Button>
                     {rejectId !== r.id ? (
                       <Button
@@ -102,9 +108,9 @@ export function LeaveAdminView({
                           size="sm"
                           variant="danger"
                           onClick={() => reject(r.id)}
-                          disabled={pendingTx}
+                          disabled={actingId === r.id}
                         >
-                          Confirm
+                          {actingId === r.id ? "Rejecting…" : "Confirm"}
                         </Button>
                       </div>
                     )}

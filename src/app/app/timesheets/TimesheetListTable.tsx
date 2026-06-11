@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
@@ -50,7 +50,7 @@ export function TimesheetListTable({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [generateOpen, setGenerateOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [bulkPending, setBulkPending] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -110,14 +110,16 @@ export function TimesheetListTable({
       toast("Select submitted timesheets to approve.", "error");
       return;
     }
-    startTransition(async () => {
-      const result = await bulkApproveTimesheets(ids);
-      toast(result.message, result.ok ? "success" : "error");
-      if (result.ok) {
-        setSelected(new Set());
-        router.refresh();
-      }
-    });
+    setBulkPending(true);
+    void bulkApproveTimesheets(ids)
+      .then((result) => {
+        toast(result.message, result.ok ? "success" : "error");
+        if (result.ok) {
+          setSelected(new Set());
+          router.refresh();
+        }
+      })
+      .finally(() => setBulkPending(false));
   }
 
   return (
@@ -128,8 +130,8 @@ export function TimesheetListTable({
             {selected.size} selected
           </span>
           {isManager && selectedSubmitted.length > 0 && (
-            <Button size="sm" onClick={bulkApprove} disabled={pending}>
-              {pending ? "Approving…" : "Approve selected"}
+            <Button size="sm" onClick={bulkApprove} disabled={bulkPending}>
+              {bulkPending ? "Approving…" : "Approve selected"}
             </Button>
           )}
           {selectedApproved.length > 0 && (

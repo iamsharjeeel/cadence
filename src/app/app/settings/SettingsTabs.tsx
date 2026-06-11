@@ -5,19 +5,23 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-export function SettingsTabs() {
+export function SettingsTabs({ isSuperadmin = false }: { isSuperadmin?: boolean }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const tab = params.get("tab") ?? "org";
+  const tab = params.get("tab") ?? (isSuperadmin ? "leave" : "org");
 
   function href(t: string) {
-    return `${pathname}?tab=${t}`;
+    const next = new URLSearchParams(params.toString());
+    next.set("tab", t);
+    return `${pathname}?${next.toString()}`;
   }
 
-  const tabs = [
-    { id: "org", label: "Organization" },
-    { id: "leave", label: "Leave types" },
-  ];
+  const tabs = isSuperadmin
+    ? [{ id: "leave", label: "Leave types" }]
+    : [
+        { id: "org", label: "Organization" },
+        { id: "leave", label: "Leave types" },
+      ];
 
   return (
     <div className="mb-6 flex gap-1 border-b">

@@ -11,44 +11,68 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireRole } from "@/lib/auth";
 import { getOrgLeaveTypes } from "@/lib/leave/queries";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Organization } from "@/types/db";
 import { SettingsForm } from "./SettingsForm";
 import { SettingsTabs } from "./SettingsTabs";
 import { LeaveTypesTab } from "./LeaveTypesTab";
+import { SuperadminOrgSelect } from "./SuperadminOrgSelect";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: { tab?: string };
+  searchParams: { tab?: string; org?: string };
 }) {
-  const admin = await requireRole(["admin"]);
-  const tab = searchParams.tab ?? "org";
+  const admin = await requireRole(["admin", "superadmin"]);
+  const isSuperadmin = admin.role === "superadmin";
+  const tab = searchParams.tab ?? (isSuperadmin ? "leave" : "org");
+  const selectedOrgId = isSuperadmin
+    ? searchParams.org ?? ""
+    : admin.org_id ?? "";
 
+  const adminDb = createAdminClient();
   const supabase = createClient();
-  const { data: org } = admin.org_id
-    ? await supabase
+
+  const orgs = isSuperadmin
+    ? (
+        await adminDb.from("organizations").select("id, name").order("name")
+      ).data ?? []
+    : [];
+
+  const { data: org } = selectedOrgId
+    ? await (isSuperadmin ? adminDb : supabase)
         .from("organizations")
         .select("*")
-        .eq("id", admin.org_id)
+        .eq("id", selectedOrgId)
         .single()
     : { data: null };
 
   const leaveTypes =
-    admin.org_id && tab === "leave"
-      ? await getOrgLeaveTypes(admin.org_id)
+    selectedOrgId && tab === "leave"
+      ? await getOrgLeaveTypes(selectedOrgId)
       : [];
 
   return (
     <div>
       <PageHeader
         title="Organization settings"
-        description="Manage your organization's identity, leave types, and domains."
+        description={
+          isSuperadmin
+            ? "Select an organization to manage leave types and balances."
+            : "Manage your organization's identity, leave types, and domains."
+        }
       />
 
-      <SettingsTabs />
+      <SettingsTabs isSuperadmin={isSuperadmin} />
+
+      {isSuperadmin && tab === "leave" && (
+        <div className="mb-6 max-w-md">
+          <SuperadminOrgSelect orgs={orgs} selectedOrgId={selectedOrgId} />
+        </div>
+      )}
 
       <div className="max-w-3xl">
         {tab === "leave" ? (
@@ -56,12 +80,17 @@ export default async function SettingsPage({
             <CardHeader>
               <CardTitle>Leave types</CardTitle>
               <CardDescription>
-                Default types are seeded when your organization is created.
+                Default types are seeded when an organization is created.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {admin.org_id ? (
-                <LeaveTypesTab types={leaveTypes} />
+              {isSuperadmin && !selectedOrgId ? (
+                <EmptyState
+                  title="Select an organization"
+                  description="Choose an organization above to manage leave types and apply default balances."
+                />
+              ) : selectedOrgId ? (
+                <LeaveTypesTab types={leaveTypes} orgId={selectedOrgId} />
               ) : (
                 <EmptyState
                   title="No organization linked"
@@ -79,7 +108,12 @@ export default async function SettingsPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {org ? (
+              {isSuperadmin ? (
+                <EmptyState
+                  title="Organization settings are admin-scoped"
+                  description="Use the Leave types tab to configure leave for a specific organization. Org identity settings are managed by each organization's admin."
+                />
+              ) : org ? (
                 <SettingsForm org={org as Organization} />
               ) : (
                 <EmptyState

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 import { Button } from "@/components/ui/Button";
@@ -34,32 +34,43 @@ function useToastOnResult(state: ActionResult | null) {
   }, [state, toast]);
 }
 
-export function LeaveTypesTab({ types }: { types: LeaveType[] }) {
+export function LeaveTypesTab({
+  types,
+  orgId,
+}: {
+  types: LeaveType[];
+  orgId: string;
+}) {
   const { toast } = useToast();
   const [state, action] = useFormState(upsertLeaveType, null);
-  const [pending, startTransition] = useTransition();
+  const [applying, setApplying] = useState(false);
   useToastOnResult(state);
 
   const year = new Date().getFullYear();
+
+  async function handleApplyDefaults() {
+    setApplying(true);
+    try {
+      const r = await applyDefaultsToAll(year, orgId);
+      toast(r.message, r.ok ? "success" : "error");
+    } finally {
+      setApplying(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">
-          Configure leave types and default allocations for your organization.
+          Configure leave types and default allocations for this organization.
         </p>
         <Button
           size="sm"
           variant="secondary"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const r = await applyDefaultsToAll(year);
-              toast(r.message, r.ok ? "success" : "error");
-            })
-          }
+          disabled={applying}
+          onClick={handleApplyDefaults}
         >
-          Apply default to all employees
+          {applying ? "Applying…" : "Apply defaults to all employees"}
         </Button>
       </div>
 
@@ -99,6 +110,7 @@ export function LeaveTypesTab({ types }: { types: LeaveType[] }) {
         action={action}
         className="grid gap-4 rounded-[var(--radius)] border p-5 sm:grid-cols-2"
       >
+        <input type="hidden" name="org_id" value={orgId} />
         <h3 className="text-sm font-semibold sm:col-span-2">Add custom type</h3>
         <Input label="Name" name="name" required />
         <label className="flex flex-col gap-1.5 text-sm">
