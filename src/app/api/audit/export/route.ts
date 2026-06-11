@@ -10,6 +10,16 @@ function csvEscape(value: string | number | null | undefined): string {
   return s;
 }
 
+function defaultDateRange(): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+  };
+}
+
 export async function GET(request: NextRequest) {
   const profile = await getProfile();
   if (!profile || profile.status !== "active") {
@@ -20,6 +30,9 @@ export async function GET(request: NextRequest) {
   }
 
   const sp = request.nextUrl.searchParams;
+  const defaults = defaultDateRange();
+  const from = sp.get("from")?.trim() || defaults.from;
+  const to = sp.get("to")?.trim() || defaults.to;
   const orgId =
     profile.role === "superadmin"
       ? sp.get("org") || null
@@ -37,11 +50,15 @@ export async function GET(request: NextRequest) {
     .limit(5000);
 
   if (orgId) query = query.eq("org_id", orgId);
-  if (sp.get("actor")) query = query.eq("actor_id", sp.get("actor")!);
-  if (sp.get("action")) query = query.eq("action", sp.get("action")!);
-  if (sp.get("entity")) query = query.eq("entity", sp.get("entity")!);
-  if (sp.get("from")) query = query.gte("created_at", `${sp.get("from")}T00:00:00Z`);
-  if (sp.get("to")) query = query.lte("created_at", `${sp.get("to")}T23:59:59Z`);
+  const actor = sp.get("actor")?.trim();
+  const action = sp.get("action")?.trim();
+  const entity = sp.get("entity")?.trim();
+  if (actor) query = query.eq("actor_id", actor);
+  if (action) query = query.eq("action", action);
+  if (entity) query = query.eq("entity", entity);
+  query = query
+    .gte("created_at", `${from}T00:00:00Z`)
+    .lte("created_at", `${to}T23:59:59Z`);
 
   const { data: rows } = await query;
   const actorIds = [...new Set((rows ?? []).map((r) => r.actor_id).filter(Boolean))] as string[];

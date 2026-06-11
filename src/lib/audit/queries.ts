@@ -41,13 +41,21 @@ export async function fetchAuditLog(params: {
     .range(from, to);
 
   if (params.orgId) query = query.eq("org_id", params.orgId);
-  if (params.actorId) query = query.eq("actor_id", params.actorId);
-  if (params.action) query = query.eq("action", params.action);
-  if (params.entity) query = query.eq("entity", params.entity);
-  if (params.from) query = query.gte("created_at", `${params.from}T00:00:00Z`);
-  if (params.to) query = query.lte("created_at", `${params.to}T23:59:59Z`);
+  if (params.actorId?.trim()) query = query.eq("actor_id", params.actorId.trim());
+  if (params.action?.trim()) query = query.eq("action", params.action.trim());
+  if (params.entity?.trim()) query = query.eq("entity", params.entity.trim());
+  if (params.from?.trim()) {
+    query = query.gte("created_at", `${params.from.trim()}T00:00:00Z`);
+  }
+  if (params.to?.trim()) {
+    query = query.lte("created_at", `${params.to.trim()}T23:59:59Z`);
+  }
 
-  const { data: rows } = await query;
+  const { data: rows, error } = await query;
+  if (error) {
+    console.error("[audit] fetchAuditLog query failed:", error.message);
+    return { entries: [], hasMore: false };
+  }
   const entries = rows ?? [];
   const hasMore = entries.length > pageSize;
   const slice = hasMore ? entries.slice(0, pageSize) : entries;

@@ -1,16 +1,24 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
-import { MotionTR } from "@/components/motion/MotionTR";
 import { summarizePayload } from "@/lib/audit/summarize";
 import type { AuditLogEntry } from "@/lib/audit/queries";
 import { titleCase } from "@/lib/utils";
+
+export type AuditFilters = {
+  org: string;
+  actor: string;
+  action: string;
+  entity: string;
+  from: string;
+  to: string;
+};
 
 export function AuditLogViewer({
   entries,
@@ -20,7 +28,7 @@ export function AuditLogViewer({
   actions,
   orgs,
   isSuperadmin,
-  selectedOrgId,
+  filters,
 }: {
   entries: AuditLogEntry[];
   hasMore: boolean;
@@ -29,29 +37,39 @@ export function AuditLogViewer({
   actions: string[];
   orgs: { id: string; name: string }[];
   isSuperadmin: boolean;
-  selectedOrgId: string;
+  filters: AuditFilters;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
   const [exporting, setExporting] = useState(false);
-  const [entityDraft, setEntityDraft] = useState(params.get("entity") ?? "");
+  const [entityDraft, setEntityDraft] = useState(filters.entity);
+
+  useEffect(() => {
+    setEntityDraft(filters.entity);
+  }, [filters.entity]);
+
+  function currentParams(): URLSearchParams {
+    return new URLSearchParams(searchParams?.toString() ?? "");
+  }
 
   function updateFilter(key: string, value: string) {
-    const next = new URLSearchParams(params.toString());
-    if (value) next.set(key, value);
+    const next = currentParams();
+    const trimmed = value.trim();
+    if (trimmed) next.set(key, trimmed);
     else next.delete(key);
     if (key !== "page") next.delete("page");
-    router.push(`${pathname}?${next.toString()}`);
+    const qs = next.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
   function applyEntityFilter() {
-    updateFilter("entity", entityDraft.trim());
+    updateFilter("entity", entityDraft);
   }
 
   async function exportCsv() {
     setExporting(true);
-    const qs = params.toString();
+    const qs = currentParams().toString();
     window.location.href = `/api/audit/export${qs ? `?${qs}` : ""}`;
     setExporting(false);
   }
@@ -62,7 +80,7 @@ export function AuditLogViewer({
         <div className="max-w-md">
           <Select
             label="Organization"
-            value={selectedOrgId}
+            value={filters.org}
             onChange={(e) => updateFilter("org", e.target.value)}
             options={[
               { label: "All organizations", value: "" },
@@ -75,7 +93,7 @@ export function AuditLogViewer({
       <div className="flex flex-wrap items-end gap-3">
         <Select
           label="Actor"
-          value={params.get("actor") ?? ""}
+          value={filters.actor}
           onChange={(e) => updateFilter("actor", e.target.value)}
           options={[
             { label: "All actors", value: "" },
@@ -87,7 +105,7 @@ export function AuditLogViewer({
         />
         <Select
           label="Action"
-          value={params.get("action") ?? ""}
+          value={filters.action}
           onChange={(e) => updateFilter("action", e.target.value)}
           options={[
             { label: "All actions", value: "" },
@@ -111,13 +129,13 @@ export function AuditLogViewer({
         <Input
           label="From"
           type="date"
-          value={params.get("from") ?? ""}
+          value={filters.from}
           onChange={(e) => updateFilter("from", e.target.value)}
         />
         <Input
           label="To"
           type="date"
-          value={params.get("to") ?? ""}
+          value={filters.to}
           onChange={(e) => updateFilter("to", e.target.value)}
         />
         <Button
@@ -149,8 +167,8 @@ export function AuditLogViewer({
                 </TD>
               </TR>
             ) : (
-              entries.map((entry, i) => (
-                <MotionTR key={entry.id} index={i}>
+              entries.map((entry) => (
+                <TR key={entry.id}>
                   <TD className="tnum whitespace-nowrap text-sm">
                     {new Date(entry.created_at).toLocaleString()}
                   </TD>
@@ -160,9 +178,11 @@ export function AuditLogViewer({
                         <span className="font-medium text-ink">
                           {entry.actor.full_name?.trim() || entry.actor.email}
                         </span>
-                        <span className="ml-1 text-xs text-muted">
-                          {titleCase(entry.actor.role)}
-                        </span>
+                        {entry.actor.role ? (
+                          <span className="ml-1 text-xs text-muted">
+                            {titleCase(entry.actor.role)}
+                          </span>
+                        ) : null}
                       </>
                     ) : (
                       "—"
@@ -173,7 +193,7 @@ export function AuditLogViewer({
                   <TD className="max-w-xs truncate text-sm text-muted">
                     {summarizePayload(entry.action, entry.payload)}
                   </TD>
-                </MotionTR>
+                </TR>
               ))
             )}
           </TBody>

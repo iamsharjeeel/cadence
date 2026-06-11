@@ -404,6 +404,19 @@ Run migration `20260613000000_phase6_notifications_org_logos.sql` against Supaba
 - **`NotificationsBell`:** unmount guard on poll interval; async load handles server-action throws gracefully.
 - **Audit log:** entity filter uses local draft + Apply button instead of navigate-on-keystroke.
 
+### Phase 6 fix (audit page) ✅ — Client crash on /app/audit
+
+#### Root cause
+- **`TypeError: Cannot read properties of null (reading 'get')`** — `AuditLogViewer` called `useSearchParams().get(...)` during render. In Next.js 14, `useSearchParams()` can return `null` while the router is not ready (notably during client-side navigation). Unlike timesheets (which passes filter values as server props), audit read params directly in JSX on every render.
+- Secondary: `MotionTR` with `whileInView` on table rows added unnecessary client complexity; removed in favour of plain `TR`.
+
+#### Fix
+- **Pass filter values as props** from the server page (`AuditFilters`), matching the timesheets pattern.
+- **Null-safe `useSearchParams`** via `currentParams()` helper — only used for building next URL on filter change, never during render.
+- **`Suspense` boundary** around audit content; **`error.tsx`** on the route so a crash here does not take down the app shell.
+- **`fetchAuditLog`:** trims/ignores empty filter strings; returns empty on query error.
+- **CSV export:** defaults to last 30 days when no date range is selected.
+
 #### Manual step required
 Run migration `20260613000000_phase6_notifications_org_logos.sql` against Supabase if not already applied (notifications table + org-logos bucket).
 
