@@ -42,9 +42,17 @@ function SubmitButton({
   );
 }
 
-export function ApproveTimesheetButton({ id }: { id: string }) {
+export function ApproveTimesheetButton({
+  id,
+  status,
+}: {
+  id: string;
+  status?: string;
+}) {
   const [state, action] = useFormState(approveTimesheet, null);
   useResultToast(state);
+  if (status && status !== "submitted") return null;
+
   return (
     <form action={action}>
       <input type="hidden" name="id" value={id} />
@@ -53,7 +61,13 @@ export function ApproveTimesheetButton({ id }: { id: string }) {
   );
 }
 
-export function RejectTimesheetControl({ id }: { id: string }) {
+export function RejectTimesheetControl({
+  id,
+  status,
+}: {
+  id: string;
+  status?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [state, action] = useFormState(rejectTimesheet, null);
   useResultToast(state);
@@ -61,6 +75,8 @@ export function RejectTimesheetControl({ id }: { id: string }) {
   useEffect(() => {
     if (state?.ok) setOpen(false);
   }, [state]);
+
+  if (status && status !== "submitted") return null;
 
   if (!open) {
     return (

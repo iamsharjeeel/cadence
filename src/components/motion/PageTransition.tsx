@@ -7,28 +7,37 @@ import gsap from "gsap";
 import {
   DURATION,
   EASE,
-  INTERACTIVE_SELECTOR,
   RISE,
   enablePointerEvents,
   prefersReducedMotion,
 } from "@/lib/motion";
 
 /**
- * Route transition: fade + 8px rise, 300ms, power2.out. Re-runs whenever the
- * pathname changes. No-op under prefers-reduced-motion.
+ * Route transition: fade + rise once per pathname visit. Re-runs only when the
+ * pathname changes — not on parent re-renders or router.refresh().
  */
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const lastAnimatedPath = useRef<string | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (prefersReducedMotion()) return;
 
-    el.querySelectorAll(INTERACTIVE_SELECTOR).forEach((child) => {
-      (child as HTMLElement).style.pointerEvents = "auto";
-    });
+    // Same route re-render (e.g. refresh) — keep content interactive, skip replay.
+    if (lastAnimatedPath.current === pathname) {
+      enablePointerEvents(el);
+      gsap.set(el, { opacity: 1, y: 0, pointerEvents: "auto" });
+      return;
+    }
+
+    if (prefersReducedMotion()) {
+      lastAnimatedPath.current = pathname;
+      enablePointerEvents(el);
+      gsap.set(el, { opacity: 1, y: 0, pointerEvents: "auto" });
+      return;
+    }
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
@@ -41,7 +50,9 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
           ease: EASE,
           clearProps: "transform,opacity",
           onComplete: () => {
+            lastAnimatedPath.current = pathname;
             enablePointerEvents(el);
+            gsap.set(el, { opacity: 1, y: 0, pointerEvents: "auto" });
           },
         },
       );
@@ -49,7 +60,11 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     return () => {
       enablePointerEvents(el);
-      ctx.revert();
+      if (lastAnimatedPath.current !== pathname) {
+        ctx.revert();
+      } else {
+        ctx.kill();
+      }
     };
   }, [pathname]);
 

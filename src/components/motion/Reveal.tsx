@@ -8,15 +8,13 @@ import {
   EASE,
   REVEAL_ITEM_CLASS,
   RISE,
-  disablePointerEventsDuringAnim,
   enablePointerEvents,
   prefersReducedMotion,
 } from "@/lib/motion";
 
 /**
- * Staggered reveal for lists/cards on mount. Animates `.reveal-item` children
- * when present, otherwise direct children. Interactive descendants (links,
- * buttons) keep pointer-events throughout; animated shells release on complete.
+ * Staggered reveal for lists/cards — runs once on initial mount only.
+ * Interactive descendants are never left with pointer-events disabled.
  */
 export function Reveal({
   children,
@@ -28,11 +26,11 @@ export function Reveal({
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const hasAnimated = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    if (prefersReducedMotion()) return;
+    if (!el || hasAnimated.current) return;
 
     const items = el.querySelectorAll(`.${REVEAL_ITEM_CLASS}`);
     const targets =
@@ -42,7 +40,12 @@ export function Reveal({
           ? Array.from(el.children)
           : [el];
 
-    disablePointerEventsDuringAnim(targets);
+    if (prefersReducedMotion()) {
+      hasAnimated.current = true;
+      enablePointerEvents(targets);
+      gsap.set(targets, { opacity: 1, y: 0, pointerEvents: "auto" });
+      return;
+    }
 
     const ctx = gsap.context(() => {
       gsap.from(targets, {
@@ -53,14 +56,22 @@ export function Reveal({
         stagger,
         clearProps: "transform,opacity",
         onComplete: () => {
+          hasAnimated.current = true;
           enablePointerEvents(targets);
+          targets.forEach((node) => {
+            gsap.set(node, { opacity: 1, y: 0, pointerEvents: "auto" });
+          });
         },
       });
     }, el);
 
     return () => {
       enablePointerEvents(targets);
-      ctx.revert();
+      if (!hasAnimated.current) {
+        ctx.revert();
+      } else {
+        ctx.kill();
+      }
     };
   }, [stagger]);
 

@@ -62,17 +62,21 @@ export function TimesheetListTable({
   const approvedIds = timesheets
     .filter((t) => t.status === "approved" && t.calculated_total !== null)
     .map((t) => t.id);
-  const allSubmittedSelected =
-    submittedIds.length > 0 && submittedIds.every((id) => selected.has(id));
+  const selectableIds = [...new Set([...submittedIds, ...approvedIds])];
+  const allSelectableSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
+  const selectedSubmitted = timesheets.filter(
+    (t) => selected.has(t.id) && t.status === "submitted",
+  );
   const selectedApproved = timesheets.filter(
     (t) => selected.has(t.id) && t.status === "approved" && t.calculated_total !== null,
   );
 
   function toggleAll() {
-    if (allSubmittedSelected) {
+    if (allSelectableSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(submittedIds));
+      setSelected(new Set(selectableIds));
     }
   }
 
@@ -123,7 +127,7 @@ export function TimesheetListTable({
           <span className="text-sm text-muted">
             {selected.size} selected
           </span>
-          {isManager && (
+          {isManager && selectedSubmitted.length > 0 && (
             <Button size="sm" onClick={bulkApprove} disabled={pending}>
               {pending ? "Approving…" : "Approve selected"}
             </Button>
@@ -158,10 +162,10 @@ export function TimesheetListTable({
             <TH className="w-10">
               <input
                 type="checkbox"
-                checked={allSubmittedSelected}
+                checked={allSelectableSelected}
                 onChange={toggleAll}
-                disabled={submittedIds.length === 0 && approvedIds.length === 0}
-                aria-label="Select all submitted"
+                disabled={selectableIds.length === 0}
+                aria-label="Select all timesheets"
                 className="h-4 w-4 accent-[var(--accent)]"
               />
             </TH>
@@ -249,10 +253,10 @@ export function TimesheetListTable({
               </TD>
               <TD>
                 <div className="flex items-center justify-end gap-2">
-                  {isManager && t.status === "submitted" && (
+                  {isManager && (
                     <>
-                      <ApproveTimesheetButton id={t.id} />
-                      <RejectTimesheetControl id={t.id} />
+                      <ApproveTimesheetButton id={t.id} status={t.status} />
+                      <RejectTimesheetControl id={t.id} status={t.status} />
                     </>
                   )}
                   {t.status === "approved" && t.calculated_total !== null && (

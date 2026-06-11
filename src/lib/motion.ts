@@ -28,14 +28,3 @@ export function enablePointerEvents(root: Element | Element[]): void {
   }
 }
 
-/** Disables pointer events on animated shells; children stay interactive. */
-export function disablePointerEventsDuringAnim(root: Element | Element[]): void {
-  const nodes = Array.isArray(root) ? root : [root];
-  for (const node of nodes) {
-    const el = node as HTMLElement;
-    el.style.pointerEvents = "none";
-    el.querySelectorAll(INTERACTIVE_SELECTOR).forEach((child) => {
-      (child as HTMLElement).style.pointerEvents = "auto";
-    });
-  }
-}

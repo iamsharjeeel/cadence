@@ -182,11 +182,9 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 
 ### Phase 3 fixes + enhancements ✅
 
-#### Click responsiveness
-- **Root cause:** GSAP entrance animations on interactive elements suppressed clicks during/after transitions.
-- **Fix:** `Reveal` and `PageTransition` now use `onComplete` + `enablePointerEvents`; animated shells get `pointer-events: none` during tween while links/buttons inside keep `pointer-events: auto`.
-- **Structure:** interactive cards/links wrapped in `.reveal-item` shells (animated) so the link/button itself is never the GSAP target.
-- Visual timing unchanged — pointer-events only.
+#### Click responsiveness (initial pass — superseded by Phase 4 fixes session)
+- First attempt used `pointer-events: none` on animated shells during tweens.
+- **Superseded:** see "Phase 4 fixes + landing page" — animate-once guards + no revert after complete.
 
 #### Start / end time in upload wizard
 - Preview table shows **Start** and **End** columns when mapped.
@@ -248,10 +246,39 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 - `src/app/app/documents/`
 - `src/components/documents/GenerateDocumentModal.tsx`
 
+### Phase 4 fixes + landing page ✅
+
+#### Click responsiveness (proper fix)
+- **Root cause:** `Reveal` and `PageTransition` re-ran GSAP entrance tweens on re-renders / `router.refresh()`, and `ctx.revert()` on cleanup briefly reset opacity / pointer state.
+- **Fix:** `useRef` / pathname guard so each reveal animates **once**; `onComplete` explicitly sets `pointerEvents: "auto"` on every animated target; completed animations call `ctx.kill()` instead of `ctx.revert()`.
+- `PageTransition` skips replay when pathname unchanged (e.g. after refresh).
+- Removed `disablePointerEventsDuringAnim` — no longer blocking clicks during tweens.
+
+#### Document generation fix
+- **`getApprovedTimesheetsWithoutDocuments`** (`src/lib/documents/queries.ts`): queries `status = 'approved'`, org-scoped for admin, all orgs for superadmin, excludes timesheets that already have a `documents` row.
+- **Documents page** "Generate from timesheets" opens a modal listing eligible timesheets with checkboxes + bulk select → `GenerateDocumentModal`.
+- **API payload:** single generate sends `timesheet_id`; bulk sends `timesheet_ids` — `POST /api/documents/generate` unchanged, org derived server-side from timesheet.
+- **Timesheet list:** approve/reject controls hidden when `status !== 'submitted'`; bulk "Approve selected" only shown when submitted rows are selected.
+
+#### Public landing page (`/`)
+- Full quiet-luxury marketing page outside `/app` layout: Hero, Features (3 cards), How it works (3 steps), testimonial placeholder, CTA banner, footer.
+- Space Grotesk + Inter, Mineral Teal accent, light/dark via existing tokens.
+- GSAP fade+rise on hero load only (once, no replay).
+- CTAs → `/login`. Logged-in active users hitting `/` redirect to `/app/dashboard` (page + middleware).
+
+#### New / updated files (this session)
+- `src/components/motion/Reveal.tsx`, `PageTransition.tsx` — animate-once fix
+- `src/lib/motion.ts` — removed pointer-events-during-anim helper
+- `src/lib/documents/queries.ts` — approved timesheets without documents
+- `src/components/documents/GenerateFromTimesheetsButton.tsx` — documents page modal
+- `src/components/marketing/LandingPage.tsx` — full landing UI
+- `src/app/(marketing)/page.tsx` — auth-aware home route
+- `src/components/ui/Button.tsx` — exported `buttonStyles()` for Link CTAs
+- `src/lib/supabase/middleware.ts` — active users on `/` → dashboard
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)
-- Public marketing landing page
 
 ## Working preferences
 - Direct, snappy, concise. Minimal preamble.

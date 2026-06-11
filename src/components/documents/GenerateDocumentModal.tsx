@@ -36,15 +36,21 @@ export function GenerateDocumentModal({
   async function generate() {
     setBusy(true);
     try {
+      const payload: Record<string, unknown> = {
+        type,
+        gst_enabled: gstEnabled,
+        gst_rate: rate,
+      };
+      if (timesheetIds.length === 1) {
+        payload.timesheet_id = timesheetIds[0];
+      } else {
+        payload.timesheet_ids = timesheetIds;
+      }
+
       const res = await fetch("/api/documents/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          timesheet_ids: timesheetIds,
-          type,
-          gst_enabled: gstEnabled,
-          gst_rate: rate,
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!res.ok) {

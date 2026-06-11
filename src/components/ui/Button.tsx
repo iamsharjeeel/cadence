@@ -30,6 +30,15 @@ const sizes: Record<Size, string> = {
   md: "h-11 px-5 text-sm",
 };
 
+/** Shared button surface classes for `<Link>` CTAs (avoids nested button in anchor). */
+export function buttonStyles(
+  variant: Variant = "primary",
+  size: Size = "md",
+  className?: string,
+) {
+  return cn(base, variants[variant], sizes[size], className);
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", type, ...props }, ref) => {
     return (

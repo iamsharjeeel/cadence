@@ -21,6 +21,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type { Document, DocumentStatus, DocumentType, Profile } from "@/types/db";
+import { GenerateFromTimesheetsButton } from "@/components/documents/GenerateFromTimesheetsButton";
+import { getApprovedTimesheetsWithoutDocuments } from "@/lib/documents/queries";
 import {
   DocumentFilters,
   DocumentStatusSelect,
@@ -85,6 +87,11 @@ export default async function DocumentsPage({
     employeeOptions.sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  const pendingTimesheets =
+    isManager
+      ? await getApprovedTimesheetsWithoutDocuments(profile)
+      : [];
+
   const adminDb = createAdminClient();
   const downloadUrls = new Map<string, string>();
   for (const doc of documents) {
@@ -107,11 +114,7 @@ export default async function DocumentsPage({
         }
         action={
           isManager ? (
-            <Link href="/app/timesheets?status=approved">
-              <Button size="sm" variant="secondary">
-                Generate from timesheets
-              </Button>
-            </Link>
+            <GenerateFromTimesheetsButton timesheets={pendingTimesheets} />
           ) : undefined
         }
       />

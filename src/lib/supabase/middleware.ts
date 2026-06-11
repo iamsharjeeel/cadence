@@ -47,6 +47,7 @@ export async function updateSession(request: NextRequest) {
   const isApp = pathname.startsWith("/app");
   const isPending = pathname === "/pending";
   const isLogin = pathname === "/login";
+  const isHome = pathname === "/";
 
   // Unauthenticated users may not enter the app shell.
   if (!user && (isApp || isPending)) {
@@ -57,7 +58,7 @@ export async function updateSession(request: NextRequest) {
 
   if (user) {
     // Only fetch status when it actually gates the route, to keep middleware cheap.
-    if (isApp || isPending || isLogin) {
+    if (isApp || isPending || isLogin || isHome) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("status")
@@ -73,7 +74,7 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
 
-      if ((isPending || isLogin) && !blocked) {
+      if ((isPending || isLogin || isHome) && !blocked) {
         const url = request.nextUrl.clone();
         url.pathname = "/app/dashboard";
         return NextResponse.redirect(url);
