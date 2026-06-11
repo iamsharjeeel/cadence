@@ -18,8 +18,9 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DocumentsTabs } from "@/components/documents/DocumentsTabs";
 import { GenerateFromTimesheetsButton } from "@/components/documents/GenerateFromTimesheetsButton";
-import { DocumentActions } from "@/components/documents/DocumentActions";
+import { PayDocumentRowActions } from "@/components/documents/PayDocumentRowActions";
 import { OfficialDocumentsSection } from "@/components/official-docs/OfficialDocumentsSection";
+import { MotionTR } from "@/components/motion/MotionTR";
 import { requireActiveProfile } from "@/lib/auth";
 import { getApprovedTimesheetsWithoutDocuments } from "@/lib/documents/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -34,8 +35,6 @@ import type {
 } from "@/types/db";
 import {
   DocumentFilters,
-  DocumentStatusSelect,
-  ResendEmailButton,
 } from "./controls";
 
 export const metadata: Metadata = { title: "Documents" };
@@ -271,8 +270,8 @@ export default async function DocumentsPage({
                 </TR>
               </THead>
               <TBody>
-                {documents.map((doc) => (
-                  <TR key={doc.id}>
+                {documents.map((doc, i) => (
+                  <MotionTR key={doc.id} index={i}>
                     <TD>
                       <DocumentTypePill type={doc.type as DocumentType} />
                     </TD>
@@ -293,32 +292,25 @@ export default async function DocumentsPage({
                       {formatMoney(doc.total, doc.currency)}
                     </TD>
                     <TD>
-                      {isManager ? (
-                        <DocumentStatusSelect
-                          id={doc.id}
-                          current={doc.status as DocumentStatus}
-                        />
-                      ) : (
-                        <DocumentStatusPill
-                          status={doc.status as DocumentStatus}
-                        />
-                      )}
+                      <DocumentStatusPill
+                        status={doc.status as DocumentStatus}
+                      />
                     </TD>
                     <TD className="tnum text-sm text-muted">
                       {formatDate(doc.created_at)}
                     </TD>
                     <TD>
-                      <div className="flex items-center justify-end gap-2">
-                        {downloadUrls.get(doc.id) && (
-                          <DocumentActions
-                            url={downloadUrls.get(doc.id)!}
-                            filename={`${doc.document_number}.pdf`}
-                          />
-                        )}
-                        <ResendEmailButton id={doc.id} />
-                      </div>
+                      {downloadUrls.get(doc.id) && (
+                        <PayDocumentRowActions
+                          id={doc.id}
+                          url={downloadUrls.get(doc.id)!}
+                          filename={`${doc.document_number}.pdf`}
+                          currentStatus={doc.status as DocumentStatus}
+                          isManager={isManager}
+                        />
+                      )}
                     </TD>
-                  </TR>
+                  </MotionTR>
                 ))}
               </TBody>
             </Table>

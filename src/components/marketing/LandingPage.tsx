@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import gsap from "gsap";
 import {
   CheckCircle2,
   FileText,
@@ -14,10 +13,9 @@ import {
 } from "lucide-react";
 
 import { Wordmark } from "@/components/brand/Wordmark";
-import { CountUp } from "@/components/motion/CountUp";
+import { LandingCountUp } from "@/components/motion/LandingCountUp";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { buttonStyles } from "@/components/ui/Button";
-import { prefersReducedMotion } from "@/lib/motion";
+import { buttonStyles } from "@/components/ui/buttonStyles";
 
 const HeroCanvas = dynamic(
   () => import("./HeroCanvas").then((m) => m.HeroCanvas),
@@ -144,25 +142,6 @@ function DashboardMockup() {
 
 export function LandingPage() {
   const heroSectionRef = useRef<HTMLElement>(null);
-  const heroContentRef = useRef<HTMLDivElement>(null);
-  const hasAnimated = useRef(false);
-
-  useEffect(() => {
-    const el = heroContentRef.current;
-    if (!el || hasAnimated.current) return;
-
-    const targets = el.querySelectorAll("[data-hero-reveal]");
-    if (targets.length === 0) return;
-
-    if (prefersReducedMotion()) {
-      hasAnimated.current = true;
-      gsap.set(targets, { opacity: 1, y: 0 });
-      return;
-    }
-
-    gsap.set(targets, { opacity: 1, y: 0 });
-    hasAnimated.current = true;
-  }, []);
 
   function scrollToFeatures() {
     document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
@@ -195,35 +174,20 @@ export function LandingPage() {
           className="relative mx-auto max-w-6xl overflow-hidden px-6 pb-20 pt-16 sm:px-8 sm:pt-24"
         >
           <HeroCanvas heroRef={heroSectionRef} />
-          <div
-            ref={heroContentRef}
-            className="relative z-10 grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]"
-          >
+          <div className="relative z-10 grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <p
-                data-hero-reveal
-                className="mb-5 inline-flex items-center gap-2 rounded-full border bg-surface/80 px-3 py-1 text-xs font-medium text-muted backdrop-blur"
-              >
+              <p className="mb-5 inline-flex items-center gap-2 rounded-full border bg-surface/80 px-3 py-1 text-xs font-medium text-muted backdrop-blur">
                 <span className="h-1.5 w-1.5 rounded-full bg-accent" />
                 Premium timesheet portal
               </p>
-              <h1
-                data-hero-reveal
-                className="font-display text-5xl font-semibold leading-[1.02] tracking-tightest sm:text-6xl lg:text-8xl"
-              >
+              <h1 className="font-display text-5xl font-semibold leading-[1.02] tracking-tightest sm:text-6xl lg:text-8xl">
                 Time, tracked with rhythm.
               </h1>
-              <p
-                data-hero-reveal
-                className="mt-6 max-w-xl text-lg leading-relaxed text-muted sm:text-xl"
-              >
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted sm:text-xl">
                 A premium timesheet portal for modern teams. Upload, approve, and
                 pay — without the friction.
               </p>
-              <div
-                data-hero-reveal
-                className="mt-10 flex flex-wrap items-center gap-3"
-              >
+              <div className="mt-10 flex flex-wrap items-center gap-3">
                 <Link href="/login" className={buttonStyles("primary", "md")}>
                   Get started
                 </Link>
@@ -278,11 +242,9 @@ export function LandingPage() {
             {STATS.map((s) => (
               <div key={s.label} className="text-center">
                 <p className="font-display text-4xl font-semibold text-[var(--accent-strong)] sm:text-5xl">
-                  <CountUp
+                  <LandingCountUp
                     value={s.value}
                     suffix={s.suffix}
-                    decimals={0}
-                    startOnView
                     duration={1}
                   />
                 </p>

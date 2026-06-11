@@ -60,7 +60,7 @@ export function LeaveAdminView({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Pending requests</CardTitle>

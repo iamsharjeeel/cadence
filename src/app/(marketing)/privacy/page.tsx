@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Wordmark } from "@/components/brand/Wordmark";
-import { buttonStyles } from "@/components/ui/Button";
+import { buttonStyles } from "@/components/ui/buttonStyles";
 
 export const metadata: Metadata = { title: "Privacy Policy" };
 

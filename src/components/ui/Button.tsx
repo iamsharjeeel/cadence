@@ -1,53 +1,86 @@
+"use client";
+
 import { forwardRef } from "react";
+import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
-
-type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "sm" | "md";
+import { buttonStyles, type ButtonVariant, type ButtonSize } from "./buttonStyles";
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
-  size?: Size;
+  extends Omit<
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
+    | "onDrag"
+    | "onDragStart"
+    | "onDragEnd"
+    | "onDragEnter"
+    | "onDragLeave"
+    | "onDragOver"
+    | "onDrop"
+    | "onAnimationStart"
+    | "onAnimationEnd"
+    | "onAnimationIteration"
+  > {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  loading?: boolean;
 }
 
-const base =
-  "inline-flex items-center justify-center gap-2 rounded-[var(--radius)] font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 motion-safe:hover:-translate-y-px motion-safe:active:scale-[0.98] motion-safe:active:translate-y-0";
+const MotionButton = motion.button;
 
-const variants: Record<Variant, string> = {
-  primary:
-    "bg-accent text-white shadow-card hover:bg-[var(--accent-strong)]",
-  secondary:
-    "border bg-surface text-ink hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)]",
-  ghost:
-    "border bg-transparent text-ink hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)]",
-  danger:
-    "bg-[var(--danger-soft)] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white",
-};
-
-const sizes: Record<Size, string> = {
-  sm: "h-9 px-3 text-sm",
-  md: "h-11 px-5 text-sm",
-};
-
-/** Shared button surface classes for `<Link>` CTAs (avoids nested button in anchor). */
-export function buttonStyles(
-  variant: Variant = "primary",
-  size: Size = "md",
-  className?: string,
-) {
-  return cn(base, variants[variant], sizes[size], className);
+function Spinner() {
+  return (
+    <svg
+      className="h-4 w-4 shrink-0 animate-spin"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 0 1 8-8V0C5.37 0 0 5.37 0 12h4z"
+      />
+    </svg>
+  );
 }
+
+export { buttonStyles } from "./buttonStyles";
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "md", type, ...props }, ref) => {
+  (
+    {
+      className,
+      variant = "primary",
+      size = "md",
+      type,
+      loading = false,
+      disabled,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
     return (
-      <button
+      <MotionButton
         ref={ref}
         type={type ?? "button"}
-        className={cn(base, variants[variant], sizes[size], className)}
+        disabled={disabled || loading}
+        whileTap={{ scale: 0.97 }}
+        transition={{ duration: 0.08 }}
+        className={buttonStyles(variant, size, className)}
         {...props}
-      />
+      >
+        {loading && <Spinner />}
+        {children}
+      </MotionButton>
     );
   },
 );

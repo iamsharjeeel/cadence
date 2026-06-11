@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 import { Sidebar } from "@/components/app/Sidebar";
 import { Topbar } from "@/components/app/Topbar";
+import { PageTransition } from "@/components/motion/PageTransition";
 import type { Profile } from "@/types/db";
 
 export function AppShell({
@@ -21,8 +22,8 @@ export function AppShell({
   if (isOnboarding) {
     return (
       <div className="min-h-screen bg-bg">
-        <main className="mx-auto w-full max-w-2xl px-5 py-10 sm:px-8">
-          {children}
+        <main className="w-full px-5 py-10 sm:px-8">
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
     );
@@ -34,7 +35,7 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar profile={profile} />
         <main className="flex-1 px-5 py-8 sm:px-8">
-          <div className="mx-auto w-full max-w-5xl">{children}</div>
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
     </div>

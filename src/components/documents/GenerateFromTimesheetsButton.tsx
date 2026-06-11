@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type { TimesheetDocCandidate } from "@/lib/documents/queries";
+import { MotionModal } from "@/components/motion/MotionModal";
 import { GenerateDocumentModal } from "./GenerateDocumentModal";
 
 export function GenerateFromTimesheetsButton({
@@ -98,14 +99,11 @@ export function GenerateFromTimesheetsButton({
         </Button>
       </div>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div
-            className="flex max-h-[min(32rem,90vh)] w-full max-w-lg flex-col rounded-[var(--radius)] border bg-surface shadow-card"
-            role="dialog"
-            aria-modal
-            aria-labelledby="pick-ts-title"
-          >
+      <MotionModal
+        open={open}
+        onClose={() => setOpen(false)}
+        panelClassName="flex max-h-[min(32rem,90vh)] w-full max-w-lg flex-col rounded-[var(--radius)] border bg-surface shadow-card"
+      >
             <div className="border-b px-6 py-5">
               <h2
                 id="pick-ts-title"
@@ -173,9 +171,7 @@ export function GenerateFromTimesheetsButton({
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </MotionModal>
 
       {modalOpen && selectedRows.length > 0 && (
         <GenerateDocumentModal

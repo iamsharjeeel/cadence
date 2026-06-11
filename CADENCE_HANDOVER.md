@@ -377,6 +377,44 @@ Run migration `20260612000000_phase5_leave_onboarding_docs.sql` against Supabase
 - `src/components/marketing/LandingPage.tsx` — full enhancement
 - `src/components/motion/CountUp.tsx` — `startOnView` prop
 
+### Framer Motion migration + UI fixes ✅
+
+#### Motion system (app shell)
+- **Installed** `framer-motion`; **GSAP retained only** for `LandingCountUp` (landing stats bar). HeroCanvas uses Three.js only.
+- **Removed GSAP** from app shell: onboarding, approval controls, upload dropzone, dashboard CountUp, etc.
+- **Page transitions:** `AnimatePresence mode="wait"` in `AppShell` via `PageTransition` (150ms fade+rise).
+- **Nav:** static render; `whileHover={{ x: 2 }}` on sidebar/mobile links (100ms). Active state CSS-only.
+- **Buttons:** `whileTap={{ scale: 0.97 }}` (80ms); inline spinner + preserved label via `loading` prop.
+- **Cards:** `MotionCard` entrance (200ms, `viewport once`); hover = CSS box-shadow only.
+- **Tables:** `MotionTR` stagger on first 8 rows (`viewport once`).
+- **Modals:** `MotionModal` with scale+opacity panel and backdrop (150ms).
+- **App CountUp:** Framer `animate()` + `useMotionValue` / `useTransform` (replaces GSAP in dashboard/leave).
+
+#### Leave page — employee flow
+- Employee view uses explicit `role === "employee"` routing.
+- Balance cards built from leave types when no balance rows exist.
+- Prominent **Request leave** CTA; month calendar grid with approved/pending highlights.
+- Request history table with cancel via row actions menu.
+- **Superadmin:** org dropdown at top → admin view scoped to selected org.
+
+#### Full-width content
+- Removed `max-w-5xl` cap from `AppShell` main panel; settings `max-w-3xl` removed.
+- All `/app/**` pages fill available width between sidebar and viewport edge.
+
+#### Table row actions menu
+- `RowActionsMenu` (⋯) replaces overflowing per-row buttons on pay/official document tables.
+- Pay docs menu: View, Download, Re-send, status change (managers).
+- Official docs menu: View, Download, Sign/Acknowledge (employees).
+- Framer `AnimatePresence` dropdown (100ms); closes on outside click + Escape.
+
+#### New / updated files (this session)
+- `src/components/motion/PageTransition.tsx`, `MotionCard.tsx`, `MotionModal.tsx`, `MotionTR.tsx`
+- `src/components/motion/LandingCountUp.tsx` — GSAP stats only
+- `src/components/ui/RowActionsMenu.tsx`, `buttonStyles.ts`
+- `src/components/documents/PayDocumentRowActions.tsx`
+- `src/components/official-docs/OfficialDocumentRowActions.tsx`
+- `src/app/app/leave/LeaveOrgSelect.tsx`, updated `LeaveEmployeeView.tsx`, `page.tsx`
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

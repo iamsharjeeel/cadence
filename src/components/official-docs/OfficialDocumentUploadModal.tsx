@@ -8,14 +8,15 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
+import { MotionModal } from "@/components/motion/MotionModal";
 import { uploadOfficialDocument } from "@/app/app/official-documents/actions";
 import type { ActionResult } from "@/app/app/official-documents/actions";
 
 function SubmitBtn() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="sm" disabled={pending}>
-      {pending ? "Uploading…" : "Upload"}
+    <Button type="submit" size="sm" loading={pending}>
+      Upload
     </Button>
   );
 }
@@ -49,13 +50,11 @@ export function OfficialDocumentUploadModal({
   }, [state, toast, router, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius)] border bg-surface p-6 shadow-card"
-        role="dialog"
-        aria-modal
-        aria-labelledby="upload-official-doc-title"
-      >
+    <MotionModal
+      open
+      onClose={onClose}
+      panelClassName="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius)] border bg-surface p-6 shadow-card"
+    >
         <h2
           id="upload-official-doc-title"
           className="text-lg font-semibold tracking-tightest"
@@ -157,7 +156,6 @@ export function OfficialDocumentUploadModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </MotionModal>
   );
 }

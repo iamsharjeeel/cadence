@@ -74,7 +74,7 @@ export default async function SettingsPage({
         </div>
       )}
 
-      <div className="max-w-3xl">
+      <div className="w-full">
         {tab === "leave" ? (
           <Card>
             <CardHeader>

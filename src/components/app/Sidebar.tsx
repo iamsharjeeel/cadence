@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 
 import { Wordmark } from "@/components/brand/Wordmark";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,8 @@ import { titleCase } from "@/lib/utils";
 import type { UserRole } from "@/types/db";
 import { navForRole } from "./nav";
 import { NavIcon } from "./NavIcon";
+
+const MotionLink = motion(Link);
 
 export function Sidebar({
   role,
@@ -32,10 +35,12 @@ export function Sidebar({
         {items.map((item) => {
           const active = pathname === item.href;
           return (
-            <Link
+            <MotionLink
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
+              whileHover={{ x: 2 }}
+              transition={{ duration: 0.1 }}
               className={cn(
                 "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium transition-colors",
                 active
@@ -45,7 +50,7 @@ export function Sidebar({
             >
               <NavIcon name={item.icon} />
               {item.label}
-            </Link>
+            </MotionLink>
           );
         })}
       </nav>

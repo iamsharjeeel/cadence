@@ -1,7 +1,8 @@
 "use client";
 
 import { CountUp } from "@/components/motion/CountUp";
-import { Card, CardContent } from "@/components/ui/Card";
+import { CardContent } from "@/components/ui/Card";
+import { MotionCard } from "@/components/motion/MotionCard";
 
 export function StatCard({
   label,
@@ -19,7 +20,7 @@ export function StatCard({
   children?: React.ReactNode;
 }) {
   return (
-    <Card>
+    <MotionCard>
       <CardContent className="flex flex-col gap-2">
         <span className="text-xs uppercase tracking-wide text-muted">{label}</span>
         {children ?? (
@@ -32,6 +33,6 @@ export function StatCard({
           />
         )}
       </CardContent>
-    </Card>
+    </MotionCard>
   );
 }

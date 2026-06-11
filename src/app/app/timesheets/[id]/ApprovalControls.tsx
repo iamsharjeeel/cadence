@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
-import gsap from "gsap";
+import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { fieldBase } from "@/components/ui/Input";
 import { cn, formatMoney } from "@/lib/utils";
-import { prefersReducedMotion } from "@/lib/motion";
 import {
   approveTimesheet,
   rejectTimesheet,
@@ -25,8 +24,8 @@ function SubmitButton({
 }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="sm" variant={variant} disabled={pending}>
-      {pending ? "…" : children}
+    <Button type="submit" size="sm" variant={variant} loading={pending}>
+      {children}
     </Button>
   );
 }
@@ -55,7 +54,6 @@ export function ApprovalControls({
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approvedTotal, setApprovedTotal] = useState<number | null>(null);
   const [approvedCurrency, setApprovedCurrency] = useState("USD");
-  const successRef = useRef<HTMLDivElement>(null);
 
   const [approveState, approveAction] = useFormState(approveTimesheet, null);
   const [rejectState, rejectAction] = useFormState(rejectTimesheet, null);
@@ -76,14 +74,6 @@ export function ApprovalControls({
         setApprovedCurrency(approveState.currency ?? "USD");
       }
       router.refresh();
-      if (!prefersReducedMotion() && successRef.current) {
-        gsap.from(successRef.current, {
-          opacity: 0,
-          scale: 0.95,
-          duration: 0.4,
-          ease: "power2.out",
-        });
-      }
     }
   }, [approveState, router]);
 
@@ -91,8 +81,10 @@ export function ApprovalControls({
 
   if (approvedTotal !== null) {
     return (
-      <div
-        ref={successRef}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
         className="mb-4 rounded-[var(--radius)] border border-[var(--accent)] bg-[var(--accent-soft)] px-6 py-5"
       >
         <p className="text-sm font-medium text-[var(--accent-strong)]">
@@ -101,7 +93,7 @@ export function ApprovalControls({
         <p className="mt-1 tnum text-2xl font-semibold text-ink">
           {formatMoney(approvedTotal, approvedCurrency)}
         </p>
-      </div>
+      </motion.div>
     );
   }
 

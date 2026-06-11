@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import gsap from "gsap";
+import { animate, useMotionValue, useTransform, motion } from "framer-motion";
 
 import { prefersReducedMotion } from "@/lib/motion";
 
 /**
- * Number count-up for stats. Animates from 0 → `value` on mount, or when scrolled
- * into view if `startOnView` is set. Renders final value immediately under
- * prefers-reduced-motion.
+ * App-shell number count-up via Framer Motion (no GSAP).
  */
 export function CountUp({
   value,
@@ -25,20 +23,22 @@ export function CountUp({
   prefix?: string;
   suffix?: string;
   className?: string;
-  /** When true, animation starts on first intersection (for landing stats). */
   startOnView?: boolean;
 }) {
-  const [display, setDisplay] = useState(0);
-  const [started, setStarted] = useState(!startOnView);
   const ref = useRef<HTMLSpanElement>(null);
-  const tweenRef = useRef<gsap.core.Tween | null>(null);
-  const objRef = useRef({ n: 0 });
+  const motionValue = useMotionValue(0);
+  const [started, setStarted] = useState(!startOnView);
+  const rounded = useTransform(motionValue, (v) =>
+    v.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }),
+  );
 
   useEffect(() => {
     if (!startOnView || started) return;
     const el = ref.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -54,35 +54,21 @@ export function CountUp({
 
   useEffect(() => {
     if (!started) return;
-
     if (prefersReducedMotion()) {
-      setDisplay(value);
+      motionValue.set(value);
       return;
     }
-
-    const obj = objRef.current;
-    obj.n = 0;
-    setDisplay(0);
-    tweenRef.current?.kill();
-    tweenRef.current = gsap.to(obj, {
-      n: value,
+    const controls = animate(motionValue, value, {
       duration,
-      ease: "power2.out",
-      onUpdate: () => setDisplay(obj.n),
+      ease: "easeOut",
     });
-
-    return () => {
-      tweenRef.current?.kill();
-    };
-  }, [value, duration, started]);
+    return () => controls.stop();
+  }, [value, duration, started, motionValue]);
 
   return (
     <span ref={ref} className={`tnum ${className ?? ""}`}>
       {prefix}
-      {display.toLocaleString(undefined, {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      })}
+      <motion.span>{rounded}</motion.span>
       {suffix}
     </span>
   );

@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import gsap from "gsap";
+import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { prefersReducedMotion } from "@/lib/motion";
 import type { OfficialDocument, Profile } from "@/types/db";
 import {
   completeOnboarding,
@@ -43,16 +42,9 @@ export function OnboardingWizard({
   const [pending, setPending] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const completeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!done || prefersReducedMotion() || !completeRef.current) return;
-    gsap.from(completeRef.current, {
-      opacity: 0,
-      y: 12,
-      duration: 0.5,
-      ease: "power2.out",
-    });
+    if (!done) return;
     router.push("/app/dashboard");
   }, [done, router]);
 
@@ -107,15 +99,17 @@ export function OnboardingWizard({
 
   if (done) {
     return (
-      <div
-        ref={completeRef}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
         className="rounded-[var(--radius)] border bg-[var(--accent-soft)]/40 px-8 py-16 text-center"
       >
         <h1 className="font-display text-2xl font-semibold tracking-tightest">
           You&apos;re all set.
         </h1>
         <p className="mt-2 text-muted">Redirecting to your dashboard…</p>
-      </div>
+      </motion.div>
     );
   }
 

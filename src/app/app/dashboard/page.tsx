@@ -141,7 +141,7 @@ export default async function DashboardPage({
               href={`/app/orgs/${org.slug}/dashboard`}
               className="block h-full"
             >
-              <Card className="h-full transition-shadow hover:shadow-lg motion-safe:hover:-translate-y-px">
+              <Card className="h-full transition-[box-shadow] duration-150 ease-out hover:shadow-lg">
                   <CardContent className="flex flex-col gap-4">
                     <div>
                       <p className="font-display text-lg font-semibold tracking-tightest">

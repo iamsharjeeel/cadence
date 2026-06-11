@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import gsap from "gsap";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
-import { prefersReducedMotion } from "@/lib/motion";
 import {
   ACCEPTED_EXTENSIONS,
   checkFile,
@@ -20,28 +18,6 @@ export function UploadDropzone({
   onError: (message: string) => void;
 }) {
   const [dragging, setDragging] = useState(false);
-  const zoneRef = useRef<HTMLDivElement>(null);
-  const tweenRef = useRef<gsap.core.Tween | null>(null);
-
-  // GSAP pulse while a file is dragged over the zone.
-  useEffect(() => {
-    if (prefersReducedMotion() || !zoneRef.current) return;
-    if (dragging) {
-      tweenRef.current = gsap.to(zoneRef.current, {
-        scale: 1.01,
-        duration: 0.7,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut",
-      });
-    } else {
-      tweenRef.current?.kill();
-      gsap.to(zoneRef.current, { scale: 1, duration: 0.2 });
-    }
-    return () => {
-      tweenRef.current?.kill();
-    };
-  }, [dragging]);
 
   async function handleFile(file: File) {
     const check = checkFile(file);
@@ -63,7 +39,6 @@ export function UploadDropzone({
 
   return (
     <div
-      ref={zoneRef}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -76,9 +51,9 @@ export function UploadDropzone({
         if (file) handleFile(file);
       }}
       className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-[var(--radius)] border-2 border-dashed px-6 py-12 text-center transition-colors",
+        "flex flex-col items-center justify-center gap-3 rounded-[var(--radius)] border-2 border-dashed px-6 py-12 text-center transition-[border-color,background-color,transform] duration-150",
         dragging
-          ? "border-accent bg-[var(--accent-soft)]"
+          ? "scale-[1.01] border-accent bg-[var(--accent-soft)]"
           : "border-line hover:border-accent",
       )}
     >

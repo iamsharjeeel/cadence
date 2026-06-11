@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { MotionModal } from "@/components/motion/MotionModal";
 import { useToast } from "@/components/ui/Toast";
 import { formatMoney } from "@/lib/utils";
 import type { DocumentType } from "@/lib/documents/types";
@@ -68,83 +69,80 @@ export function GenerateDocumentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="w-full max-w-md rounded-[var(--radius)] border bg-surface p-6 shadow-card"
-        role="dialog"
-        aria-modal
-        aria-labelledby="gen-doc-title"
-      >
-        <h2 id="gen-doc-title" className="text-lg font-semibold tracking-tightest">
-          Generate document
-        </h2>
-        <p className="mt-1 text-sm text-muted">{periodLabel}</p>
+    <MotionModal
+      open
+      onClose={onClose}
+      panelClassName="w-full max-w-md rounded-[var(--radius)] border bg-surface p-6 shadow-card"
+    >
+      <h2 id="gen-doc-title" className="text-lg font-semibold tracking-tightest">
+        Generate document
+      </h2>
+      <p className="mt-1 text-sm text-muted">{periodLabel}</p>
 
-        <div className="mt-5 flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Document type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as DocumentType)}
-              className="h-10 rounded-[var(--radius)] border bg-surface px-3 text-sm"
-            >
-              <option value="pay_advice">Pay Advice</option>
-              <option value="invoice">Invoice</option>
-            </select>
-          </div>
-
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={gstEnabled}
-              onChange={(e) => setGstEnabled(e.target.checked)}
-              className="h-4 w-4 accent-[var(--accent)]"
-            />
-            Include GST / VAT
-          </label>
-
-          {gstEnabled && (
-            <Input
-              label="GST rate (decimal)"
-              value={gstRate}
-              onChange={(e) => setGstRate(e.target.value)}
-              placeholder="0.10"
-            />
-          )}
-
-          <div className="rounded-[var(--radius)] border bg-[var(--accent-soft)]/30 p-4 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted">Subtotal</span>
-              <span className="tnum font-medium">
-                {formatMoney(subtotal, currency)}
-              </span>
-            </div>
-            {gstEnabled && (
-              <div className="mt-2 flex justify-between">
-                <span className="text-muted">GST</span>
-                <span className="tnum font-medium">
-                  {formatMoney(gst, currency)}
-                </span>
-              </div>
-            )}
-            <div className="mt-2 flex justify-between border-t pt-2">
-              <span className="font-medium">Total</span>
-              <span className="tnum font-semibold">
-                {formatMoney(total, currency)}
-              </span>
-            </div>
-          </div>
+      <div className="mt-5 flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium">Document type</label>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as DocumentType)}
+            className="h-10 rounded-[var(--radius)] border bg-surface px-3 text-sm"
+          >
+            <option value="pay_advice">Pay Advice</option>
+            <option value="invoice">Invoice</option>
+          </select>
         </div>
 
-        <div className="mt-6 flex gap-3">
-          <Button onClick={generate} disabled={busy}>
-            {busy ? "Generating…" : "Generate & send"}
-          </Button>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={gstEnabled}
+            onChange={(e) => setGstEnabled(e.target.checked)}
+            className="h-4 w-4 accent-[var(--accent)]"
+          />
+          Include GST / VAT
+        </label>
+
+        {gstEnabled && (
+          <Input
+            label="GST rate (decimal)"
+            value={gstRate}
+            onChange={(e) => setGstRate(e.target.value)}
+            placeholder="0.10"
+          />
+        )}
+
+        <div className="rounded-[var(--radius)] border bg-[var(--accent-soft)]/30 p-4 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted">Subtotal</span>
+            <span className="tnum font-medium">
+              {formatMoney(subtotal, currency)}
+            </span>
+          </div>
+          {gstEnabled && (
+            <div className="mt-2 flex justify-between">
+              <span className="text-muted">GST</span>
+              <span className="tnum font-medium">
+                {formatMoney(gst, currency)}
+              </span>
+            </div>
+          )}
+          <div className="mt-2 flex justify-between border-t pt-2">
+            <span className="font-medium">Total</span>
+            <span className="tnum font-semibold">
+              {formatMoney(total, currency)}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+
+      <div className="mt-6 flex gap-3">
+        <Button onClick={generate} loading={busy}>
+          Generate & send
+        </Button>
+        <Button variant="ghost" onClick={onClose} disabled={busy}>
+          Cancel
+        </Button>
+      </div>
+    </MotionModal>
   );
 }
