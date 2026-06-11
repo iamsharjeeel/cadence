@@ -11,6 +11,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **Frontend/host:** Next.js 14 (App Router, TypeScript, `src/`) on Vercel
 - **Backend:** Supabase (Postgres + Auth + Storage + RLS) via `@supabase/ssr`
 - **Motion:** GSAP (Three.js dropped — premium feel achieved with CSS + GSAP)
+- **Charts:** recharts (teal primary series, muted secondary)
 - **Build agents:** Cursor Composer (primary going forward), Claude Code (used for Phases 1–2)
 - **Package manager:** npm
 
@@ -82,11 +83,12 @@ Private bucket: `timesheets`. Paths: `timesheets/{org_id}/{employee_id}/{timeshe
 - Reject `.xlsm`/macros; validate MIME + extension + size (max 10MB).
 - CSV export: re-check admin/superadmin role server-side before streaming.
 - Never expose unapproved timesheets in export.
+- Dashboard aggregates: admin queries always filter by `profile.org_id`; superadmin org drill-down validates org server-side (never trust client `org_id` for admin scope).
 
 ## Cost note
 No hourly crons (paid). Daily crons only (free). Currently using none.
 
-## What is built (Phases 1 + 2 complete)
+## What is built (Phases 1 + 2 + 3 complete)
 
 ### Phase 1 ✅
 - Full Next.js 14 App Router scaffold, TypeScript, `src/` layout.
@@ -106,8 +108,7 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
   3. Google Sheets public link (server-side fetch via `/api/google-sheet`, no OAuth)
 - Header mapping: fuzzy auto-match, persists per org slug in localStorage, only prompts for unmatched columns.
 - Canonical fields: `date` (required), `hours` (required), `project`, `description`, `billable`, `start_time` (passthrough), `end_time` (passthrough).
-- Aliases: `TOTAL HOURS` / `totalhrs` / `hours worked` → `hours`; `START TIME` → `start_time`; `END TIME` → `end_time`.
-- Auto-skip metadata rows heuristic (mode-of-widths); user-overridable "skip top rows" input.
+- Auto-skip metadata rows heuristic (mode-of-widths + payroll header signature); user-overridable "skip top rows" input.
 - Row transformations: summary-row exclusion, forward-fill blank date/day cells, skip zero-hour rows toggle.
 - Period anchor: resolves weekday names against selected period start.
 - Live validation preview: red-highlighted invalid rows, deletable, GSAP count-up summary, submit blocked while errors remain.
@@ -116,57 +117,62 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 - Approval: snapshots rate/rate_type/currency from DB, computes `calculated_total` server-side, sets approved_at/approved_by, inserts dormant `webhook_deliveries` row, audits `timesheet_approved`.
 - Detail page: read-only rows, rejection note, approval summary, 1hr signed-URL raw download.
 
-## Known issue to fix
-**Upload wizard column mapping bug:** fuzzy matcher is misfiring — all columns map to `Date`. Fix needed:
-- Stricter scoring threshold; unconfident matches → "unmatched, user must pick" rather than wrong confident guess.
-- Real-world timesheet format to design around (most uploads will match this):
-  - Rows 1–6: metadata (logo, name, pay period) — auto-skip
-  - Row 7: `DAY | DATE | START TIME | END TIME | TOTAL HOURS`
-  - Row 8+: data rows; blank DAY/DATE cells forward-fill from above
-  - Zero-hour rows skippable; summary row ("Total Weekday hours = 67") auto-excluded.
+### Phase 3 ✅
 
-## Phase 3 — TO BUILD NEXT
+#### Upload wizard fix
+- **Stricter fuzzy matcher** (`src/lib/timesheets/columns.ts`): minimum score 2 (exact or prefix match only); score-1 substring matches removed. Unconfident columns stay unmatched for manual pick.
+- **DATE vs DAY:** when both headers exist, `DATE` column wins for the date field; `day` alias only used as fallback.
+- **Aliases updated:** `TOTAL HOURS` / `totalhrs` / `hours worked` → hours; `DATE` / `work date` → date; `START TIME` / `start` → start_time; `END TIME` / `end` → end_time.
+- **Payroll format detection** (`src/lib/timesheets/parse.ts`): auto-detects `DAY | DATE | START TIME | END TIME | TOTAL HOURS` header row (typically row 7 after 6 metadata rows).
 
-### Upload wizard fix (do this first — see Known issue above)
-
-### Timesheet list improvements
-- Add `calculated_total` + currency column, sortable.
-- Bulk approve (checkbox + approve all selected).
-- Filter by: status, employee, date range, org (superadmin only).
+#### Timesheet list improvements (`/app/timesheets`)
+- `calculated_total` + currency column for admin/superadmin, sortable.
+- Bulk approve: checkbox select + "Approve selected" (one audit entry per timesheet).
+- Filters: status, employee, date range (`from`/`to`), org (superadmin only).
 - Rejected timesheets show rejection note inline.
+- CSV export button (admin/superadmin) with date range picker.
 
-### Admin dashboard (replace Phase 1 placeholder at `/app/dashboard`)
-
+#### Admin dashboard (`/app/dashboard`)
 **Employee view:**
-- Approved hours this month, total earnings (grouped by currency — no cross-currency summing).
-- Recent timesheets list (last 5), status badges, click to detail.
+- Approved hours this month + total earnings grouped by currency (no cross-currency summing).
+- Recent timesheets (last 5) with status badges, linked to detail.
+- Line chart: approved hours per period (last 6 periods).
 - "Submit new timesheet" CTA.
 
 **Admin view:**
-- Pending approvals count (badge + quick-link to submitted filter).
-- Team summary: total approved hours this period, payroll estimate grouped by currency.
-- Employee breakdown table: name, role, rate, approved hours this period, estimated total.
-- Recent activity feed (last 10 audit log entries for org).
+- Pending approvals count with badge + quick-link to submitted filter.
+- Team summary: approved hours + payroll estimate grouped by currency.
+- Employee breakdown table: name, role, rate, approved hours, estimated total.
+- Recent activity feed (last 10 audit log entries).
+- Bar chart: approved hours per employee; line chart: weekly trend (last 8 weeks).
 
 **Superadmin view:**
-- Org-level summary cards: org name, employee count, pending approvals, total approved hours.
-- Click org card → drill into that org's admin view.
+- Org-level summary cards: name, employee count, pending approvals, approved hours.
+- Click org card → drill into that org's admin dashboard (`?org=<id>`, server-validated).
 
-### Charts (recharts)
-- Admin: bar chart approved hours per employee this period; line chart weekly approved hours trend (last 8 weeks).
-- Employee: line chart approved hours per period (last 6 periods).
-- GSAP count-up on summary numbers. Respect `prefers-reduced-motion`.
+#### CSV export (`GET /api/timesheets/export`)
+- Admin/superadmin only; role re-checked server-side.
+- Approved timesheets only for selected date range.
+- Columns: employee name, email, role, rate, rate type, currency, period start/end, total hours, calculated total, approved at/by.
+- Streamed as file download.
 
-### CSV export
-- Admin/superadmin only. Approved timesheets for selected date range.
-- Columns: employee name, email, role, rate, rate type, currency, period start, period end, total hours, calculated total, approved at, approved by.
-- Server-side route handler, streamed as file download. Never expose unapproved timesheets.
+#### Approval flow polish
+- Approve/reject from detail page (`ApprovalControls.tsx`).
+- Reject modal with required note + confirm.
+- On approve: GSAP animated success state with `calculated_total` displayed immediately.
+- On reject: status flips, rejection note shown to employee on detail view.
 
-### Approval flow polish
-- Approve/reject from detail page (not just list).
-- Reject modal: required note, confirm button.
-- On approve: animated success, `calculated_total` displayed immediately.
-- On reject: status flips, rejection note shown to employee.
+#### New / key files
+- `src/lib/timesheets/columns.ts` — fixed auto-matcher
+- `src/lib/timesheets/parse.ts` — payroll header detection
+- `src/lib/dashboard/queries.ts` — server-side dashboard aggregates
+- `src/lib/dashboard/period.ts` — month/week helpers
+- `src/app/app/dashboard/` — dashboard page, charts, stat cards
+- `src/app/app/timesheets/TimesheetListTable.tsx` — bulk select + sortable table
+- `src/app/app/timesheets/ExportButton.tsx` — CSV export UI
+- `src/app/app/timesheets/[id]/ApprovalControls.tsx` — detail-page approval
+- `src/app/api/timesheets/export/route.ts` — CSV stream handler
+- `bulkApproveTimesheets` in `src/app/app/timesheets/actions.ts`
 
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)

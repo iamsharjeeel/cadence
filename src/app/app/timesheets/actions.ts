@@ -10,7 +10,12 @@ import { validateMappedRow } from "@/lib/timesheets/validation";
 import type { MappedRow } from "@/lib/timesheets/types";
 import type { RateType } from "@/types/db";
 
-export type ActionResult = { ok: boolean; message: string };
+export type ActionResult = {
+  ok: boolean;
+  message: string;
+  calculatedTotal?: number | null;
+  currency?: string | null;
+};
 export type SubmitResult = ActionResult & { id?: string };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -262,7 +267,117 @@ export async function approveTimesheet(
 
   revalidatePath("/app/timesheets");
   revalidatePath(`/app/timesheets/${id}`);
-  return { ok: true, message: "Timesheet approved." };
+  revalidatePath("/app/dashboard");
+  return {
+    ok: true,
+    message: "Timesheet approved.",
+    calculatedTotal: total,
+    currency: employee.currency,
+  };
+}
+
+/** Bulk-approves submitted timesheets. One audit entry per timesheet. */
+export async function bulkApproveTimesheets(
+  ids: string[],
+): Promise<ActionResult> {
+  const actor = await requireRole(["admin", "superadmin"]);
+  if (!ids.length) {
+    return { ok: false, message: "No timesheets selected." };
+  }
+
+  const db = createAdminClient();
+  let approved = 0;
+
+  for (const id of ids) {
+    const { data: ts } = await db
+      .from("timesheets")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (!ts) continue;
+    if (actor.role === "admin" && ts.org_id !== actor.org_id) continue;
+    if (ts.status !== "submitted") continue;
+
+    const { data: employee } = await db
+      .from("profiles")
+      .select("rate, rate_type, currency")
+      .eq("id", ts.employee_id)
+      .single();
+    if (!employee) continue;
+
+    const { data: rows } = await db
+      .from("timesheet_rows")
+      .select("hours")
+      .eq("timesheet_id", id);
+    const totalHours = (rows ?? []).reduce((sum, r) => sum + Number(r.hours), 0);
+    const total = calculateTotal(
+      totalHours,
+      employee.rate,
+      employee.rate_type as RateType,
+    );
+
+    const approvedAt = new Date().toISOString();
+    const { error: updErr } = await db
+      .from("timesheets")
+      .update({
+        status: "approved",
+        approved_at: approvedAt,
+        approved_by: actor.id,
+        rate_snapshot: employee.rate,
+        rate_type_snapshot: employee.rate_type,
+        currency_snapshot: employee.currency,
+        calculated_total: total,
+      })
+      .eq("id", id);
+    if (updErr) continue;
+
+    await db.from("webhook_deliveries").insert({
+      org_id: ts.org_id,
+      timesheet_id: id,
+      status: "pending",
+      payload: {
+        event: "timesheet.approved",
+        timesheet_id: id,
+        employee_id: ts.employee_id,
+        org_id: ts.org_id,
+        period_start: ts.period_start,
+        period_end: ts.period_end,
+        total_hours: totalHours,
+        rate_snapshot: employee.rate,
+        rate_type_snapshot: employee.rate_type,
+        currency_snapshot: employee.currency,
+        calculated_total: total,
+        approved_by: actor.id,
+        approved_at: approvedAt,
+      },
+    });
+
+    await writeAudit({
+      actorId: actor.id,
+      orgId: ts.org_id,
+      action: "timesheet_approved",
+      entity: "timesheets",
+      payload: {
+        timesheet_id: id,
+        total_hours: totalHours,
+        calculated_total: total,
+        bulk: true,
+      },
+    });
+
+    approved++;
+  }
+
+  revalidatePath("/app/timesheets");
+  revalidatePath("/app/dashboard");
+
+  if (approved === 0) {
+    return { ok: false, message: "No timesheets could be approved." };
+  }
+  return {
+    ok: true,
+    message: `Approved ${approved} timesheet${approved === 1 ? "" : "s"}.`,
+  };
 }
 
 /** Rejects a submitted timesheet with a required note. Admin/superadmin only. */
@@ -307,6 +422,7 @@ export async function rejectTimesheet(
 
   revalidatePath("/app/timesheets");
   revalidatePath(`/app/timesheets/${id}`);
+  revalidatePath("/app/dashboard");
   return { ok: true, message: "Timesheet rejected." };
 }
 

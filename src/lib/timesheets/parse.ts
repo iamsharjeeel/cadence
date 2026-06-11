@@ -103,15 +103,42 @@ function nonEmptyCount(row: string[]): number {
   return row.filter((c) => String(c).trim() !== "").length;
 }
 
+function normalizeHeaderCell(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Recognises the common payroll export layout:
+ *   DAY | DATE | START TIME | END TIME | TOTAL HOURS
+ */
+function isPayrollHeaderRow(row: string[]): boolean {
+  const cells = row.map((c) => normalizeHeaderCell(String(c ?? "")));
+  const hasDate = cells.includes("date");
+  const hasHours =
+    cells.includes("totalhours") ||
+    cells.includes("hours") ||
+    cells.includes("totalhrs");
+  const hasTime =
+    cells.includes("starttime") ||
+    cells.includes("endtime") ||
+    cells.includes("start") ||
+    cells.includes("end");
+  return hasDate && hasHours && (hasTime || cells.includes("day"));
+}
+
 /**
  * Auto-detects how many top rows to skip before the real header. Spreadsheets
  * often carry title/metadata rows (1–2 cells wide) above a wide header row.
  *
- * Strategy: the data region dominates row count, so the most common row width
- * (the "mode", computed over rows at least 2 cells wide) marks where columns
- * stabilise. The header is the first row that reaches that width.
+ * Strategy:
+ *   1. Look for the known payroll header signature (DAY|DATE|…|TOTAL HOURS).
+ *   2. Fall back to mode-of-widths: the data region dominates row count, so the
+ *      most common row width marks where columns stabilise.
  */
 export function detectHeaderOffset(grid: Grid): number {
+  const payrollIdx = grid.rows.findIndex(isPayrollHeaderRow);
+  if (payrollIdx >= 0) return payrollIdx;
+
   const widths = grid.rows.map(nonEmptyCount);
   const candidates = widths.filter((w) => w >= 2);
   if (candidates.length === 0) return 0;

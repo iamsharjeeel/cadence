@@ -13,7 +13,8 @@ import {
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Badge, TimesheetStatusPill } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { requireActiveProfile } from "@/lib/auth";
+import { requireActiveProfile, hasRole } from "@/lib/auth";
+import { ApprovalControls } from "./ApprovalControls";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDate, formatMoney, titleCase } from "@/lib/utils";
 import type {
@@ -76,6 +77,7 @@ export default async function TimesheetDetailPage({
 
   const totalHours = rows.reduce((sum, r) => sum + Number(r.hours), 0);
   const status = timesheet.status as TimesheetStatus;
+  const canApprove = hasRole(profile, ["admin", "superadmin"]);
 
   // Signed URL for the raw artifact (1-hour expiry) — never a public URL.
   let rawUrl: string | null = null;
@@ -101,6 +103,13 @@ export default async function TimesheetDetailPage({
           </Link>
         }
       />
+
+      {canApprove && (
+        <ApprovalControls
+          timesheetId={timesheet.id}
+          status={status}
+        />
+      )}
 
       <div className="mb-4 grid gap-4 sm:grid-cols-3">
         <Card>

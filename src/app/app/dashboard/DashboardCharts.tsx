@@ -1,0 +1,133 @@
+"use client";
+
+import { useTheme } from "next-themes";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+const TEAL_LIGHT = "#1F8A8A";
+const TEAL_DARK = "#2AA6A6";
+const MUTED = "#6B6F76";
+
+function chartColors(resolvedTheme: string | undefined) {
+  const isDark = resolvedTheme === "dark";
+  return {
+    primary: isDark ? TEAL_DARK : TEAL_LIGHT,
+    secondary: MUTED,
+    grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(20,21,26,0.06)",
+    tick: MUTED,
+  };
+}
+
+export function HoursBarChart({
+  data,
+}: {
+  data: { name: string; hours: number }[];
+}) {
+  const { resolvedTheme } = useTheme();
+  const colors = chartColors(resolvedTheme);
+
+  if (data.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted">No approved hours yet.</p>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid stroke={colors.grid} vertical={false} />
+        <XAxis
+          dataKey="name"
+          tick={{ fill: colors.tick, fontSize: 12 }}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          tick={{ fill: colors.tick, fontSize: 12 }}
+          tickLine={false}
+          axisLine={false}
+          width={40}
+        />
+        <Tooltip
+          contentStyle={{
+            borderRadius: 12,
+            border: "1px solid var(--line)",
+            background: "var(--surface)",
+          }}
+          formatter={(value) => [
+            typeof value === "number" ? value.toFixed(1) : String(value ?? ""),
+            "Hours",
+          ]}
+        />
+        <Bar dataKey="hours" fill={colors.primary} radius={[6, 6, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function HoursLineChart({
+  data,
+  dataKey = "hours",
+  xKey = "label",
+}: {
+  data: Record<string, string | number>[];
+  dataKey?: string;
+  xKey?: string;
+}) {
+  const { resolvedTheme } = useTheme();
+  const colors = chartColors(resolvedTheme);
+
+  if (data.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted">No data for this period.</p>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid stroke={colors.grid} vertical={false} />
+        <XAxis
+          dataKey={xKey}
+          tick={{ fill: colors.tick, fontSize: 12 }}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          tick={{ fill: colors.tick, fontSize: 12 }}
+          tickLine={false}
+          axisLine={false}
+          width={40}
+        />
+        <Tooltip
+          contentStyle={{
+            borderRadius: 12,
+            border: "1px solid var(--line)",
+            background: "var(--surface)",
+          }}
+          formatter={(value) => [
+            typeof value === "number" ? value.toFixed(1) : String(value ?? ""),
+            "Hours",
+          ]}
+        />
+        <Line
+          type="monotone"
+          dataKey={dataKey}
+          stroke={colors.primary}
+          strokeWidth={2}
+          dot={{ fill: colors.primary, r: 4 }}
+          activeDot={{ r: 6 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}

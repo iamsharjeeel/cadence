@@ -9,29 +9,34 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { TimesheetStatusPill } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/utils";
-import type { Profile, Timesheet, TimesheetStatus } from "@/types/db";
-import {
-  ApproveTimesheetButton,
-  RejectTimesheetControl,
-  TimesheetFilters,
-} from "./controls";
+import type { Organization, Profile, Timesheet, TimesheetStatus } from "@/types/db";
+import { TimesheetFilters } from "./controls";
+import { TimesheetListTable, type TimesheetListRow } from "./TimesheetListTable";
+import { ExportButton } from "./ExportButton";
 
 export const metadata: Metadata = { title: "Timesheets" };
 
 type Row = Timesheet & { rows: { count: number }[] };
 
+type SortKey = "period" | "total" | "submitted";
+
 export default async function TimesheetsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; employee?: string };
+  searchParams: {
+    status?: string;
+    employee?: string;
+    from?: string;
+    to?: string;
+    org?: string;
+    sort?: string;
+    dir?: string;
+  };
 }) {
   const profile = await requireActiveProfile();
   const isManager = profile.role === "admin" || profile.role === "superadmin";
@@ -39,25 +44,44 @@ export default async function TimesheetsPage({
 
   const statusFilter = (searchParams.status ?? "") as TimesheetStatus | "";
   const employeeFilter = searchParams.employee ?? "";
+  const fromFilter = searchParams.from ?? "";
+  const toFilter = searchParams.to ?? "";
+  const orgFilter = isSuperadmin ? searchParams.org ?? "" : "";
+  const sort = (searchParams.sort ?? "period") as SortKey;
+  const dir = searchParams.dir === "asc" ? "asc" : "desc";
 
-  // Superadmin reads across all orgs (service-role); others via RLS session.
   const db = isSuperadmin ? createAdminClient() : createClient();
   let query = db
     .from("timesheets")
-    .select("*, rows:timesheet_rows(count)")
-    .order("period_start", { ascending: false });
+    .select("*, rows:timesheet_rows(count)");
 
   if (!isManager) query = query.eq("employee_id", profile.id);
   else if (!isSuperadmin) query = query.eq("org_id", profile.org_id!);
   if (statusFilter) query = query.eq("status", statusFilter);
   if (isManager && employeeFilter) query = query.eq("employee_id", employeeFilter);
+  if (orgFilter) query = query.eq("org_id", orgFilter);
+  if (fromFilter) query = query.gte("period_start", fromFilter);
+  if (toFilter) query = query.lte("period_end", toFilter);
+
+  if (sort === "total") {
+    query = query.order("calculated_total", {
+      ascending: dir === "asc",
+      nullsFirst: false,
+    });
+  } else if (sort === "submitted") {
+    query = query.order("created_at", { ascending: dir === "asc" });
+  } else {
+    query = query.order("period_start", { ascending: dir === "asc" });
+  }
 
   const { data } = await query;
   const timesheets = (data ?? []) as Row[];
 
-  // Build an employee name map + filter list for managers.
   const nameById = new Map<string, string>();
   let employeeOptions: { id: string; name: string }[] = [];
+  let orgOptions: { id: string; name: string }[] = [];
+  const orgNameById = new Map<string, string>();
+
   if (isManager) {
     const pdb = isSuperadmin ? createAdminClient() : createClient();
     let pq = pdb.from("profiles").select("id, full_name, email");
@@ -74,6 +98,32 @@ export default async function TimesheetsPage({
     employeeOptions.sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  if (isSuperadmin) {
+    const { data: orgs } = await createAdminClient()
+      .from("organizations")
+      .select("id, name")
+      .order("name");
+    for (const o of (orgs ?? []) as Pick<Organization, "id" | "name">[]) {
+      orgNameById.set(o.id, o.name);
+      orgOptions.push({ id: o.id, name: o.name });
+    }
+  }
+
+  const listRows: TimesheetListRow[] = timesheets.map((t) => ({
+    id: t.id,
+    employee_id: t.employee_id,
+    employeeName: nameById.get(t.employee_id) ?? "—",
+    orgName: orgNameById.get(t.org_id),
+    period_start: t.period_start,
+    period_end: t.period_end,
+    rowCount: t.rows?.[0]?.count ?? 0,
+    status: t.status as TimesheetStatus,
+    created_at: t.created_at,
+    calculated_total: t.calculated_total,
+    currency_snapshot: t.currency_snapshot,
+    rejection_note: t.rejection_note,
+  }));
+
   return (
     <div>
       <PageHeader
@@ -84,9 +134,12 @@ export default async function TimesheetsPage({
             : "Your submitted and draft timesheets."
         }
         action={
-          <Link href="/app/timesheets/new">
-            <Button size="sm">New timesheet</Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {isManager && <ExportButton />}
+            <Link href="/app/timesheets/new">
+              <Button size="sm">New timesheet</Button>
+            </Link>
+          </div>
         }
       />
 
@@ -97,6 +150,11 @@ export default async function TimesheetsPage({
               status={statusFilter}
               employee={employeeFilter}
               employees={employeeOptions}
+              from={fromFilter}
+              to={toFilter}
+              org={orgFilter}
+              orgs={orgOptions}
+              isSuperadmin={isSuperadmin}
             />
           </CardContent>
         </Card>
@@ -130,58 +188,13 @@ export default async function TimesheetsPage({
               />
             </div>
           ) : (
-            <Table>
-              <THead>
-                <TR>
-                  {isManager && <TH>Employee</TH>}
-                  <TH>Period</TH>
-                  <TH>Rows</TH>
-                  <TH>Status</TH>
-                  <TH>Submitted</TH>
-                  <TH className="text-right">Action</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {timesheets.map((t) => (
-                  <TR key={t.id}>
-                    {isManager && (
-                      <TD className="text-sm font-medium text-ink">
-                        {nameById.get(t.employee_id) ?? "—"}
-                      </TD>
-                    )}
-                    <TD className="tnum text-sm">
-                      {formatDate(t.period_start)} – {formatDate(t.period_end)}
-                    </TD>
-                    <TD className="tnum text-sm text-muted">
-                      {t.rows?.[0]?.count ?? 0}
-                    </TD>
-                    <TD>
-                      <TimesheetStatusPill
-                        status={t.status as TimesheetStatus}
-                      />
-                    </TD>
-                    <TD className="tnum text-sm text-muted">
-                      {formatDate(t.created_at)}
-                    </TD>
-                    <TD>
-                      <div className="flex items-center justify-end gap-2">
-                        {isManager && t.status === "submitted" && (
-                          <>
-                            <ApproveTimesheetButton id={t.id} />
-                            <RejectTimesheetControl id={t.id} />
-                          </>
-                        )}
-                        <Link href={`/app/timesheets/${t.id}`}>
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </Link>
-                      </div>
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
+            <TimesheetListTable
+              timesheets={listRows}
+              isManager={isManager}
+              isSuperadmin={isSuperadmin}
+              sort={sort}
+              dir={dir}
+            />
           )}
         </CardContent>
       </Card>

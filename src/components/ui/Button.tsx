@@ -2,7 +2,7 @@ import { forwardRef } from "react";
 
 import { cn } from "@/lib/utils";
 
-type Variant = "primary" | "ghost" | "danger";
+type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
 
 export interface ButtonProps
@@ -17,6 +17,8 @@ const base =
 const variants: Record<Variant, string> = {
   primary:
     "bg-accent text-white shadow-card hover:bg-[var(--accent-strong)]",
+  secondary:
+    "border bg-surface text-ink hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)]",
   ghost:
     "border bg-transparent text-ink hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)]",
   danger:

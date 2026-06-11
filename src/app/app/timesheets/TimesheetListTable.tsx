@@ -1,0 +1,242 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
+
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
+import { Button } from "@/components/ui/Button";
+import { TimesheetStatusPill } from "@/components/ui/Badge";
+import { useToast } from "@/components/ui/Toast";
+import { formatDate, formatMoney } from "@/lib/utils";
+import type { TimesheetStatus } from "@/types/db";
+import {
+  ApproveTimesheetButton,
+  RejectTimesheetControl,
+} from "./controls";
+import { bulkApproveTimesheets } from "./actions";
+
+export type TimesheetListRow = {
+  id: string;
+  employee_id: string;
+  employeeName: string;
+  orgName?: string;
+  period_start: string;
+  period_end: string;
+  rowCount: number;
+  status: TimesheetStatus;
+  created_at: string;
+  calculated_total: number | null;
+  currency_snapshot: string | null;
+  rejection_note: string | null;
+};
+
+type SortKey = "period" | "total" | "submitted";
+
+export function TimesheetListTable({
+  timesheets,
+  isManager,
+  isSuperadmin,
+  sort,
+  dir,
+}: {
+  timesheets: TimesheetListRow[];
+  isManager: boolean;
+  isSuperadmin: boolean;
+  sort: SortKey;
+  dir: "asc" | "desc";
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pending, startTransition] = useTransition();
+  const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  const submittedIds = timesheets
+    .filter((t) => t.status === "submitted")
+    .map((t) => t.id);
+  const allSubmittedSelected =
+    submittedIds.length > 0 && submittedIds.every((id) => selected.has(id));
+
+  function toggleAll() {
+    if (allSubmittedSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(submittedIds));
+    }
+  }
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function sortLink(key: SortKey) {
+    const next = new URLSearchParams(params.toString());
+    const nextDir = sort === key && dir === "desc" ? "asc" : "desc";
+    next.set("sort", key);
+    next.set("dir", nextDir);
+    return `${pathname}?${next.toString()}`;
+  }
+
+  function sortIndicator(key: SortKey) {
+    if (sort !== key) return null;
+    return dir === "asc" ? " ↑" : " ↓";
+  }
+
+  function bulkApprove() {
+    const ids = [...selected].filter((id) =>
+      timesheets.some((t) => t.id === id && t.status === "submitted"),
+    );
+    if (ids.length === 0) {
+      toast("Select submitted timesheets to approve.", "error");
+      return;
+    }
+    startTransition(async () => {
+      const result = await bulkApproveTimesheets(ids);
+      toast(result.message, result.ok ? "success" : "error");
+      if (result.ok) {
+        setSelected(new Set());
+        router.refresh();
+      }
+    });
+  }
+
+  return (
+    <div>
+      {isManager && selected.size > 0 && (
+        <div className="flex items-center gap-3 border-b px-6 py-3">
+          <span className="text-sm text-muted">
+            {selected.size} selected
+          </span>
+          <Button size="sm" onClick={bulkApprove} disabled={pending}>
+            {pending ? "Approving…" : "Approve selected"}
+          </Button>
+        </div>
+      )}
+      <Table>
+        <THead>
+          <TR>
+            {isManager && (
+              <TH className="w-10">
+                <input
+                  type="checkbox"
+                  checked={allSubmittedSelected}
+                  onChange={toggleAll}
+                  disabled={submittedIds.length === 0}
+                  aria-label="Select all submitted"
+                  className="h-4 w-4 accent-[var(--accent)]"
+                />
+              </TH>
+            )}
+            {isManager && <TH>Employee</TH>}
+            {isSuperadmin && <TH>Org</TH>}
+            <TH>
+              <Link
+                href={sortLink("period")}
+                className="hover:text-[var(--accent-strong)]"
+              >
+                Period{sortIndicator("period")}
+              </Link>
+            </TH>
+            <TH>Rows</TH>
+            <TH>Status</TH>
+            {isManager && (
+              <TH>
+                <Link
+                  href={sortLink("total")}
+                  className="hover:text-[var(--accent-strong)]"
+                >
+                  Total{sortIndicator("total")}
+                </Link>
+              </TH>
+            )}
+            <TH>
+              <Link
+                href={sortLink("submitted")}
+                className="hover:text-[var(--accent-strong)]"
+              >
+                Submitted{sortIndicator("submitted")}
+              </Link>
+            </TH>
+            <TH className="text-right">Action</TH>
+          </TR>
+        </THead>
+        <TBody>
+          {timesheets.map((t) => (
+            <TR key={t.id}>
+              {isManager && (
+                <TD>
+                  {t.status === "submitted" && (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(t.id)}
+                      onChange={() => toggleOne(t.id)}
+                      aria-label={`Select timesheet ${t.period_start}`}
+                      className="h-4 w-4 accent-[var(--accent)]"
+                    />
+                  )}
+                </TD>
+              )}
+              {isManager && (
+                <TD className="text-sm font-medium text-ink">
+                  {t.employeeName}
+                </TD>
+              )}
+              {isSuperadmin && (
+                <TD className="text-sm text-muted">{t.orgName ?? "—"}</TD>
+              )}
+              <TD className="tnum text-sm">
+                {formatDate(t.period_start)} – {formatDate(t.period_end)}
+              </TD>
+              <TD className="tnum text-sm text-muted">{t.rowCount}</TD>
+              <TD>
+                <div className="flex flex-col gap-1">
+                  <TimesheetStatusPill status={t.status} />
+                  {t.status === "rejected" && t.rejection_note && (
+                    <span className="max-w-xs text-xs text-[var(--danger)]">
+                      {t.rejection_note}
+                    </span>
+                  )}
+                </div>
+              </TD>
+              {isManager && (
+                <TD className="tnum text-sm">
+                  {t.status === "approved" && t.calculated_total !== null
+                    ? formatMoney(
+                        t.calculated_total,
+                        t.currency_snapshot ?? "USD",
+                      )
+                    : "—"}
+                </TD>
+              )}
+              <TD className="tnum text-sm text-muted">
+                {formatDate(t.created_at)}
+              </TD>
+              <TD>
+                <div className="flex items-center justify-end gap-2">
+                  {isManager && t.status === "submitted" && (
+                    <>
+                      <ApproveTimesheetButton id={t.id} />
+                      <RejectTimesheetControl id={t.id} />
+                    </>
+                  )}
+                  <Link href={`/app/timesheets/${t.id}`}>
+                    <Button variant="ghost" size="sm">
+                      View
+                    </Button>
+                  </Link>
+                </div>
+              </TD>
+            </TR>
+          ))}
+        </TBody>
+      </Table>
+    </div>
+  );
+}

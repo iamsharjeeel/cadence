@@ -6,6 +6,7 @@ import { useFormState, useFormStatus } from "react-dom";
 
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { fieldBase } from "@/components/ui/Input";
@@ -93,15 +94,25 @@ export function RejectTimesheetControl({ id }: { id: string }) {
   );
 }
 
-/** Status + employee filter bar that drives the list via URL search params. */
+/** Filter bar that drives the list via URL search params. */
 export function TimesheetFilters({
   status,
   employee,
   employees,
+  from,
+  to,
+  org,
+  orgs,
+  isSuperadmin,
 }: {
   status: string;
   employee: string;
   employees: { id: string; name: string }[];
+  from: string;
+  to: string;
+  org: string;
+  orgs: { id: string; name: string }[];
+  isSuperadmin: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -143,6 +154,33 @@ export function TimesheetFilters({
           ]}
         />
       )}
+      {isSuperadmin && orgs.length > 0 && (
+        <Select
+          label="Organization"
+          name="org"
+          value={org}
+          onChange={(e) => setParam("org", e.target.value)}
+          className="h-9 w-52 text-sm"
+          options={[
+            { label: "All organizations", value: "" },
+            ...orgs.map((o) => ({ label: o.name, value: o.id })),
+          ]}
+        />
+      )}
+      <Input
+        label="From"
+        type="date"
+        value={from}
+        onChange={(e) => setParam("from", e.target.value)}
+        className="h-9 w-40 text-sm"
+      />
+      <Input
+        label="To"
+        type="date"
+        value={to}
+        onChange={(e) => setParam("to", e.target.value)}
+        className="h-9 w-40 text-sm"
+      />
     </div>
   );
 }
