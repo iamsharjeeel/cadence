@@ -17,6 +17,7 @@ import { requireActiveProfile, hasRole } from "@/lib/auth";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
 import { ApprovalControls } from "./ApprovalControls";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getApprovedLeaveInPeriod } from "@/lib/leave/queries";
 import { formatDate, formatMoney, titleCase } from "@/lib/utils";
 import type {
   Profile,
@@ -77,6 +78,11 @@ export default async function TimesheetDetailPage({
   }
 
   const totalHours = rows.reduce((sum, r) => sum + Number(r.hours), 0);
+  const approvedLeaveDays = await getApprovedLeaveInPeriod(
+    timesheet.employee_id,
+    timesheet.period_start,
+    timesheet.period_end,
+  );
   const status = timesheet.status as TimesheetStatus;
   const canApprove = hasRole(profile, ["admin", "superadmin"]);
   const canGenerateDoc =
@@ -123,6 +129,16 @@ export default async function TimesheetDetailPage({
           timesheetId={timesheet.id}
           status={status}
         />
+      )}
+
+      {approvedLeaveDays > 0 && (
+        <Card className="mb-4 border-[var(--accent)]">
+          <CardContent className="py-4 text-sm text-ink">
+            <span className="tnum font-semibold">{approvedLeaveDays}</span>{" "}
+            day{approvedLeaveDays === 1 ? "" : "s"} of approved leave in this
+            period.
+          </CardContent>
+        </Card>
       )}
 
       <div className="mb-4 grid gap-4 sm:grid-cols-3">

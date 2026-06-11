@@ -21,6 +21,12 @@ const PATHS: Record<NavItem["icon"], React.ReactNode> = {
       <path d="M8 3v3M16 3v3M8 11h8M8 15h5" />
     </>
   ),
+  leave: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3 10h18" />
+    </>
+  ),
   employees: (
     <>
       <circle cx="9" cy="8" r="3" />

@@ -8,17 +8,13 @@ export type NavItem = {
     | "dashboard"
     | "profile"
     | "timesheets"
+    | "leave"
     | "employees"
     | "organizations"
     | "documents"
     | "settings";
 };
 
-/**
- * Single source of truth for app navigation + access. The Sidebar renders only
- * the items whose `roles` include the caller's role. Server Components / Actions
- * re-check via `requireRole` — this list is for UI only.
- */
 export const NAV_ITEMS: NavItem[] = [
   {
     label: "Dashboard",
@@ -31,6 +27,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/app/timesheets",
     roles: ["superadmin", "admin", "employee"],
     icon: "timesheets",
+  },
+  {
+    label: "Leave",
+    href: "/app/leave",
+    roles: ["superadmin", "admin", "employee"],
+    icon: "leave",
   },
   {
     label: "Documents",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -11,14 +11,27 @@ import { GenerateDocumentModal } from "./GenerateDocumentModal";
 
 export function GenerateFromTimesheetsButton({
   timesheets,
+  orgOptions,
+  selectedOrgId,
 }: {
   timesheets: TimesheetDocCandidate[];
+  orgOptions?: { id: string; name: string }[];
+  selectedOrgId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function setOrg(orgId: string) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (orgId) next.set("org", orgId);
+    else next.delete("org");
+    router.replace(`${pathname}?${next.toString()}`);
+  }
 
   const selectedRows = useMemo(
     () => timesheets.filter((t) => selected.has(t.id)),
@@ -64,9 +77,26 @@ export function GenerateFromTimesheetsButton({
 
   return (
     <>
-      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
-        Generate from timesheets
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        {orgOptions && orgOptions.length > 0 && (
+          <select
+            value={selectedOrgId ?? ""}
+            onChange={(e) => setOrg(e.target.value)}
+            className="h-9 rounded-[var(--radius)] border bg-surface px-2 text-sm"
+            aria-label="Filter by organization"
+          >
+            <option value="">All organizations</option>
+            {orgOptions.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
+          Generate from timesheets
+        </Button>
+      </div>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

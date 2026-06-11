@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
+import { seedLeaveTypesForOrg } from "@/lib/leave/seed";
 import {
   slugify,
   validateCurrency,
@@ -77,6 +78,8 @@ export async function createOrg(
       : "Couldn't create organization.";
     return { ok: false, message };
   }
+
+  await seedLeaveTypesForOrg(org.id);
 
   await writeAudit({
     actorId: actor.id,

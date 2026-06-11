@@ -12,9 +12,6 @@ import {
 } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { TimesheetStatusPill } from "@/components/ui/Badge";
-import { Reveal } from "@/components/motion/Reveal";
-import { REVEAL_ITEM_CLASS } from "@/lib/motion";
-import { cn } from "@/lib/utils";
 import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -66,29 +63,24 @@ export default async function DashboardPage({
           }
         />
 
-        <Reveal className="grid gap-4 sm:grid-cols-2">
-          <div className={cn(REVEAL_ITEM_CLASS)}>
-            <StatCard
-              label="Approved hours this month"
-              value={data.approvedHoursMonth}
-              decimals={1}
-            />
-          </div>
-          <div className={cn(REVEAL_ITEM_CLASS)}>
-            <Card>
-              <CardContent className="flex flex-col gap-2">
-                <span className="text-xs uppercase tracking-wide text-muted">
-                  Total earnings this month
-                </span>
-                <CurrencyTotalsDisplay totals={data.earningsByCurrency} />
-              </CardContent>
-            </Card>
-          </div>
-        </Reveal>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <StatCard
+            label="Approved hours this month"
+            value={data.approvedHoursMonth}
+            decimals={1}
+          />
+          <Card>
+            <CardContent className="flex flex-col gap-2">
+              <span className="text-xs uppercase tracking-wide text-muted">
+                Total earnings this month
+              </span>
+              <CurrencyTotalsDisplay totals={data.earningsByCurrency} />
+            </CardContent>
+          </Card>
+        </div>
 
-        <Reveal className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div className={cn(REVEAL_ITEM_CLASS)}>
-            <Card>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <Card>
               <CardHeader>
                 <CardTitle>My hours by period</CardTitle>
                 <CardDescription>Last 6 approved pay periods.</CardDescription>
@@ -97,10 +89,8 @@ export default async function DashboardPage({
                 <HoursLineChart data={data.hoursByPeriod} xKey="label" />
               </CardContent>
             </Card>
-          </div>
 
-          <div className={cn(REVEAL_ITEM_CLASS)}>
-            <Card>
+          <Card>
               <CardHeader>
                 <CardTitle>Recent timesheets</CardTitle>
                 <CardDescription>Your last 5 submissions.</CardDescription>
@@ -130,8 +120,7 @@ export default async function DashboardPage({
                 )}
               </CardContent>
             </Card>
-          </div>
-        </Reveal>
+        </div>
       </div>
     );
   }
@@ -145,14 +134,14 @@ export default async function DashboardPage({
           description="Platform overview across all organizations."
         />
 
-        <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {orgs.map((org) => (
-            <div key={org.id} className={cn(REVEAL_ITEM_CLASS, "h-full")}>
-              <Link
-                href={`/app/orgs/${org.slug}/dashboard`}
-                className="block h-full"
-              >
-                <Card className="h-full transition-shadow hover:shadow-lg motion-safe:hover:-translate-y-px">
+            <Link
+              key={org.id}
+              href={`/app/orgs/${org.slug}/dashboard`}
+              className="block h-full"
+            >
+              <Card className="h-full transition-shadow hover:shadow-lg motion-safe:hover:-translate-y-px">
                   <CardContent className="flex flex-col gap-4">
                     <div>
                       <p className="font-display text-lg font-semibold tracking-tightest">
@@ -189,11 +178,10 @@ export default async function DashboardPage({
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-              </Link>
-            </div>
+              </Card>
+            </Link>
           ))}
-        </Reveal>
+        </div>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import gsap from "gsap";
 
@@ -22,6 +23,11 @@ import {
   prefersReducedMotion,
 } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+
+const HeroCanvas = dynamic(
+  () => import("./HeroCanvas").then((m) => m.HeroCanvas),
+  { ssr: false },
+);
 
 const FEATURES = [
   {
@@ -60,11 +66,12 @@ const STEPS = [
 ] as const;
 
 export function LandingPage() {
-  const heroRef = useRef<HTMLDivElement>(null);
+  const heroSectionRef = useRef<HTMLElement>(null);
+  const heroContentRef = useRef<HTMLDivElement>(null);
   const hasAnimated = useRef(false);
 
   useEffect(() => {
-    const el = heroRef.current;
+    const el = heroContentRef.current;
     if (!el || hasAnimated.current) return;
 
     const targets = el.querySelectorAll("[data-hero-reveal]");
@@ -73,7 +80,7 @@ export function LandingPage() {
     if (prefersReducedMotion()) {
       hasAnimated.current = true;
       enablePointerEvents(Array.from(targets));
-      gsap.set(targets, { opacity: 1, y: 0, pointerEvents: "auto" });
+      gsap.set(targets, { opacity: 1, y: 0 });
       return;
     }
 
@@ -87,16 +94,11 @@ export function LandingPage() {
         clearProps: "transform,opacity",
         onComplete: () => {
           hasAnimated.current = true;
-          enablePointerEvents(Array.from(targets));
-          targets.forEach((node) => {
-            gsap.set(node, { opacity: 1, y: 0, pointerEvents: "auto" });
-          });
         },
       });
     }, el);
 
     return () => {
-      enablePointerEvents(Array.from(targets));
       if (!hasAnimated.current) ctx.revert();
       else ctx.kill();
     };
@@ -124,12 +126,15 @@ export function LandingPage() {
       </header>
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="mx-auto max-w-5xl px-6 pb-20 pt-16 sm:px-8 sm:pt-24">
-          <div ref={heroRef} className="max-w-3xl">
+        <section
+          ref={heroSectionRef}
+          className="relative mx-auto max-w-5xl overflow-hidden px-6 pb-20 pt-16 sm:px-8 sm:pt-24"
+        >
+          <HeroCanvas heroRef={heroSectionRef} />
+          <div ref={heroContentRef} className="relative z-10 max-w-3xl">
             <p
               data-hero-reveal
-              className="mb-5 inline-flex items-center gap-2 rounded-full border bg-surface px-3 py-1 text-xs font-medium text-muted"
+              className="mb-5 inline-flex items-center gap-2 rounded-full border bg-surface/80 px-3 py-1 text-xs font-medium text-muted backdrop-blur"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-accent" />
               Premium timesheet portal
@@ -165,7 +170,6 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Features */}
         <section
           id="features"
           className="border-t bg-surface/50 px-6 py-20 sm:px-8"
@@ -175,8 +179,8 @@ export function LandingPage() {
               Built for teams who care about the details
             </h2>
             <p className="mt-3 max-w-xl text-muted">
-              Everything you need to move from raw hours to pay-ready documents —
-              quietly, reliably.
+              Everything you need to move from raw hours to pay-ready documents
+              — quietly, reliably.
             </p>
             <div className="mt-12 grid gap-4 sm:grid-cols-3">
               {FEATURES.map((f) => (
@@ -195,7 +199,6 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* How it works */}
         <section className="px-6 py-20 sm:px-8">
           <div className="mx-auto max-w-5xl">
             <h2 className="font-display text-2xl font-semibold tracking-tightest sm:text-3xl">
@@ -228,7 +231,6 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Testimonial placeholder */}
         <section className="border-t px-6 py-20 sm:px-8">
           <div className="mx-auto max-w-5xl">
             <Card className="mx-auto max-w-2xl">
@@ -249,7 +251,6 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* CTA banner */}
         <section className="px-6 pb-20 sm:px-8">
           <div className="mx-auto max-w-5xl">
             <div className="rounded-[var(--radius)] border bg-[var(--accent-soft)]/40 px-8 py-14 text-center">

@@ -276,9 +276,70 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 - `src/components/ui/Button.tsx` — exported `buttonStyles()` for Link CTAs
 - `src/lib/supabase/middleware.ts` — active users on `/` → dashboard
 
+### Carry-over fixes (post Phase 4) ✅
+
+#### Click responsiveness — CSS only in app shell
+- **Removed** GSAP `Reveal` and `PageTransition` from the app entirely (deleted).
+- Interactive UI (buttons, cards, nav, tables, modals) has **no motion wrappers**.
+- `FadeUp` / `FadeUpStagger` (`src/components/motion/FadeUp.tsx`) — CSS `@keyframes fadeUp` with `animation-fill-mode: forwards`, armed once via `useRef`. For decorative non-interactive use only.
+- GSAP retained for: landing hero, `CountUp`, chart animations, onboarding complete screen.
+
+#### Document generation — superadmin fix
+- `getApprovedTimesheetsWithoutDocuments(profile, orgId?)` uses `createAdminClient()` — no `auth_org()` filter for superadmin; optional `orgId` param + org dropdown on documents page.
+- `POST /api/documents/generate` logs failures with `console.error` for Vercel log visibility.
+
+#### Landing — Three.js hero
+- `HeroCanvas` lazy-loaded via `next/dynamic` (`ssr: false`) on landing hero only.
+- Teal particle field (`#1F8A8A` / `#2AA6A6` dark), mouse parallax, fades on scroll past hero.
+- `prefers-reduced-motion`: animation frozen, static frame kept.
+
+### Phase 5 ✅ — Leave, Onboarding, Document Hub
+
+#### Database (`supabase/migrations/20260612000000_phase5_leave_onboarding_docs.sql`)
+- Tables: `leave_types`, `leave_balances`, `leave_requests`, `onboarding_steps`, `official_documents`
+- Profile columns: `job_title`, `start_date`, `emergency_*`, `onboarding_complete`
+- RLS policies per spec; `approve_leave_request` / `reject_leave_request` RPCs (atomic balance updates)
+- Storage bucket: `official-documents`
+
+#### Leave management (`/app/leave`)
+- **Employee:** balance cards (CountUp), calendar month view, request modal (weekday calc, balance check), history + cancel pending.
+- **Admin:** pending queue (approve/reject with note), team balance table.
+- **Settings → Leave types tab:** view types, add custom, "Apply default to all employees".
+- Default types seeded on org creation (`seedLeaveTypesForOrg`).
+- Timesheet detail shows approved leave days notice (informational).
+- Audit: `leave_requested`, `leave_approved`, `leave_rejected`, `leave_cancelled`.
+
+#### Employee onboarding (`/app/onboarding`)
+- Middleware redirects active employees with `onboarding_complete = false` → wizard; admin/superadmin bypass.
+- Full-page wizard (no nav via `AppShell`), 5 steps + complete screen.
+- Steps: personal, employment, banking/tax, emergency (skippable), documents (skippable, inline sign).
+- Complete sets `onboarding_complete`, marks `onboarding_steps`, audits `onboarding_completed`.
+- **Employees page:** onboarding column (X/5 steps) → detail modal.
+
+#### Document Hub (`/app/documents?tab=official`)
+- Tabs: Pay advices/invoices | Official documents.
+- Admin upload: PDF/DOCX (20MB), category, signing type, assign employee or all.
+- Employee: view/sign (e-signature canvas via `react-signature-canvas`) or acknowledge.
+- `signature_data` never in list queries; signed URLs 1hr expiry.
+- Audit: `official_document_uploaded`, `_signed`, `_acknowledged`, `_rejected`.
+
+#### Nav
+- **Leave** added for all roles.
+
+#### Key files
+- `src/lib/leave/*`, `src/app/app/leave/*`
+- `src/app/app/onboarding/*`, `src/components/app/AppShell.tsx`
+- `src/app/app/official-documents/actions.ts`, `src/components/official-docs/*`
+- `src/components/marketing/HeroCanvas.tsx`
+- `src/components/motion/FadeUp.tsx`
+
+#### Manual step required
+Run migration `20260612000000_phase5_leave_onboarding_docs.sql` against Supabase before deploying.
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)
+- DOCX → PDF server-side conversion on Vercel (DOCX shows download + acknowledge flow)
 
 ## Working preferences
 - Direct, snappy, concise. Minimal preamble.

@@ -15,7 +15,16 @@ export type AuditAction =
   | "timesheet_rejected"
   | "document_generated"
   | "document_emailed"
-  | "document_status_changed";
+  | "document_status_changed"
+  | "leave_requested"
+  | "leave_approved"
+  | "leave_rejected"
+  | "leave_cancelled"
+  | "official_document_uploaded"
+  | "official_document_signed"
+  | "official_document_acknowledged"
+  | "official_document_rejected"
+  | "onboarding_completed";
 
 /**
  * Writes an entry to `audit_log`. Uses the service-role client so the record is

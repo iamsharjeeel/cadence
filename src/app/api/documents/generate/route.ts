@@ -24,17 +24,20 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
+    console.error("[documents/generate] Invalid JSON body");
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
   const type = body.type as DocumentType;
   if (!DOCUMENT_TYPES.includes(type)) {
+    console.error("[documents/generate] Invalid document type:", body.type);
     return NextResponse.json({ error: "Invalid document type." }, { status: 400 });
   }
 
   const gstEnabled = Boolean(body.gst_enabled);
   const gstRate = Number(body.gst_rate ?? 0.1);
   if (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 1) {
+    console.error("[documents/generate] Invalid GST rate:", body.gst_rate);
     return NextResponse.json({ error: "Invalid GST rate." }, { status: 400 });
   }
 
@@ -45,17 +48,27 @@ export async function POST(request: NextRequest) {
       : [];
 
   if (ids.length === 0) {
+    console.error("[documents/generate] No timesheet ids in request");
     return NextResponse.json(
       { error: "No timesheets specified." },
       { status: 400 },
     );
   }
 
-  const results: { id: string; ok: boolean; message?: string; document_number?: string }[] = [];
+  const results: {
+    id: string;
+    ok: boolean;
+    message?: string;
+    document_number?: string;
+  }[] = [];
 
   for (const timesheetId of ids) {
     const auth = await authorizeTimesheetForDocument(profile, timesheetId);
     if (!auth.ok) {
+      console.error(
+        `[documents/generate] Auth failed for ${timesheetId}:`,
+        auth.message,
+      );
       results.push({ id: timesheetId, ok: false, message: auth.message });
       continue;
     }
@@ -68,6 +81,13 @@ export async function POST(request: NextRequest) {
       gstRate,
     });
 
+    if (!result.ok) {
+      console.error(
+        `[documents/generate] Generation failed for ${timesheetId}:`,
+        result.message,
+      );
+    }
+
     results.push({
       id: timesheetId,
       ok: result.ok,
@@ -78,8 +98,10 @@ export async function POST(request: NextRequest) {
 
   const okCount = results.filter((r) => r.ok).length;
   if (okCount === 0) {
+    const errMsg = results[0]?.message ?? "Generation failed.";
+    console.error("[documents/generate] All generations failed:", results);
     return NextResponse.json(
-      { error: results[0]?.message ?? "Generation failed.", results },
+      { error: errMsg, results },
       { status: 400 },
     );
   }

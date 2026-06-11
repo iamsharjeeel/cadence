@@ -106,13 +106,19 @@ export type Database = {
           created_at: string
           currency: string
           email: string
+          emergency_name: string | null
+          emergency_phone: string | null
+          emergency_relation: string | null
           full_name: string | null
           id: string
+          job_title: string | null
+          onboarding_complete: boolean
           org_id: string | null
           payment_terms_days: number | null
           rate: number | null
           rate_type: Database["public"]["Enums"]["rate_type"]
           role: Database["public"]["Enums"]["user_role"]
+          start_date: string | null
           status: Database["public"]["Enums"]["user_status"]
           tax_id: string | null
         }
@@ -125,13 +131,19 @@ export type Database = {
           created_at?: string
           currency?: string
           email: string
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          emergency_relation?: string | null
           full_name?: string | null
           id: string
+          job_title?: string | null
+          onboarding_complete?: boolean
           org_id?: string | null
           payment_terms_days?: number | null
           rate?: number | null
           rate_type?: Database["public"]["Enums"]["rate_type"]
           role?: Database["public"]["Enums"]["user_role"]
+          start_date?: string | null
           status?: Database["public"]["Enums"]["user_status"]
           tax_id?: string | null
         }
@@ -144,13 +156,19 @@ export type Database = {
           created_at?: string
           currency?: string
           email?: string
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          emergency_relation?: string | null
           full_name?: string | null
           id?: string
+          job_title?: string | null
+          onboarding_complete?: boolean
           org_id?: string | null
           payment_terms_days?: number | null
           rate?: number | null
           rate_type?: Database["public"]["Enums"]["rate_type"]
           role?: Database["public"]["Enums"]["user_role"]
+          start_date?: string | null
           status?: Database["public"]["Enums"]["user_status"]
           tax_id?: string | null
         }
@@ -429,6 +447,210 @@ export type Database = {
           },
         ]
       }
+      leave_types: {
+        Row: {
+          category: string
+          color: string | null
+          created_at: string
+          default_days_per_year: number | null
+          id: string
+          is_active: boolean
+          name: string
+          org_id: string
+        }
+        Insert: {
+          category: string
+          color?: string | null
+          created_at?: string
+          default_days_per_year?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          org_id: string
+        }
+        Update: {
+          category?: string
+          color?: string | null
+          created_at?: string
+          default_days_per_year?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          org_id?: string
+        }
+        Relationships: []
+      }
+      leave_balances: {
+        Row: {
+          allocated_days: number
+          created_at: string
+          employee_id: string
+          id: string
+          leave_type_id: string
+          org_id: string
+          pending_days: number
+          used_days: number
+          year: number
+        }
+        Insert: {
+          allocated_days?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          leave_type_id: string
+          org_id: string
+          pending_days?: number
+          used_days?: number
+          year: number
+        }
+        Update: {
+          allocated_days?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          leave_type_id?: string
+          org_id?: string
+          pending_days?: number
+          used_days?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      leave_requests: {
+        Row: {
+          created_at: string
+          days_requested: number
+          employee_id: string
+          end_date: string
+          half_day: boolean
+          id: string
+          leave_type_id: string
+          note: string | null
+          org_id: string
+          rejection_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days_requested: number
+          employee_id: string
+          end_date: string
+          half_day?: boolean
+          id?: string
+          leave_type_id: string
+          note?: string | null
+          org_id: string
+          rejection_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days_requested?: number
+          employee_id?: string
+          end_date?: string
+          half_day?: boolean
+          id?: string
+          leave_type_id?: string
+          note?: string | null
+          org_id?: string
+          rejection_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      onboarding_steps: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          org_id: string
+          step: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          org_id: string
+          step: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          org_id?: string
+          step?: string
+        }
+        Relationships: []
+      }
+      official_documents: {
+        Row: {
+          category: string
+          created_at: string
+          employee_id: string | null
+          employee_note: string | null
+          file_path: string
+          file_type: string
+          id: string
+          name: string
+          org_id: string
+          signed_at: string | null
+          signature_data: string | null
+          signing_type: string
+          status: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          employee_id?: string | null
+          employee_note?: string | null
+          file_path: string
+          file_type: string
+          id?: string
+          name: string
+          org_id: string
+          signed_at?: string | null
+          signature_data?: string | null
+          signing_type: string
+          status?: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          employee_id?: string | null
+          employee_note?: string | null
+          file_path?: string
+          file_type?: string
+          id?: string
+          name?: string
+          org_id?: string
+          signed_at?: string | null
+          signature_data?: string | null
+          signing_type?: string
+          status?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -443,6 +665,18 @@ export type Database = {
       next_document_number: {
         Args: { p_org_id: string; p_type: string }
         Returns: string
+      }
+      approve_leave_request: {
+        Args: { p_request_id: string; p_reviewer_id: string }
+        Returns: undefined
+      }
+      reject_leave_request: {
+        Args: {
+          p_request_id: string
+          p_reviewer_id: string
+          p_note: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
@@ -596,6 +830,11 @@ export type Document = Tables<"documents">
 export type Timesheet = Tables<"timesheets">
 export type TimesheetRow = Tables<"timesheet_rows">
 export type WebhookDelivery = Tables<"webhook_deliveries">
+export type LeaveType = Tables<"leave_types">
+export type LeaveBalance = Tables<"leave_balances">
+export type LeaveRequest = Tables<"leave_requests">
+export type OnboardingStep = Tables<"onboarding_steps">
+export type OfficialDocument = Tables<"official_documents">
 
 export type UserRole = Enums<"user_role">
 export type UserStatus = Enums<"user_status">
@@ -622,3 +861,33 @@ export const USER_ROLES = Constants.public.Enums.user_role
 export const USER_STATUSES = Constants.public.Enums.user_status
 export const RATE_TYPES = Constants.public.Enums.rate_type
 export const PERIOD_CADENCES = Constants.public.Enums.period_cadence
+
+export type LeaveCategory =
+  | "annual"
+  | "sick"
+  | "unpaid"
+  | "public_holiday"
+  | "custom"
+export type LeaveRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled"
+export type OnboardingStepName =
+  | "personal"
+  | "banking"
+  | "employment"
+  | "emergency"
+  | "documents"
+  | "complete"
+export type OfficialDocCategory =
+  | "contract"
+  | "offer_letter"
+  | "policy"
+  | "nda"
+  | "other"
+export type OfficialDocStatus =
+  | "pending"
+  | "signed"
+  | "acknowledged"
+  | "rejected"

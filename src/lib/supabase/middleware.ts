@@ -5,14 +5,6 @@ import type { Database } from "@/types/db";
 
 /**
  * Refreshes the Supabase session cookie and enforces route guards.
- *
- * Returns the response that must be returned from `middleware.ts` so refreshed
- * auth cookies are persisted on every request.
- *
- * Guard logic:
- *   - `/app/**`  → requires an authenticated, ACTIVE user; otherwise redirect.
- *   - pending/suspended users are funnelled to `/pending`.
- *   - signed-in users who hit `/login` are bounced into the app.
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -38,18 +30,17 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // IMPORTANT: do not run code between createServerClient and getUser().
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
   const isApp = pathname.startsWith("/app");
+  const isOnboarding = pathname.startsWith("/app/onboarding");
   const isPending = pathname === "/pending";
   const isLogin = pathname === "/login";
   const isHome = pathname === "/";
 
-  // Unauthenticated users may not enter the app shell.
   if (!user && (isApp || isPending)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -57,16 +48,20 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user) {
-    // Only fetch status when it actually gates the route, to keep middleware cheap.
     if (isApp || isPending || isLogin || isHome) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("status")
+        .select("status, role, onboarding_complete")
         .eq("id", user.id)
         .single();
 
       const status = profile?.status ?? "pending";
       const blocked = status === "pending" || status === "suspended";
+      const role = profile?.role ?? "employee";
+      const needsOnboarding =
+        role === "employee" &&
+        status === "active" &&
+        !profile?.onboarding_complete;
 
       if (isApp && blocked) {
         const url = request.nextUrl.clone();
@@ -74,9 +69,26 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
 
-      if ((isPending || isLogin || isHome) && !blocked) {
+      if (isApp && needsOnboarding && !isOnboarding) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/app/onboarding";
+        return NextResponse.redirect(url);
+      }
+
+      if (
+        isOnboarding &&
+        (role !== "employee" || profile?.onboarding_complete || blocked)
+      ) {
         const url = request.nextUrl.clone();
         url.pathname = "/app/dashboard";
+        return NextResponse.redirect(url);
+      }
+
+      if ((isPending || isLogin || isHome) && !blocked) {
+        const url = request.nextUrl.clone();
+        url.pathname = needsOnboarding
+          ? "/app/onboarding"
+          : "/app/dashboard";
         return NextResponse.redirect(url);
       }
     }

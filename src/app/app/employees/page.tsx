@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney, titleCase } from "@/lib/utils";
 import type { Organization, Profile } from "@/types/db";
 import { maskSensitive } from "@/lib/bank-crypto";
+import { getOnboardingProgress, getOnboardingStepsDetail } from "@/lib/onboarding/progress";
 import {
   ApproveButton,
   BankingEditor,
@@ -25,6 +26,7 @@ import {
   RoleSelect,
   StatusSelect,
 } from "./controls";
+import { OnboardingCell } from "./OnboardingCell";
 
 export const metadata: Metadata = { title: "Employees" };
 
@@ -59,6 +61,18 @@ export default async function EmployeesPage() {
 
   const pending = members.filter((m) => m.status === "pending");
   const team = members.filter((m) => m.status !== "pending");
+
+  const onboardingByEmployee = new Map<
+    string,
+    { label: string; steps: { step: string; completed_at: string | null }[] }
+  >();
+  for (const m of team.filter((x) => x.role === "employee")) {
+    const [progress, steps] = await Promise.all([
+      getOnboardingProgress(m.id),
+      getOnboardingStepsDetail(m.id),
+    ]);
+    onboardingByEmployee.set(m.id, { label: progress.label, steps });
+  }
   const orgLabel = (orgId: string | null) =>
     orgId ? orgNames.get(orgId) ?? "—" : "Unassigned";
 
@@ -156,6 +170,7 @@ export default async function EmployeesPage() {
                   <TH>Role</TH>
                   <TH>Status</TH>
                   <TH>Rate</TH>
+                  <TH>Onboarding</TH>
                   <TH>Banking</TH>
                 </TR>
               </THead>
@@ -210,6 +225,20 @@ export default async function EmployeesPage() {
                             />
                           )}
                         </div>
+                      </TD>
+                      <TD>
+                        {m.role === "employee" ? (
+                          <OnboardingCell
+                            label={
+                              onboardingByEmployee.get(m.id)?.label ?? "—"
+                            }
+                            steps={
+                              onboardingByEmployee.get(m.id)?.steps ?? []
+                            }
+                          />
+                        ) : (
+                          <span className="text-sm text-muted">—</span>
+                        )}
                       </TD>
                       <TD>
                         {!isSuper && (

@@ -8,6 +8,7 @@ export type TimesheetDocCandidate = {
   employee_id: string;
   employeeName: string;
   org_id: string;
+  orgName?: string;
   period_start: string;
   period_end: string;
   calculated_total: number;
@@ -15,11 +16,12 @@ export type TimesheetDocCandidate = {
 };
 
 /**
- * Approved timesheets in the actor's scope that do not yet have a document.
- * Admin: org-scoped via org_id. Superadmin: all orgs.
+ * Approved timesheets without a document yet.
+ * Admin: scoped to profile.org_id. Superadmin: all orgs, or filtered by orgId.
  */
 export async function getApprovedTimesheetsWithoutDocuments(
   profile: Profile,
+  orgId?: string | null,
 ): Promise<TimesheetDocCandidate[]> {
   if (profile.role !== "admin" && profile.role !== "superadmin") {
     return [];
@@ -38,12 +40,23 @@ export async function getApprovedTimesheetsWithoutDocuments(
   if (profile.role === "admin") {
     if (!profile.org_id) return [];
     tsQuery = tsQuery.eq("org_id", profile.org_id);
+  } else if (orgId) {
+    tsQuery = tsQuery.eq("org_id", orgId);
   }
 
-  const [{ data: timesheets }, { data: documents }] = await Promise.all([
-    tsQuery.order("period_start", { ascending: false }),
-    db.from("documents").select("timesheet_id"),
-  ]);
+  const [{ data: timesheets, error: tsErr }, { data: documents }] =
+    await Promise.all([
+      tsQuery.order("period_start", { ascending: false }),
+      db.from("documents").select("timesheet_id"),
+    ]);
+
+  if (tsErr) {
+    console.error(
+      "[documents] getApprovedTimesheetsWithoutDocuments:",
+      tsErr.message,
+    );
+    return [];
+  }
 
   const documented = new Set(
     (documents ?? []).map((d) => d.timesheet_id as string),
@@ -52,14 +65,26 @@ export async function getApprovedTimesheetsWithoutDocuments(
   if (pending.length === 0) return [];
 
   const employeeIds = [...new Set(pending.map((t) => t.employee_id))];
-  const { data: people } = await db
-    .from("profiles")
-    .select("id, full_name, email")
-    .in("id", employeeIds);
+  const orgIds = [...new Set(pending.map((t) => t.org_id))];
+
+  const [{ data: people }, { data: orgs }] = await Promise.all([
+    db
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", employeeIds),
+    profile.role === "superadmin"
+      ? db.from("organizations").select("id, name").in("id", orgIds)
+      : Promise.resolve({ data: [] }),
+  ]);
 
   const nameById = new Map<string, string>();
   for (const p of people ?? []) {
     nameById.set(p.id, p.full_name?.trim() || p.email);
+  }
+
+  const orgNameById = new Map<string, string>();
+  for (const o of orgs ?? []) {
+    orgNameById.set(o.id, o.name);
   }
 
   return pending.map((t) => ({
@@ -67,6 +92,7 @@ export async function getApprovedTimesheetsWithoutDocuments(
     employee_id: t.employee_id,
     employeeName: nameById.get(t.employee_id) ?? "—",
     org_id: t.org_id,
+    orgName: orgNameById.get(t.org_id),
     period_start: t.period_start,
     period_end: t.period_end,
     calculated_total: t.calculated_total as number,
