@@ -1,0 +1,58 @@
+import "server-only";
+
+import { redirect } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
+import type { Profile, UserRole } from "@/types/db";
+
+/**
+ * Server-side auth/session helpers.
+ *
+ * These are the single source of truth for "who is the caller and what may they
+ * do". Server Actions MUST re-check the role here before any privileged write —
+ * RLS is a backstop, not the only gate.
+ */
+
+/** Returns the authenticated profile, or null if not signed in / no profile. */
+export async function getProfile(): Promise<Profile | null> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  return profile ?? null;
+}
+
+/**
+ * Requires an authenticated, ACTIVE profile. Redirects otherwise. Use at the top
+ * of `/app/**` Server Components and Actions.
+ */
+export async function requireActiveProfile(): Promise<Profile> {
+  const profile = await getProfile();
+  if (!profile) redirect("/login");
+  if (profile.status !== "active") redirect("/pending");
+  return profile;
+}
+
+/**
+ * Requires an active profile whose role is in `roles`. Redirects to the
+ * dashboard if the caller is active but unauthorized. Returns the profile so
+ * actions can use org_id etc.
+ */
+export async function requireRole(roles: UserRole[]): Promise<Profile> {
+  const profile = await requireActiveProfile();
+  if (!roles.includes(profile.role)) redirect("/app/dashboard");
+  return profile;
+}
+
+/** Pure predicate — no redirect. Handy in UI to decide what to render. */
+export function hasRole(profile: Profile | null, roles: UserRole[]): boolean {
+  return !!profile && roles.includes(profile.role);
+}

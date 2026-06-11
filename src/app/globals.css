@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Cadence design tokens — "Quiet luxury for data".
+   Light is the default; `.dark` (next-themes class strategy) inverts to ink.
+--------------------------------------------------------------------------- */
+:root {
+  --bg: #fbfbf9;
+  --surface: #ffffff;
+  --ink: #14151a;
+  --muted: #6b6f76;
+  --line: rgba(20, 21, 26, 0.08);
+
+  --accent: #1f8a8a; /* Mineral Teal */
+  --accent-soft: rgba(31, 138, 138, 0.12);
+  --accent-strong: #157070;
+
+  --danger: #b3261e;
+  --danger-soft: rgba(179, 38, 30, 0.1);
+
+  --radius: 16px;
+}
+
+.dark {
+  --bg: #0e0f12;
+  --surface: #16181d;
+  --ink: #ededea;
+  --muted: #9a9ea6;
+  --line: rgba(255, 255, 255, 0.08);
+
+  --accent: #2aa6a6; /* slightly brightened teal for dark */
+  --accent-soft: rgba(42, 166, 166, 0.16);
+  --accent-strong: #4fc3c3;
+
+  --danger: #f2655c;
+  --danger-soft: rgba(242, 101, 92, 0.14);
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-space-grotesk), var(--font-inter), sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* Tabular figures for every numeric/financial value. */
+  .tnum,
+  .font-display {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+}
+
+@layer utilities {
+  /* Hairline divider helper. */
+  .hairline {
+    border-color: var(--line);
+  }
+
+  /* Subtle grain overlay — used on auth screens only. */
+  .grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  }
+}
+
+/* Respect reduced-motion globally: kill transitions & animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

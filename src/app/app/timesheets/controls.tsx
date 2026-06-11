@@ -1,0 +1,148 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useFormState, useFormStatus } from "react-dom";
+
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/utils";
+import { fieldBase } from "@/components/ui/Input";
+import {
+  approveTimesheet,
+  rejectTimesheet,
+  type ActionResult,
+} from "./actions";
+
+function useResultToast(state: ActionResult | null) {
+  const { toast } = useToast();
+  const last = useRef<ActionResult | null>(null);
+  useEffect(() => {
+    if (state && state !== last.current) {
+      last.current = state;
+      toast(state.message, state.ok ? "success" : "error");
+    }
+  }, [state, toast]);
+}
+
+function SubmitButton({
+  children,
+  variant = "primary",
+}: {
+  children: React.ReactNode;
+  variant?: "primary" | "ghost" | "danger";
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" size="sm" variant={variant} disabled={pending}>
+      {pending ? "…" : children}
+    </Button>
+  );
+}
+
+export function ApproveTimesheetButton({ id }: { id: string }) {
+  const [state, action] = useFormState(approveTimesheet, null);
+  useResultToast(state);
+  return (
+    <form action={action}>
+      <input type="hidden" name="id" value={id} />
+      <SubmitButton>Approve</SubmitButton>
+    </form>
+  );
+}
+
+export function RejectTimesheetControl({ id }: { id: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, action] = useFormState(rejectTimesheet, null);
+  useResultToast(state);
+
+  useEffect(() => {
+    if (state?.ok) setOpen(false);
+  }, [state]);
+
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        Reject
+      </Button>
+    );
+  }
+
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="id" value={id} />
+      <input
+        name="note"
+        required
+        maxLength={500}
+        placeholder="Reason for rejection"
+        className={cn(fieldBase, "h-9 w-56 text-sm")}
+        aria-label="Rejection note"
+      />
+      <SubmitButton variant="danger">Confirm</SubmitButton>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setOpen(false)}
+      >
+        Cancel
+      </Button>
+    </form>
+  );
+}
+
+/** Status + employee filter bar that drives the list via URL search params. */
+export function TimesheetFilters({
+  status,
+  employee,
+  employees,
+}: {
+  status: string;
+  employee: string;
+  employees: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  function setParam(key: string, value: string) {
+    const next = new URLSearchParams(params.toString());
+    if (value) next.set(key, value);
+    else next.delete(key);
+    router.replace(`${pathname}?${next.toString()}`);
+  }
+
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <Select
+        label="Status"
+        name="status"
+        value={status}
+        onChange={(e) => setParam("status", e.target.value)}
+        className="h-9 w-40 text-sm"
+        options={[
+          { label: "All statuses", value: "" },
+          { label: "Draft", value: "draft" },
+          { label: "Submitted", value: "submitted" },
+          { label: "Approved", value: "approved" },
+          { label: "Rejected", value: "rejected" },
+        ]}
+      />
+      {employees.length > 0 && (
+        <Select
+          label="Employee"
+          name="employee"
+          value={employee}
+          onChange={(e) => setParam("employee", e.target.value)}
+          className="h-9 w-52 text-sm"
+          options={[
+            { label: "All employees", value: "" },
+            ...employees.map((e) => ({ label: e.name, value: e.id })),
+          ]}
+        />
+      )}
+    </div>
+  );
+}
