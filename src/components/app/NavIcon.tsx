@@ -15,6 +15,12 @@ const PATHS: Record<NavItem["icon"], React.ReactNode> = {
       <path d="M5 20a7 7 0 0 1 14 0" />
     </>
   ),
+  timesheets: (
+    <>
+      <rect x="4" y="4" width="16" height="17" rx="2" />
+      <path d="M8 3v3M16 3v3M8 11h8M8 15h5" />
+    </>
+  ),
   employees: (
     <>
       <circle cx="9" cy="8" r="3" />

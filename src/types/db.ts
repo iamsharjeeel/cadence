@@ -143,6 +143,180 @@ export type Database = {
           },
         ]
       }
+      timesheet_rows: {
+        Row: {
+          billable: boolean
+          created_at: string
+          description: string | null
+          hours: number
+          id: string
+          org_id: string
+          project: string | null
+          row_date: string
+          timesheet_id: string
+        }
+        Insert: {
+          billable?: boolean
+          created_at?: string
+          description?: string | null
+          hours: number
+          id?: string
+          org_id: string
+          project?: string | null
+          row_date: string
+          timesheet_id: string
+        }
+        Update: {
+          billable?: boolean
+          created_at?: string
+          description?: string | null
+          hours?: number
+          id?: string
+          org_id?: string
+          project?: string | null
+          row_date?: string
+          timesheet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_rows_timesheet_id_fkey"
+            columns: ["timesheet_id"]
+            isOneToOne: false
+            referencedRelation: "timesheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timesheets: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          calculated_total: number | null
+          created_at: string
+          currency_snapshot: string | null
+          employee_id: string
+          id: string
+          org_id: string
+          period_end: string
+          period_start: string
+          rate_snapshot: number | null
+          rate_type_snapshot: string | null
+          raw_file_path: string | null
+          rejection_note: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          calculated_total?: number | null
+          created_at?: string
+          currency_snapshot?: string | null
+          employee_id: string
+          id?: string
+          org_id: string
+          period_end: string
+          period_start: string
+          rate_snapshot?: number | null
+          rate_type_snapshot?: string | null
+          raw_file_path?: string | null
+          rejection_note?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          calculated_total?: number | null
+          created_at?: string
+          currency_snapshot?: string | null
+          employee_id?: string
+          id?: string
+          org_id?: string
+          period_end?: string
+          period_start?: string
+          rate_snapshot?: number | null
+          rate_type_snapshot?: string | null
+          raw_file_path?: string | null
+          rejection_note?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheets_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_deliveries: {
+        Row: {
+          attempts: number
+          created_at: string
+          delivered_at: string | null
+          id: string
+          last_attempted_at: string | null
+          org_id: string
+          payload: Json
+          status: string
+          timesheet_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          last_attempted_at?: string | null
+          org_id: string
+          payload: Json
+          status?: string
+          timesheet_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          last_attempted_at?: string | null
+          org_id?: string
+          payload?: Json
+          status?: string
+          timesheet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_deliveries_timesheet_id_fkey"
+            columns: ["timesheet_id"]
+            isOneToOne: false
+            referencedRelation: "timesheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -302,11 +476,23 @@ export const Constants = {
 export type Organization = Tables<"organizations">
 export type Profile = Tables<"profiles">
 export type AuditLog = Tables<"audit_log">
+export type Timesheet = Tables<"timesheets">
+export type TimesheetRow = Tables<"timesheet_rows">
+export type WebhookDelivery = Tables<"webhook_deliveries">
 
 export type UserRole = Enums<"user_role">
 export type UserStatus = Enums<"user_status">
 export type RateType = Enums<"rate_type">
 export type PeriodCadence = Enums<"period_cadence">
+
+/** timesheets.status — a text column with a CHECK constraint (not a PG enum). */
+export type TimesheetStatus = "draft" | "submitted" | "approved" | "rejected"
+export const TIMESHEET_STATUSES: TimesheetStatus[] = [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+]
 
 export const USER_ROLES = Constants.public.Enums.user_role
 export const USER_STATUSES = Constants.public.Enums.user_status

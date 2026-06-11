@@ -4,7 +4,13 @@ export type NavItem = {
   label: string;
   href: string;
   roles: UserRole[];
-  icon: "dashboard" | "profile" | "employees" | "organizations" | "settings";
+  icon:
+    | "dashboard"
+    | "profile"
+    | "timesheets"
+    | "employees"
+    | "organizations"
+    | "settings";
 };
 
 /**
@@ -20,6 +26,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "dashboard",
   },
   {
+    label: "Timesheets",
+    href: "/app/timesheets",
+    roles: ["superadmin", "admin", "employee"],
+    icon: "timesheets",
+  },
+  {
     label: "Profile",
     href: "/app/profile",
     roles: ["superadmin", "admin", "employee"],
@@ -28,7 +40,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Employees",
     href: "/app/employees",
-    roles: ["admin"],
+    roles: ["superadmin", "admin"],
     icon: "employees",
   },
   {

@@ -13,9 +13,10 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Badge, StatusPill } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireRole } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney, titleCase } from "@/lib/utils";
-import type { Profile } from "@/types/db";
+import type { Organization, Profile } from "@/types/db";
 import {
   ApproveButton,
   RateEditor,
@@ -26,25 +27,48 @@ import {
 export const metadata: Metadata = { title: "Employees" };
 
 export default async function EmployeesPage() {
-  const admin = await requireRole(["admin"]);
+  const actor = await requireRole(["admin", "superadmin"]);
+  const isSuperadmin = actor.role === "superadmin";
 
-  const supabase = createClient();
-  // RLS scopes this to the admin's own org; we also filter explicitly.
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("org_id", admin.org_id!)
-    .order("created_at", { ascending: true });
+  // Superadmin sees every org's members (service-role read, scoped in code).
+  // Admin is scoped to their own org via the user-session client (RLS-backed).
+  let members: Profile[] = [];
+  const orgNames = new Map<string, string>();
 
-  const members = (data ?? []) as Profile[];
+  if (isSuperadmin) {
+    const db = createAdminClient();
+    const [{ data: profiles }, { data: orgs }] = await Promise.all([
+      db.from("profiles").select("*").order("created_at", { ascending: true }),
+      db.from("organizations").select("id, name"),
+    ]);
+    members = (profiles ?? []) as Profile[];
+    for (const o of (orgs ?? []) as Pick<Organization, "id" | "name">[]) {
+      orgNames.set(o.id, o.name);
+    }
+  } else {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("org_id", actor.org_id!)
+      .order("created_at", { ascending: true });
+    members = (data ?? []) as Profile[];
+  }
+
   const pending = members.filter((m) => m.status === "pending");
   const team = members.filter((m) => m.status !== "pending");
+  const orgLabel = (orgId: string | null) =>
+    orgId ? orgNames.get(orgId) ?? "—" : "Unassigned";
 
   return (
     <div>
       <PageHeader
         title="Employees"
-        description="Approve new members and manage roles, rates, and access for your organization."
+        description={
+          isSuperadmin
+            ? "Every member across all organizations. Approve, set roles, rates, and access."
+            : "Approve new members and manage roles, rates, and access for your organization."
+        }
         action={
           <Badge tone="muted">
             {members.length} {members.length === 1 ? "member" : "members"}
@@ -56,7 +80,9 @@ export default async function EmployeesPage() {
         <CardHeader>
           <CardTitle>Pending approval</CardTitle>
           <CardDescription>
-            New sign-ins matched to your organization, awaiting access.
+            {isSuperadmin
+              ? "New sign-ins across every organization, awaiting access."
+              : "New sign-ins matched to your organization, awaiting access."}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -64,7 +90,7 @@ export default async function EmployeesPage() {
             <div className="px-6 py-10">
               <EmptyState
                 title="No one's waiting"
-                description="New members matched to your domain will appear here for approval."
+                description="New members matched to a domain will appear here for approval."
               />
             </div>
           ) : (
@@ -72,6 +98,7 @@ export default async function EmployeesPage() {
               <THead>
                 <TR>
                   <TH>Member</TH>
+                  {isSuperadmin && <TH>Organization</TH>}
                   <TH>Joined</TH>
                   <TH className="text-right">Action</TH>
                 </TR>
@@ -82,6 +109,11 @@ export default async function EmployeesPage() {
                     <TD>
                       <MemberCell member={m} />
                     </TD>
+                    {isSuperadmin && (
+                      <TD className="text-sm text-muted">
+                        {orgLabel(m.org_id)}
+                      </TD>
+                    )}
                     <TD className="tnum text-muted">
                       {new Date(m.created_at).toLocaleDateString()}
                     </TD>
@@ -110,7 +142,7 @@ export default async function EmployeesPage() {
             <div className="px-6 py-10">
               <EmptyState
                 title="No active members yet"
-                description="Approve a pending member to build out your team."
+                description="Approve a pending member to build out the team."
               />
             </div>
           ) : (
@@ -118,6 +150,7 @@ export default async function EmployeesPage() {
               <THead>
                 <TR>
                   <TH>Member</TH>
+                  {isSuperadmin && <TH>Organization</TH>}
                   <TH>Role</TH>
                   <TH>Status</TH>
                   <TH>Rate</TH>
@@ -125,15 +158,21 @@ export default async function EmployeesPage() {
               </THead>
               <TBody>
                 {team.map((m) => {
-                  const isSelf = m.id === admin.id;
+                  const isSelf = m.id === actor.id;
                   const isSuper = m.role === "superadmin";
+                  const locked = isSelf || isSuper;
                   return (
                     <TR key={m.id}>
                       <TD>
                         <MemberCell member={m} />
                       </TD>
+                      {isSuperadmin && (
+                        <TD className="text-sm text-muted">
+                          {orgLabel(m.org_id)}
+                        </TD>
+                      )}
                       <TD>
-                        {isSelf || isSuper ? (
+                        {locked ? (
                           <span className="text-sm text-muted">
                             {titleCase(m.role)}
                           </span>
@@ -145,7 +184,7 @@ export default async function EmployeesPage() {
                         )}
                       </TD>
                       <TD>
-                        {isSelf || isSuper ? (
+                        {locked ? (
                           <StatusPill status={m.status} />
                         ) : (
                           <StatusSelect id={m.id} current={m.status} />
