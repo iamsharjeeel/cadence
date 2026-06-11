@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/PageHeader";
+import { OrgLogo } from "@/components/brand/OrgLogo";
 import {
   Card,
   CardContent,
@@ -143,11 +144,18 @@ export default async function DashboardPage({
             >
               <Card className="h-full transition-[box-shadow] duration-150 ease-out hover:shadow-lg">
                   <CardContent className="flex flex-col gap-4">
-                    <div>
-                      <p className="font-display text-lg font-semibold tracking-tightest">
-                        {org.name}
-                      </p>
-                      <p className="text-xs text-muted">{org.slug}</p>
+                    <div className="flex items-center gap-3">
+                      <OrgLogo
+                        name={org.name}
+                        logoUrl={org.logoUrl}
+                        size="md"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-display text-lg font-semibold tracking-tightest">
+                          {org.name}
+                        </p>
+                        <p className="text-xs text-muted">{org.slug}</p>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
@@ -187,12 +195,20 @@ export default async function DashboardPage({
   }
 
   // Org admin — own org dashboard on /app/dashboard.
+  const db = createAdminClient();
+  const { data: orgRow } = await db
+    .from("organizations")
+    .select("name, logo_url")
+    .eq("id", profile.org_id!)
+    .single();
   const data = await getAdminDashboard(profile.org_id!);
   return (
     <AdminDashboardView
       data={data}
       title="Team dashboard"
       description="Approved hours and payroll estimates for this month."
+      orgName={orgRow?.name}
+      orgLogoUrl={orgRow?.logo_url}
       timesheetsFilterHref="/app/timesheets?status=submitted"
     />
   );

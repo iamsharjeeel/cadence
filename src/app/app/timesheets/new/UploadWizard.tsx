@@ -15,10 +15,12 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
+  detectHeaderOffset,
   parseCsvText,
   parsePastedText,
-  prepareImportTable,
+  prepareGoogleSheetTable,
   sampleCsv,
+  tableFromGrid,
 } from "@/lib/timesheets/parse";
 import { autoMatch } from "@/lib/timesheets/columns";
 import {
@@ -71,6 +73,7 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
   const [periodEnd, setPeriodEnd] = useState("");
   const [googleUrl, setGoogleUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googleSheetImport, setGoogleSheetImport] = useState(false);
 
   const maxSkip = grid ? Math.max(0, grid.rows.length - 1) : 0;
 
@@ -91,16 +94,20 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  /** Shared entry point for all three input methods. */
+  /** File upload + clipboard paste — original pipeline (no URL sanitization). */
   function applyGrid(g: Grid, rawFile: File | null) {
-    const { grid: cleaned, skip: detected, table: tbl } = prepareImportTable(g);
-    setGrid(cleaned);
+    setGoogleSheetImport(false);
+    const detected = detectHeaderOffset(g);
+    setGrid(g);
     setFile(rawFile);
     setDetectedSkip(detected);
     setSkipRows(detected);
+    const tbl = tableFromGrid(g, detected);
     setTable(tbl);
+    continueAfterTable(tbl);
+  }
 
-    // Reuse a stored mapping when it still fits this header → straight to preview.
+  function continueAfterTable(tbl: RawTable) {
     const stored = reconcileStoredMapping(loadMapping(orgSlug), tbl);
     if (stored) {
       setMapping(stored);
@@ -118,12 +125,36 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     setStep("map");
   }
 
+  /** Google Sheets — sanitize single-cell URL rows, then same header detection. */
+  function applyGoogleSheetGrid(g: Grid) {
+    const { grid: cleaned, skip: detected, table: tbl } =
+      prepareGoogleSheetTable(g);
+
+    if (cleaned.rows.length === 0) {
+      toast(
+        "Couldn't parse sheet columns. Make sure the sheet has a header row with column names.",
+        "error",
+      );
+      return;
+    }
+
+    setGoogleSheetImport(true);
+    setGrid(cleaned);
+    setFile(null);
+    setDetectedSkip(detected);
+    setSkipRows(detected);
+    setTable(tbl);
+    continueAfterTable(tbl);
+  }
+
   /** Re-derive the header/table when the skip-rows offset changes. */
   function changeSkip(value: number) {
     if (!grid) return;
     const clamped = Math.max(0, Math.min(maxSkip, Math.floor(value)));
     setSkipRows(clamped);
-    const { table: tbl } = prepareImportTable(grid, clamped);
+    const tbl = googleSheetImport
+      ? prepareGoogleSheetTable(grid, clamped).table
+      : tableFromGrid(grid, clamped);
     setTable(tbl);
     const { mapping: auto, matched } = autoMatch(tbl);
     setMapping(auto);
@@ -157,7 +188,11 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
       );
       const json = (await res.json()) as { csv?: string; error?: string };
       if (!res.ok) {
-        toast(json.error ?? "Couldn't import that sheet.", "error");
+        toast(
+          json.error ??
+            "Couldn't fetch sheet. Make sure it's published: File → Share → Publish to web → CSV.",
+          "error",
+        );
         return;
       }
       if (typeof json.csv !== "string" || !json.csv.trim()) {
@@ -170,9 +205,12 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
         return;
       }
       toast("Sheet imported.", "success");
-      applyGrid(parsed, null);
+      applyGoogleSheetGrid(parsed);
     } catch {
-      toast("Couldn't import that sheet.", "error");
+      toast(
+        "Couldn't fetch sheet. Make sure it's published: File → Share → Publish to web → CSV.",
+        "error",
+      );
     } finally {
       setBusy(false);
     }
@@ -235,6 +273,8 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     setMapping(EMPTY_MAPPING);
     setAutoMatched(new Set());
     setRows([]);
+    setGoogleUrl("");
+    setGoogleSheetImport(false);
   }
 
   // ---- render ----

@@ -30,7 +30,7 @@ export default async function OrgDashboardPage({
 
   const { data: org } = await db
     .from("organizations")
-    .select("id, name, slug")
+    .select("id, name, slug, logo_url")
     .eq("slug", params.slug)
     .single();
   if (!org) notFound();
@@ -53,6 +53,7 @@ export default async function OrgDashboardPage({
       title={`${org.name} dashboard`}
       description="Approved hours and payroll estimates for this month."
       orgName={org.name}
+      orgLogoUrl={org.logo_url}
       showSuperadminNav={profile.role === "superadmin"}
       timesheetsFilterHref={`/app/timesheets?status=submitted&org=${org.id}`}
     />

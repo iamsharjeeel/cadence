@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 
 import { TR, TD } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
+import { OrgLogo } from "@/components/brand/OrgLogo";
 import { formatDate, titleCase } from "@/lib/utils";
+import { normalizeAllowedDomains } from "@/lib/org-utils";
 import type { Organization } from "@/types/db";
 
 export function OrgTableRow({ org }: { org: Organization }) {
@@ -26,17 +28,22 @@ export function OrgTableRow({ org }: { org: Organization }) {
       aria-label={`Open ${org.name} dashboard`}
     >
       <TD>
-        <p className="text-sm font-medium text-ink">{org.name}</p>
-        <p className="text-xs text-muted">
-          /{org.slug} · {org.base_currency}
-        </p>
+        <div className="flex items-center gap-3">
+          <OrgLogo name={org.name} logoUrl={org.logo_url} size="sm" />
+          <div>
+            <p className="text-sm font-medium text-ink">{org.name}</p>
+            <p className="text-xs text-muted">
+              /{org.slug} · {org.base_currency}
+            </p>
+          </div>
+        </div>
       </TD>
       <TD>
-        {org.allowed_domains.length === 0 ? (
+        {normalizeAllowedDomains(org.allowed_domains).length === 0 ? (
           <span className="text-xs text-muted">—</span>
         ) : (
           <div className="flex flex-wrap gap-1">
-            {org.allowed_domains.map((d) => (
+            {normalizeAllowedDomains(org.allowed_domains).map((d) => (
               <Badge key={d} tone="accent">
                 {d}
               </Badge>

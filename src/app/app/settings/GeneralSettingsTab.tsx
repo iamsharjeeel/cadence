@@ -64,7 +64,11 @@ export function GeneralSettingsTab({
   useActionToast(suspendState);
 
   useEffect(() => {
-    if (logoState?.ok) setLogoPreview(org.logo_url);
+    if (logoState?.ok && logoState.logoUrl) {
+      setLogoPreview(logoState.logoUrl);
+    } else if (logoState?.ok) {
+      setLogoPreview(org.logo_url);
+    }
   }, [logoState, org.logo_url]);
 
   const hiddenOrg = orgIdField ? (

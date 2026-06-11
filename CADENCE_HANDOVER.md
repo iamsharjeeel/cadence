@@ -576,6 +576,26 @@ Run migration `20260614000000_security_rls_storage.sql` against Supabase before 
 - **UploadWizard:** all three methods (file, paste, Google Sheets) call `prepareImportTable()` via `applyGrid()`; skip-rows changes use the same helper.
 - **HeaderMapping:** defensive `Array.isArray(table.headers)` before mapping.
 
+### Logo upload, org logo display, Google Sheets import fix ✅
+
+#### Logo upload
+- **Root cause:** Production failures from missing bucket, opaque storage errors, or path issues.
+- **Fix:** `uploadOrgLogo` wrapped in try/catch; uses `createAdminClient()` + `{org_id}/{timestamp}.{ext}` path; returns `{ ok, message, logoUrl }` for immediate preview; logs storage errors; rolls back DB if update fails after upload.
+- **Migration:** `supabase/migrations/20260615000000_org_logos_bucket.sql` ensures public `org-logos` bucket exists.
+
+#### Org logo display
+- **`OrgLogo` component** (`src/components/brand/OrgLogo.tsx`) — teal `#1F8A8A` letter placeholder, consistent sm/md/lg sizes.
+- **Sidebar** bottom org block uses `OrgLogo`.
+- **Dashboard** admin + org drill-down: `PageHeader` shows org logo + name.
+- **Superadmin org cards** + **Organizations table** rows show logo/placeholder.
+- **PDFs:** `resolveOrgLogoDataUrl()` fetches logo server-side, embeds as base64 in pay advice + invoice.
+
+#### Google Sheets import — empty column dropdowns
+- **Root cause:** `sanitizeImportGrid()` was too aggressive (stripped multi-cell rows and blank rows); file/paste shared the same pipeline.
+- **Fix:** Sanitization rule — strip only rows with **exactly 1 cell** that is blank or a URL; never strip 2+ cell rows.
+- **Separate pipelines:** file upload + paste use original `detectHeaderOffset` + `tableFromGrid`; Google Sheets uses `prepareGoogleSheetTable()` only.
+- **`/api/google-sheet`:** logs status, content-type, first 500 chars; clear publish hint toast on failure.
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

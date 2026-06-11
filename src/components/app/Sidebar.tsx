@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { Wordmark } from "@/components/brand/Wordmark";
+import { OrgLogo } from "@/components/brand/OrgLogo";
 import { NavLink } from "@/components/app/NavLink";
 import { titleCase } from "@/lib/utils";
 import type { UserRole } from "@/types/db";
@@ -51,18 +52,11 @@ export function Sidebar({
 
       <div className="border-t px-6 py-4">
         <div className="flex items-center gap-3">
-          {orgLogoUrl ? (
-            <img
-              src={orgLogoUrl}
-              alt=""
-              loading="lazy"
-              className="h-8 w-8 shrink-0 rounded-lg border bg-[var(--line)] object-cover"
-            />
-          ) : (
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-xs font-semibold text-[var(--accent-strong)]">
-              {orgName?.charAt(0)?.toUpperCase() ?? "—"}
-            </div>
-          )}
+          <OrgLogo
+            name={orgName ?? "Organization"}
+            logoUrl={orgLogoUrl}
+            size="sm"
+          />
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted">Organization</p>
             <p className="truncate text-sm font-medium text-ink">

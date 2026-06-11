@@ -15,7 +15,7 @@ import { COMMON_CURRENCIES } from "@/lib/constants";
 import type { PeriodCadence } from "@/types/db";
 import { PERIOD_CADENCES } from "@/types/db";
 
-export type ActionResult = { ok: boolean; message: string };
+export type ActionResult = { ok: boolean; message: string; logoUrl?: string };
 
 export { COMMON_CURRENCIES };
 
@@ -145,56 +145,84 @@ export async function uploadOrgLogo(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin", "superadmin"]);
-  const { orgId, error: orgErr } = await resolveOrgId(
-    admin,
-    String(formData.get("org_id") ?? ""),
-  );
-  if (!orgId) return { ok: false, message: orgErr! };
+  try {
+    const admin = await requireRole(["admin", "superadmin"]);
+    const { orgId, error: orgErr } = await resolveOrgId(
+      admin,
+      String(formData.get("org_id") ?? ""),
+    );
+    if (!orgId) return { ok: false, message: orgErr! };
 
-  const file = formData.get("logo") as File | null;
-  if (!file?.size) return { ok: false, message: "Choose an image to upload." };
-  if (file.size > 2 * 1024 * 1024)
-    return { ok: false, message: "Logo must be under 2MB." };
+    const file = formData.get("logo") as File | null;
+    if (!file?.size) return { ok: false, message: "Choose an image to upload." };
+    if (file.size > 2 * 1024 * 1024)
+      return { ok: false, message: "Logo must be under 2MB." };
 
-  const ext = file.name.toLowerCase().endsWith(".png") ? "png" : "jpg";
-  if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type) && file.type !== "") {
-    return { ok: false, message: "Only PNG or JPG images are allowed." };
-  }
+    const ext = file.name.toLowerCase().endsWith(".png") ? "png" : "jpg";
+    if (
+      !["image/png", "image/jpeg", "image/jpg"].includes(file.type) &&
+      file.type !== ""
+    ) {
+      return { ok: false, message: "Only PNG or JPG images are allowed." };
+    }
 
-  const path = `${orgId}/logo.${ext}`;
-  const db = createAdminClient();
-  const buffer = Buffer.from(await file.arrayBuffer());
+    const path = `${orgId}/${Date.now()}.${ext}`;
+    const db = createAdminClient();
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-  const { error: upErr } = await db.storage
-    .from("org-logos")
-    .upload(path, buffer, {
+    const { error: upErr } = await db.storage.from("org-logos").upload(path, buffer, {
       contentType: file.type || `image/${ext}`,
       upsert: true,
     });
-  if (upErr) return { ok: false, message: "Couldn't upload logo." };
 
-  const { data: publicUrl } = db.storage.from("org-logos").getPublicUrl(path);
-  const logoUrl = publicUrl.publicUrl;
+    if (upErr) {
+      console.error("[uploadOrgLogo] storage upload failed:", upErr);
+      const hint =
+        upErr.message?.includes("Bucket not found") ||
+        upErr.message?.includes("not found")
+          ? " The org-logos storage bucket may be missing — run the Phase 6 migration in Supabase."
+          : "";
+      return {
+        ok: false,
+        message: `Couldn't upload logo.${hint} ${upErr.message ?? ""}`.trim(),
+      };
+    }
 
-  const { error } = await db
-    .from("organizations")
-    .update({ logo_url: logoUrl })
-    .eq("id", orgId);
+    const { data: publicUrl } = db.storage.from("org-logos").getPublicUrl(path);
+    const logoUrl = publicUrl.publicUrl;
 
-  if (error) return { ok: false, message: "Couldn't save logo URL." };
+    const { error } = await db
+      .from("organizations")
+      .update({ logo_url: logoUrl })
+      .eq("id", orgId);
 
-  await writeAudit({
-    actorId: admin.id,
-    orgId,
-    action: "org_settings_updated",
-    entity: orgId,
-    payload: { section: "logo", logo_url: logoUrl },
-  });
+    if (error) {
+      console.error("[uploadOrgLogo] DB update failed:", error);
+      await db.storage.from("org-logos").remove([path]);
+      return { ok: false, message: "Couldn't save logo URL." };
+    }
 
-  revalidatePath("/app/settings");
-  revalidatePath("/app");
-  return { ok: true, message: "Logo uploaded." };
+    await writeAudit({
+      actorId: admin.id,
+      orgId,
+      action: "org_settings_updated",
+      entity: orgId,
+      payload: { section: "logo", logo_url: logoUrl },
+    });
+
+    revalidatePath("/app/settings");
+    revalidatePath("/app");
+    revalidatePath("/app/dashboard");
+    revalidatePath("/app/organizations");
+    return { ok: true, message: "Logo uploaded.", logoUrl };
+  } catch (e) {
+    console.error("[uploadOrgLogo] unexpected error:", e);
+    return {
+      ok: false,
+      message:
+        e instanceof Error ? e.message : "Couldn't upload logo. Please try again.",
+    };
+  }
 }
 
 /** Admin only — suspends all non-admin employees in the org. */

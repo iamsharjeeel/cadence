@@ -42,6 +42,7 @@ export type OrgSummaryCard = {
   id: string;
   name: string;
   slug: string;
+  logoUrl: string | null;
   employeeCount: number;
   pendingCount: number;
   approvedHoursPeriod: number;
@@ -255,7 +256,7 @@ export async function getSuperadminOrgSummaries(): Promise<OrgSummaryCard[]> {
 
   const { data: orgs } = await db
     .from("organizations")
-    .select("id, name, slug")
+    .select("id, name, slug, logo_url")
     .order("name");
 
   const cards: OrgSummaryCard[] = [];
@@ -295,6 +296,7 @@ export async function getSuperadminOrgSummaries(): Promise<OrgSummaryCard[]> {
       id: org.id,
       name: org.name,
       slug: org.slug,
+      logoUrl: org.logo_url ?? null,
       employeeCount: employeeCount ?? 0,
       pendingCount: pendingCount ?? 0,
       approvedHoursPeriod,

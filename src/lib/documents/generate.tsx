@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDate, formatMoney, titleCase } from "@/lib/utils";
 import type { Profile, Timesheet } from "@/types/db";
 import { computeDocumentAmounts } from "./amounts";
+import { resolveOrgLogoDataUrl } from "@/lib/org-logo";
 import { InvoicePdf } from "./pdf/InvoicePdf";
 import { PayAdvicePdf } from "./pdf/PayAdvicePdf";
 import type { DocumentType } from "./types";
@@ -115,6 +116,8 @@ export async function generateAndEmailDocument(params: {
   const dueDate = new Date(issueDate);
   dueDate.setDate(dueDate.getDate() + paymentTerms);
 
+  const orgLogoDataUrl = await resolveOrgLogoDataUrl(org.logo_url);
+
   let pdfBuffer: Buffer;
   try {
     if (type === "pay_advice") {
@@ -122,7 +125,7 @@ export async function generateAndEmailDocument(params: {
         <PayAdvicePdf
           data={{
             orgName: org.name,
-            orgLogoUrl: org.logo_url,
+            orgLogoUrl: orgLogoDataUrl,
             documentNumber: docNumber,
             issueDate: issueLabel,
             employeeName: employee.full_name?.trim() || employee.email,
@@ -147,7 +150,7 @@ export async function generateAndEmailDocument(params: {
         <InvoicePdf
           data={{
             orgName: org.name,
-            orgLogoUrl: org.logo_url,
+            orgLogoUrl: orgLogoDataUrl,
             documentNumber: docNumber,
             issueDate: issueLabel,
             dueDate: dueDate.toLocaleDateString(undefined, {

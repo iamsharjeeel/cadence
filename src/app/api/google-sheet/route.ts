@@ -5,14 +5,15 @@ import { fetchWithTimeout } from "@/lib/fetch";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const PUBLISH_HINT =
-  "Make sure your sheet is published: File → Share → Publish to web → CSV.";
+  "Make sure it's published: File → Share → Publish to web → CSV.";
+
+const FETCH_ERROR =
+  "Couldn't fetch sheet. Make sure it's published: File → Share → Publish to web → CSV.";
 
 const MAX_CSV_BYTES = 5 * 1024 * 1024;
 
 /**
  * Fetches a public Google Sheet as CSV, server-side (avoids browser CORS).
- * Extracts the sheet id + gid from the pasted URL and hits the CSV export
- * endpoint. Requires an active session. Never performs Google OAuth.
  */
 export async function GET(request: NextRequest) {
   const profile = await getProfile();
@@ -58,29 +59,43 @@ export async function GET(request: NextRequest) {
   let res: Response;
   try {
     res = await fetchWithTimeout(exportUrl, { redirect: "follow" });
-  } catch {
+  } catch (e) {
+    console.error("[google-sheet] fetch error:", e);
     return NextResponse.json(
-      { error: `Couldn't reach Google Sheets. ${PUBLISH_HINT}` },
+      { error: FETCH_ERROR },
       { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
   const contentType = res.headers.get("content-type") ?? "";
+  const body = await res.text();
+
+  console.info("[google-sheet] response", {
+    status: res.status,
+    contentType,
+    bodyLength: body.length,
+    preview: body.slice(0, 500),
+  });
+
   if (!res.ok || contentType.includes("text/html")) {
+    console.error("[google-sheet] bad response", {
+      status: res.status,
+      contentType,
+      preview: body.slice(0, 500),
+    });
     return NextResponse.json(
-      { error: `Couldn't read that sheet. ${PUBLISH_HINT}` },
+      { error: FETCH_ERROR },
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
 
-  const csv = await res.text();
-  if (csv.length > MAX_CSV_BYTES) {
+  if (body.length > MAX_CSV_BYTES) {
     return NextResponse.json(
       { error: "Sheet is too large to import (max 5MB)." },
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
-  if (!csv.trim()) {
+  if (!body.trim()) {
     return NextResponse.json(
       { error: `The sheet came back empty. ${PUBLISH_HINT}` },
       { status: 400, headers: { "Content-Type": "application/json" } },
@@ -88,7 +103,7 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json(
-    { csv },
+    { csv: body },
     { headers: { "Content-Type": "application/json" } },
   );
 }

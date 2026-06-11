@@ -110,33 +110,39 @@ function isUrlLikeCell(value: string): boolean {
   return URL_LIKE.test(v) || v.includes("docs.google.com/spreadsheets");
 }
 
-/** Rows that are sheet links, titles, or other pre-header metadata. */
+/** Rows with exactly one cell that is blank or a URL — safe to strip before headers. */
 function isJunkLeadingRow(row: string[]): boolean {
-  const cells = row.map((c) => String(c ?? "").trim()).filter(Boolean);
-  if (cells.length === 0) return true;
-  if (cells.length === 1 && isUrlLikeCell(cells[0]!)) return true;
-  if (cells.every(isUrlLikeCell)) return true;
-  return false;
+  if (row.length !== 1) return false;
+  const cell = String(row[0] ?? "").trim();
+  return cell === "" || isUrlLikeCell(cell);
 }
 
 /**
- * Strips leading blank / URL / title rows before header detection.
- * Shared by file upload, paste, and Google Sheets import.
+ * Strips leading single-cell blank/URL rows (Google Sheets metadata).
+ * Never strips rows with 2+ cells.
  */
 export function sanitizeImportGrid(grid: Grid): Grid {
   let start = 0;
   while (start < grid.rows.length && isJunkLeadingRow(grid.rows[start]!)) {
     start += 1;
   }
-  if (start === 0) return grid;
-  return { rows: grid.rows.slice(start) };
+  const remaining = grid.rows.slice(start);
+  if (typeof console !== "undefined") {
+    console.info(
+      "[sanitizeImportGrid] stripped",
+      start,
+      "leading row(s);",
+      remaining.length,
+      "remain",
+    );
+  }
+  return { rows: remaining };
 }
 
 /**
- * Full import pipeline: sanitize → detect header offset → derive table.
- * Used by all three upload methods so behaviour is identical.
+ * Google Sheets import: sanitize metadata rows, then detect header + table.
  */
-export function prepareImportTable(
+export function prepareGoogleSheetTable(
   grid: Grid,
   skipOverride?: number,
 ): { grid: Grid; skip: number; table: RawTable } {
@@ -180,20 +186,15 @@ function isPayrollHeaderRow(row: string[]): boolean {
  *      most common row width marks where columns stabilise.
  */
 export function detectHeaderOffset(grid: Grid): number {
-  const payrollIdx = grid.rows.findIndex(
-    (row) => !isJunkLeadingRow(row) && isPayrollHeaderRow(row),
-  );
+  const payrollIdx = grid.rows.findIndex(isPayrollHeaderRow);
   if (payrollIdx >= 0) return payrollIdx;
 
   const widths = grid.rows.map(nonEmptyCount);
-  const candidates = widths
-    .map((w, i) => ({ w, i }))
-    .filter(({ w, i }) => w >= 2 && !isJunkLeadingRow(grid.rows[i]!));
+  const candidates = widths.filter((w) => w >= 2);
   if (candidates.length === 0) return 0;
 
-  const filteredWidths = candidates.map((c) => c.w);
   const freq = new Map<number, number>();
-  for (const w of filteredWidths) freq.set(w, (freq.get(w) ?? 0) + 1);
+  for (const w of candidates) freq.set(w, (freq.get(w) ?? 0) + 1);
   let mode = 0;
   let best = -1;
   for (const [w, count] of freq) {
@@ -203,8 +204,8 @@ export function detectHeaderOffset(grid: Grid): number {
     }
   }
 
-  const match = candidates.find(({ w }) => w >= mode);
-  return match?.i ?? 0;
+  const idx = widths.findIndex((w) => w >= mode);
+  return idx === -1 ? 0 : idx;
 }
 
 /** Derives a header+body table from a grid, skipping `skip` leading rows. */

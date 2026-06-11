@@ -22,6 +22,7 @@ export function AdminDashboardView({
   title,
   description,
   orgName,
+  orgLogoUrl,
   showSuperadminNav = false,
   timesheetsFilterHref = "/app/timesheets?status=submitted",
 }: {
@@ -29,6 +30,7 @@ export function AdminDashboardView({
   title: string;
   description: string;
   orgName?: string;
+  orgLogoUrl?: string | null;
   showSuperadminNav?: boolean;
   timesheetsFilterHref?: string;
 }) {
@@ -54,6 +56,8 @@ export function AdminDashboardView({
       <PageHeader
         title={title}
         description={description}
+        orgName={orgName}
+        orgLogoUrl={orgLogoUrl}
         action={
           <div className="flex flex-wrap gap-2">
             {showSuperadminNav && (
