@@ -9,7 +9,10 @@ export type AuditAction =
   | "profile.rate_change"
   | "profile.status_change"
   | "org.create"
-  | "org.update";
+  | "org.update"
+  | "timesheet_submitted"
+  | "timesheet_approved"
+  | "timesheet_rejected";
 
 /**
  * Writes an entry to `audit_log`. Uses the service-role client so the record is
