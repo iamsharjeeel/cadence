@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getProfile } from "@/lib/auth";
 import { fetchWithTimeout } from "@/lib/fetch";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { csvLooksLikeUrlLeak } from "@/lib/timesheets/parse";
 
 const PUBLISH_HINT =
   "Make sure it's published: File → Share → Publish to web → CSV.";
@@ -98,6 +99,16 @@ export async function GET(request: NextRequest) {
   if (!body.trim()) {
     return NextResponse.json(
       { error: `The sheet came back empty. ${PUBLISH_HINT}` },
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  if (csvLooksLikeUrlLeak(body)) {
+    console.error("[google-sheet] body looks like URL, not CSV", {
+      preview: body.slice(0, 200),
+    });
+    return NextResponse.json(
+      { error: FETCH_ERROR },
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }

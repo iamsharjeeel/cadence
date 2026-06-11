@@ -596,6 +596,23 @@ Run migration `20260614000000_security_rls_storage.sql` against Supabase before 
 - **Separate pipelines:** file upload + paste use original `detectHeaderOffset` + `tableFromGrid`; Google Sheets uses `prepareGoogleSheetTable()` only.
 - **`/api/google-sheet`:** logs status, content-type, first 500 chars; clear publish hint toast on failure.
 
+### Logo upload multipart + Google Sheets URL leak ✅
+
+#### Logo upload — Server Component render error
+- **Root cause:** Logo `<form>` was missing `encType="multipart/form-data"`, so the file never arrived as a `File` in the server action (default `application/x-www-form-urlencoded` cannot carry binary uploads). Server action then failed unpredictably during upload/revalidate.
+- **Fix:** Added `encType="multipart/form-data"` to the logo form in `GeneralSettingsTab.tsx` (matches `OfficialDocumentUploadModal`).
+- **Server action hardening (`uploadOrgLogo`):** Auth moved outside try/catch; `isRedirectError` re-thrown; validates `formData.get("logo") instanceof File`; uploads `Uint8Array` from `file.arrayBuffer()` via `createAdminClient()` service-role client; structured Vercel logging (`orgId`, path, size, JSON-stringified storage errors).
+
+#### Google Sheets — URL leaking into column mapping
+- **Root cause:** Global `window` paste handler intercepted URL pastes into the Google Sheet URL `<input>`, ran the **file/paste** pipeline (`applyGrid` → no URL sanitization), and treated the URL string as the header row.
+- **Fix:**
+  - Paste handler skips events when target is `input`, `textarea`, or `contentEditable`.
+  - Paste handler ignores `isSpreadsheetUrlOnly()` text (URLs must use Import sheet button).
+  - New helpers in `parse.ts`: `isSpreadsheetUrlOnly()`, `csvLooksLikeUrlLeak()`.
+  - `/api/google-sheet` rejects bodies that look like a bare URL (not CSV).
+  - `fetchGoogleSheet()` validates `json.csv` with `csvLooksLikeUrlLeak()` before parsing.
+- **Verified:** Public sheet `1CTgM1g_aYoWFFpHU6A_qyqWGH0ulCFhs67uAcRVf1Rw` exports CSV with real column headers (`last_name`, `first_name`, …) and 537 data rows.
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

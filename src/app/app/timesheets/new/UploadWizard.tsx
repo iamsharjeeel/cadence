@@ -16,6 +16,8 @@ import { useToast } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   detectHeaderOffset,
+  csvLooksLikeUrlLeak,
+  isSpreadsheetUrlOnly,
   parseCsvText,
   parsePastedText,
   prepareGoogleSheetTable,
@@ -81,8 +83,18 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
   useEffect(() => {
     if (step !== "input") return;
     function onPaste(e: ClipboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
       const text = e.clipboardData?.getData("text/plain");
       if (!text || !text.trim()) return;
+      if (isSpreadsheetUrlOnly(text)) return;
       const parsed = parsePastedText(text);
       if (parsed.rows.length === 0) return;
       e.preventDefault();
@@ -197,6 +209,13 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
       }
       if (typeof json.csv !== "string" || !json.csv.trim()) {
         toast("That sheet came back empty.", "error");
+        return;
+      }
+      if (csvLooksLikeUrlLeak(json.csv)) {
+        toast(
+          "Got a link instead of sheet data. Publish the sheet: File → Share → Publish to web → CSV.",
+          "error",
+        );
         return;
       }
       const parsed = parseCsvText(json.csv);

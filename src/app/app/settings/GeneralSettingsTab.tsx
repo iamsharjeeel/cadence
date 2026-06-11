@@ -164,7 +164,11 @@ export function GeneralSettingsTab({
             className="mt-4 h-16 w-16 rounded-lg border bg-[var(--line)] object-contain"
           />
         )}
-        <form action={logoAction} className="mt-4 flex flex-col gap-4">
+        <form
+          action={logoAction}
+          encType="multipart/form-data"
+          className="mt-4 flex flex-col gap-4"
+        >
           {hiddenOrg}
           <Input
             label="Upload logo"

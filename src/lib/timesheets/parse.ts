@@ -110,6 +110,24 @@ function isUrlLikeCell(value: string): boolean {
   return URL_LIKE.test(v) || v.includes("docs.google.com/spreadsheets");
 }
 
+/** True when pasted/fetched text is a single spreadsheet URL, not tabular data. */
+export function isSpreadsheetUrlOnly(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.includes("\t")) return false;
+  const lines = trimmed.split(/\r?\n/).filter((l) => l.trim() !== "");
+  if (lines.length !== 1) return false;
+  return isUrlLikeCell(lines[0]!);
+}
+
+/** Detects API/paste responses where a URL leaked in place of CSV rows. */
+export function csvLooksLikeUrlLeak(csv: string): boolean {
+  if (isSpreadsheetUrlOnly(csv)) return true;
+  const grid = parseDelimited(csv);
+  if (grid.rows.length !== 1) return false;
+  const row = grid.rows[0] ?? [];
+  return row.length === 1 && isUrlLikeCell(String(row[0] ?? ""));
+}
+
 /** Rows with exactly one cell that is blank or a URL — safe to strip before headers. */
 function isJunkLeadingRow(row: string[]): boolean {
   if (row.length !== 1) return false;

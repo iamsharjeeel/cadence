@@ -1,5 +1,6 @@
 "use server";
 
+import { isRedirectError } from "next/dist/client/components/redirect";
 import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth";
@@ -145,38 +146,53 @@ export async function uploadOrgLogo(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
+  const admin = await requireRole(["admin", "superadmin"]);
+  const { orgId, error: orgErr } = await resolveOrgId(
+    admin,
+    String(formData.get("org_id") ?? ""),
+  );
+  if (!orgId) return { ok: false, message: orgErr! };
+
+  const raw = formData.get("logo");
+  if (!(raw instanceof File) || raw.size === 0) {
+    return {
+      ok: false,
+      message:
+        "Choose an image to upload. If you already selected one, try again — the upload form must use multipart encoding.",
+    };
+  }
+  const file = raw;
+
+  if (file.size > 2 * 1024 * 1024)
+    return { ok: false, message: "Logo must be under 2MB." };
+
+  const ext = file.name.toLowerCase().endsWith(".png") ? "png" : "jpg";
+  if (
+    !["image/png", "image/jpeg", "image/jpg"].includes(file.type) &&
+    file.type !== ""
+  ) {
+    return { ok: false, message: "Only PNG or JPG images are allowed." };
+  }
+
   try {
-    const admin = await requireRole(["admin", "superadmin"]);
-    const { orgId, error: orgErr } = await resolveOrgId(
-      admin,
-      String(formData.get("org_id") ?? ""),
-    );
-    if (!orgId) return { ok: false, message: orgErr! };
-
-    const file = formData.get("logo") as File | null;
-    if (!file?.size) return { ok: false, message: "Choose an image to upload." };
-    if (file.size > 2 * 1024 * 1024)
-      return { ok: false, message: "Logo must be under 2MB." };
-
-    const ext = file.name.toLowerCase().endsWith(".png") ? "png" : "jpg";
-    if (
-      !["image/png", "image/jpeg", "image/jpg"].includes(file.type) &&
-      file.type !== ""
-    ) {
-      return { ok: false, message: "Only PNG or JPG images are allowed." };
-    }
-
     const path = `${orgId}/${Date.now()}.${ext}`;
     const db = createAdminClient();
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const bytes = new Uint8Array(await file.arrayBuffer());
 
-    const { error: upErr } = await db.storage.from("org-logos").upload(path, buffer, {
+    console.info("[uploadOrgLogo] uploading", {
+      orgId,
+      path,
+      size: bytes.byteLength,
+      contentType: file.type || `image/${ext}`,
+    });
+
+    const { error: upErr } = await db.storage.from("org-logos").upload(path, bytes, {
       contentType: file.type || `image/${ext}`,
       upsert: true,
     });
 
     if (upErr) {
-      console.error("[uploadOrgLogo] storage upload failed:", upErr);
+      console.error("[uploadOrgLogo] storage upload failed:", JSON.stringify(upErr));
       const hint =
         upErr.message?.includes("Bucket not found") ||
         upErr.message?.includes("not found")
@@ -188,8 +204,9 @@ export async function uploadOrgLogo(
       };
     }
 
-    const { data: publicUrl } = db.storage.from("org-logos").getPublicUrl(path);
-    const logoUrl = publicUrl.publicUrl;
+    const {
+      data: { publicUrl: logoUrl },
+    } = db.storage.from("org-logos").getPublicUrl(path);
 
     const { error } = await db
       .from("organizations")
@@ -197,7 +214,7 @@ export async function uploadOrgLogo(
       .eq("id", orgId);
 
     if (error) {
-      console.error("[uploadOrgLogo] DB update failed:", error);
+      console.error("[uploadOrgLogo] DB update failed:", JSON.stringify(error));
       await db.storage.from("org-logos").remove([path]);
       return { ok: false, message: "Couldn't save logo URL." };
     }
@@ -216,6 +233,7 @@ export async function uploadOrgLogo(
     revalidatePath("/app/organizations");
     return { ok: true, message: "Logo uploaded.", logoUrl };
   } catch (e) {
+    if (isRedirectError(e)) throw e;
     console.error("[uploadOrgLogo] unexpected error:", e);
     return {
       ok: false,
