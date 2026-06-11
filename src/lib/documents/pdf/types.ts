@@ -21,6 +21,7 @@ export type PayAdvicePdfData = {
 
 export type InvoicePdfData = {
   orgName: string;
+  orgLogoUrl: string | null;
   documentNumber: string;
   issueDate: string;
   dueDate: string;

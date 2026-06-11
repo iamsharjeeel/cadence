@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { writeAudit } from "@/lib/audit";
+import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { requireActiveProfile, requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -90,7 +91,18 @@ export async function uploadOfficialDocument(
       signing_type: signingType,
       status: "pending",
     });
-    if (!insErr) uploaded++;
+    if (!insErr) {
+      uploaded++;
+      await notifyUser({
+        orgId,
+        userId: employeeId,
+        type: "official_document_assigned",
+        title: "You have a document to sign",
+        body: name,
+        entity: "official_documents",
+        entityId: docId,
+      });
+    }
   }
 
   if (uploaded === 0) {
@@ -151,7 +163,7 @@ export async function acknowledgeOfficialDocument(
 
   const { data: doc } = await db
     .from("official_documents")
-    .select("id, org_id, employee_id, signing_type, status")
+    .select("id, org_id, employee_id, signing_type, status, name")
     .eq("id", id)
     .single();
   if (!doc || doc.employee_id !== profile.id) {
@@ -179,6 +191,16 @@ export async function acknowledgeOfficialDocument(
     payload: { document_id: id },
   });
 
+  const employeeName = profile.full_name?.trim() || profile.email;
+  await notifyOrgAdmins({
+    orgId: doc.org_id,
+    type: "official_document_signed",
+    title: `${employeeName} signed ${doc.name}`,
+    entity: "official_documents",
+    entityId: id,
+    excludeUserId: profile.id,
+  });
+
   revalidatePath("/app/documents");
   revalidatePath("/app/onboarding");
   return { ok: true, message: "Document acknowledged." };
@@ -193,7 +215,7 @@ export async function signOfficialDocument(
 
   const { data: doc } = await db
     .from("official_documents")
-    .select("id, org_id, employee_id, signing_type, status")
+    .select("id, org_id, employee_id, signing_type, status, name")
     .eq("id", id)
     .single();
   if (!doc || doc.employee_id !== profile.id) {
@@ -223,6 +245,16 @@ export async function signOfficialDocument(
     action: "official_document_signed",
     entity: "official_documents",
     payload: { document_id: id },
+  });
+
+  const employeeName = profile.full_name?.trim() || profile.email;
+  await notifyOrgAdmins({
+    orgId: doc.org_id,
+    type: "official_document_signed",
+    title: `${employeeName} signed ${doc.name}`,
+    entity: "official_documents",
+    entityId: id,
+    excludeUserId: profile.id,
   });
 
   revalidatePath("/app/documents");

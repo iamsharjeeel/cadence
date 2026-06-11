@@ -52,6 +52,13 @@ const PATHS: Record<NavItem["icon"], React.ReactNode> = {
       <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
     </>
   ),
+  audit: (
+    <>
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="M9 12h6M9 16h4" />
+    </>
+  ),
 };
 
 export function NavIcon({ name }: { name: NavItem["icon"] }) {

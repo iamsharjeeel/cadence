@@ -447,6 +447,60 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          id: string
+          org_id: string
+          user_id: string
+          type: string
+          title: string
+          body: string | null
+          entity: string | null
+          entity_id: string | null
+          read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          user_id: string
+          type: string
+          title: string
+          body?: string | null
+          entity?: string | null
+          entity_id?: string | null
+          read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          user_id?: string
+          type?: string
+          title?: string
+          body?: string | null
+          entity?: string | null
+          entity_id?: string | null
+          read?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_types: {
         Row: {
           category: string
@@ -835,6 +889,7 @@ export type LeaveBalance = Tables<"leave_balances">
 export type LeaveRequest = Tables<"leave_requests">
 export type OnboardingStep = Tables<"onboarding_steps">
 export type OfficialDocument = Tables<"official_documents">
+export type Notification = Tables<"notifications">
 
 export type UserRole = Enums<"user_role">
 export type UserStatus = Enums<"user_status">

@@ -120,6 +120,7 @@ export async function generateAndEmailDocument(params: {
       <InvoicePdf
         data={{
           orgName: org.name,
+          orgLogoUrl: org.logo_url,
           documentNumber: docNumber,
           issueDate: issueLabel,
           dueDate: dueDate.toLocaleDateString(undefined, {

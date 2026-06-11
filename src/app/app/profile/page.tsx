@@ -14,6 +14,9 @@ import { formatMoney, titleCase } from "@/lib/utils";
 import { maskSensitive } from "@/lib/bank-crypto";
 import { ProfileBankingForm } from "./ProfileBankingForm";
 import { ProfileNameForm } from "./ProfileNameForm";
+import { ProfileEmploymentForm } from "./ProfileEmploymentForm";
+import { ProfileEmergencyForm } from "./ProfileEmergencyForm";
+import { ProfileCompleteness } from "./ProfileCompleteness";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -24,14 +27,16 @@ export default async function ProfilePage() {
     <div>
       <PageHeader
         title="Your profile"
-        description="Update your name. Role, rate, and status are set by your administrator."
+        description="Update your personal and employment details. Role, rate, and status are set by your administrator."
       />
 
+      <ProfileCompleteness profile={profile} />
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card id="section-personal">
           <CardHeader>
             <CardTitle>Personal details</CardTitle>
-            <CardDescription>The only fields you can edit.</CardDescription>
+            <CardDescription>Your display name and email.</CardDescription>
           </CardHeader>
           <CardContent>
             <ProfileNameForm
@@ -67,7 +72,20 @@ export default async function ProfilePage() {
         </Card>
       </div>
 
-      <Card className="mt-4">
+      <Card id="section-employment" className="mt-4">
+        <CardHeader>
+          <CardTitle>Job details</CardTitle>
+          <CardDescription>Your role and start date.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProfileEmploymentForm
+            jobTitle={profile.job_title ?? ""}
+            startDate={profile.start_date ?? ""}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="section-banking" className="mt-4">
         <CardHeader>
           <CardTitle>Banking &amp; tax</CardTitle>
           <CardDescription>
@@ -85,6 +103,22 @@ export default async function ProfilePage() {
             }}
             accountMasked={maskSensitive(profile.bank_account_number)}
             bsbMasked={maskSensitive(profile.bank_bsb_swift)}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="section-emergency" className="mt-4">
+        <CardHeader>
+          <CardTitle>Emergency contact</CardTitle>
+          <CardDescription>Someone we can reach in an emergency.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProfileEmergencyForm
+            defaults={{
+              emergency_name: profile.emergency_name ?? "",
+              emergency_phone: profile.emergency_phone ?? "",
+              emergency_relation: profile.emergency_relation ?? "",
+            }}
           />
         </CardContent>
       </Card>

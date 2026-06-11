@@ -14,18 +14,20 @@ export default async function AppLayout({
   if (profile.status !== "active") redirect("/pending");
 
   let orgName: string | null = null;
+  let orgLogoUrl: string | null = null;
   if (profile.org_id) {
     const supabase = createClient();
     const { data: org } = await supabase
       .from("organizations")
-      .select("name")
+      .select("name, logo_url")
       .eq("id", profile.org_id)
       .single();
     orgName = org?.name ?? null;
+    orgLogoUrl = org?.logo_url ?? null;
   }
 
   return (
-    <AppShell profile={profile} orgName={orgName}>
+    <AppShell profile={profile} orgName={orgName} orgLogoUrl={orgLogoUrl}>
       {children}
     </AppShell>
   );

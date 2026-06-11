@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 
+import { DocumentViewModal } from "@/components/documents/DocumentViewModal";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -12,6 +13,7 @@ import {
   resendDocumentEmail,
   updateDocumentStatus,
 } from "@/app/app/documents/actions";
+import { useRouter } from "next/navigation";
 
 export function PayDocumentRowActions({
   id,
@@ -28,6 +30,7 @@ export function PayDocumentRowActions({
 }) {
   const { toast } = useToast();
   const router = useRouter();
+  const [viewOpen, setViewOpen] = useState(false);
 
   async function setStatus(status: DocumentStatus) {
     const fd = new FormData();
@@ -46,7 +49,10 @@ export function PayDocumentRowActions({
   }
 
   const actions = [
-    { label: "View", href: url, target: "_blank" },
+    {
+      label: "View",
+      onClick: () => setViewOpen(true),
+    },
     { label: "Download", href: url, download: filename },
     { label: "Re-send", onClick: resend },
     ...(isManager
@@ -57,5 +63,17 @@ export function PayDocumentRowActions({
       : []),
   ];
 
-  return <RowActionsMenu actions={actions} />;
+  return (
+    <>
+      <RowActionsMenu actions={actions} />
+      {viewOpen && (
+        <DocumentViewModal
+          title={filename}
+          url={url}
+          loading={false}
+          onClose={() => setViewOpen(false)}
+        />
+      )}
+    </>
+  );
 }

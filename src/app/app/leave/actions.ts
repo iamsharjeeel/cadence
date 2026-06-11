@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { writeAudit } from "@/lib/audit";
+import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { requireActiveProfile, requireRole } from "@/lib/auth";
 import { countBusinessDays } from "@/lib/leave/days";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
@@ -95,6 +96,16 @@ export async function requestLeave(input: {
   });
   if (error) return { ok: false, message: "Couldn't submit request." };
 
+  const employeeName = profile.full_name?.trim() || profile.email;
+  await notifyOrgAdmins({
+    orgId: profile.org_id,
+    type: "leave_requested",
+    title: `Leave request from ${employeeName}`,
+    body: `${input.startDate} – ${input.endDate}`,
+    entity: "leave_requests",
+    excludeUserId: profile.id,
+  });
+
   await writeAudit({
     actorId: profile.id,
     orgId: profile.org_id,
@@ -167,7 +178,7 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
 
   const { data: req } = await db
     .from("leave_requests")
-    .select("org_id")
+    .select("org_id, employee_id, start_date, end_date")
     .eq("id", id)
     .single();
   if (!req) return { ok: false, message: "Request not found." };
@@ -180,6 +191,16 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
     p_reviewer_id: actor.id,
   });
   if (error) return { ok: false, message: "Couldn't approve request." };
+
+  await notifyUser({
+    orgId: req.org_id,
+    userId: req.employee_id,
+    type: "leave_approved",
+    title: "Your leave has been approved",
+    body: `${req.start_date} – ${req.end_date}`,
+    entity: "leave_requests",
+    entityId: id,
+  });
 
   await writeAudit({
     actorId: actor.id,
@@ -203,7 +224,7 @@ export async function rejectLeaveRequest(
   const db = createAdminClient();
   const { data: req } = await db
     .from("leave_requests")
-    .select("org_id")
+    .select("org_id, employee_id, start_date, end_date")
     .eq("id", id)
     .single();
   if (!req) return { ok: false, message: "Request not found." };
@@ -217,6 +238,16 @@ export async function rejectLeaveRequest(
     p_note: note.trim(),
   });
   if (error) return { ok: false, message: "Couldn't reject request." };
+
+  await notifyUser({
+    orgId: req.org_id,
+    userId: req.employee_id,
+    type: "leave_rejected",
+    title: "Your leave request was declined",
+    body: `${req.start_date} – ${req.end_date} · ${note.trim()}`,
+    entity: "leave_requests",
+    entityId: id,
+  });
 
   await writeAudit({
     actorId: actor.id,

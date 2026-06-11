@@ -4,7 +4,7 @@ export type NavItem = {
   label: string;
   href: string;
   roles: UserRole[];
-  icon:
+    icon:
     | "dashboard"
     | "profile"
     | "timesheets"
@@ -12,7 +12,8 @@ export type NavItem = {
     | "employees"
     | "organizations"
     | "documents"
-    | "settings";
+    | "settings"
+    | "audit";
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -63,6 +64,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/app/settings",
     roles: ["admin", "superadmin"],
     icon: "settings",
+  },
+  {
+    label: "Audit log",
+    href: "/app/audit",
+    roles: ["admin", "superadmin"],
+    icon: "audit",
   },
 ];
 

@@ -10,6 +10,7 @@ export type AuditAction =
   | "profile.status_change"
   | "org.create"
   | "org.update"
+  | "org_settings_updated"
   | "timesheet_submitted"
   | "timesheet_approved"
   | "timesheet_rejected"

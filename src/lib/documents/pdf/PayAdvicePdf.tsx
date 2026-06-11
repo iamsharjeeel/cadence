@@ -1,4 +1,4 @@
-import { Document, Page, Text, View } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image } from "@react-pdf/renderer";
 
 import { pdfStyles as s } from "./styles";
 import type { PayAdvicePdfData } from "./types";
@@ -9,10 +9,10 @@ export function PayAdvicePdf({ data }: { data: PayAdvicePdfData }) {
       <Page size="A4" style={s.page}>
         <View style={s.row}>
           <View>
-            <Text style={{ fontSize: 14, fontWeight: 700 }}>{data.orgName}</Text>
             {data.orgLogoUrl ? (
-              <Text style={s.muted}>Logo on file</Text>
+              <Image src={data.orgLogoUrl} style={{ width: 48, height: 48, marginBottom: 8 }} />
             ) : null}
+            <Text style={{ fontSize: 14, fontWeight: 700 }}>{data.orgName}</Text>
           </View>
           <View style={{ textAlign: "right" }}>
             <Text style={s.muted}>{data.documentNumber}</Text>

@@ -61,3 +61,50 @@ export async function updateOwnBanking(
   revalidatePath("/app/profile");
   return { ok: true, message: "Banking details saved." };
 }
+
+export async function updateOwnEmployment(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+
+  const jobTitle = String(formData.get("job_title") ?? "").trim();
+  const startDate = String(formData.get("start_date") ?? "").trim() || null;
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      job_title: jobTitle || null,
+      ...(startDate && !profile.start_date ? { start_date: startDate } : {}),
+    })
+    .eq("id", profile.id);
+
+  if (error) return { ok: false, message: "Couldn't save employment details." };
+
+  revalidatePath("/app/profile");
+  return { ok: true, message: "Employment details saved." };
+}
+
+export async function updateOwnEmergency(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      emergency_name: String(formData.get("emergency_name") ?? "").trim() || null,
+      emergency_phone: String(formData.get("emergency_phone") ?? "").trim() || null,
+      emergency_relation:
+        String(formData.get("emergency_relation") ?? "").trim() || null,
+    })
+    .eq("id", profile.id);
+
+  if (error) return { ok: false, message: "Couldn't save emergency contact." };
+
+  revalidatePath("/app/profile");
+  return { ok: true, message: "Emergency contact saved." };
+}
