@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { MoreHorizontal } from "lucide-react";
@@ -29,10 +29,15 @@ export function RowActionsMenu({
   align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, openUp: false });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const visible = actions.filter((a) => !a.hidden);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -45,10 +50,7 @@ export function RowActionsMenu({
     const spaceBelow = window.innerHeight - rect.bottom;
     const openUp = spaceBelow < menuHeight + 8 && rect.top > menuHeight;
     const top = openUp ? rect.top - menuHeight - 4 : rect.bottom + 4;
-    const left =
-      align === "right"
-        ? rect.right - 160
-        : rect.left;
+    const left = align === "right" ? rect.right - 160 : rect.left;
     setPosition({ top, left: Math.max(8, left), openUp });
   }, [align, visible.length]);
 
@@ -150,7 +152,7 @@ export function RowActionsMenu({
       >
         <MoreHorizontal className="h-4 w-4" />
       </Button>
-      {typeof document !== "undefined" && createPortal(menu, document.body)}
+      {mounted && createPortal(menu, document.body)}
     </div>
   );
 }

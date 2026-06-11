@@ -59,17 +59,33 @@ export function NotificationsBell({ userId }: { userId: string }) {
   const { startNavigation } = useNavigation();
 
   const load = useCallback(async () => {
-    const result = await fetchNotifications();
-    if (result.ok) {
-      setItems(result.notifications);
-      setUnread(result.unreadCount);
+    try {
+      const result = await fetchNotifications();
+      if (result.ok) {
+        setItems(result.notifications);
+        setUnread(result.unreadCount);
+      }
+    } catch {
+      // Missing table, expired session, or network error — degrade silently.
     }
   }, []);
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, 60_000);
-    return () => clearInterval(id);
+    let cancelled = false;
+
+    async function run() {
+      if (!cancelled) await load();
+    }
+
+    run();
+    const id = setInterval(() => {
+      if (!cancelled) load();
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [load, userId]);
 
   async function handleClick(n: NotificationRow) {

@@ -10,7 +10,7 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { MotionTR } from "@/components/motion/MotionTR";
 import { summarizePayload } from "@/lib/audit/summarize";
 import type { AuditLogEntry } from "@/lib/audit/queries";
-import { formatDate, titleCase } from "@/lib/utils";
+import { titleCase } from "@/lib/utils";
 
 export function AuditLogViewer({
   entries,
@@ -35,6 +35,7 @@ export function AuditLogViewer({
   const pathname = usePathname();
   const params = useSearchParams();
   const [exporting, setExporting] = useState(false);
+  const [entityDraft, setEntityDraft] = useState(params.get("entity") ?? "");
 
   function updateFilter(key: string, value: string) {
     const next = new URLSearchParams(params.toString());
@@ -42,6 +43,10 @@ export function AuditLogViewer({
     else next.delete(key);
     if (key !== "page") next.delete("page");
     router.push(`${pathname}?${next.toString()}`);
+  }
+
+  function applyEntityFilter() {
+    updateFilter("entity", entityDraft.trim());
   }
 
   async function exportCsv() {
@@ -89,12 +94,20 @@ export function AuditLogViewer({
             ...actions.map((a) => ({ label: a, value: a })),
           ]}
         />
-        <Input
-          label="Entity"
-          value={params.get("entity") ?? ""}
-          onChange={(e) => updateFilter("entity", e.target.value)}
-          placeholder="e.g. timesheets"
-        />
+        <div className="flex items-end gap-2">
+          <Input
+            label="Entity"
+            value={entityDraft}
+            onChange={(e) => setEntityDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") applyEntityFilter();
+            }}
+            placeholder="e.g. timesheets"
+          />
+          <Button variant="ghost" size="sm" onClick={applyEntityFilter}>
+            Apply
+          </Button>
+        </div>
         <Input
           label="From"
           type="date"

@@ -389,6 +389,24 @@ Run migration `20260612000000_phase5_leave_onboarding_docs.sql` against Supabase
 #### Manual step required
 Run migration `20260613000000_phase6_notifications_org_logos.sql` against Supabase before deploying.
 
+### Phase 6 fix ✅ — Client-side exception after navigation
+
+#### Root cause
+- **`template.tsx` remounted `PageTransition` on every navigation.** Next.js templates create a new instance per route change, which destroyed `AnimatePresence` mid-exit animation. That left page transitions in a broken state and caused client-side exceptions.
+- **Progress bar stuck:** `onAnimationComplete` used `definition === "animate"`, which Framer Motion 12 does not reliably pass for direct `animate` props — so the bar never cleared when pathname failed to update after a crashed transition.
+- **Secondary:** Audit log entity filter called `router.push` on every keystroke, triggering rapid navigations. Notification poll lacked unmount guard.
+
+#### Fix
+- **Removed `src/app/app/template.tsx`.** `PageTransition` now lives inside persistent `AppShell` `<main>`, so `AnimatePresence` survives route changes.
+- **`PageTransition`:** added `initial={false}` to skip enter animation on first mount.
+- **`NavigationProvider`:** progress bar clears on `onAnimationComplete` unconditionally, on pathname change, and via 4s safety timeout.
+- **`RowActionsMenu`:** portal renders only after client mount (`mounted` state).
+- **`NotificationsBell`:** unmount guard on poll interval; async load handles server-action throws gracefully.
+- **Audit log:** entity filter uses local draft + Apply button instead of navigate-on-keystroke.
+
+#### Manual step required
+Run migration `20260613000000_phase6_notifications_org_logos.sql` against Supabase if not already applied (notifications table + org-logos bucket).
+
 ### Phase 5 fixes + landing enhancement ✅
 
 #### Click responsiveness (definitive fix)

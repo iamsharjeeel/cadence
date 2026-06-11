@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/app/Sidebar";
 import { Topbar } from "@/components/app/Topbar";
 import { NavigationProvider } from "@/components/app/NavigationProvider";
+import { PageTransition } from "@/components/motion/PageTransition";
 import type { Profile } from "@/types/db";
 
 export function AppShell({
@@ -25,7 +26,9 @@ export function AppShell({
     return (
       <NavigationProvider>
         <div className="min-h-screen bg-bg">
-          <main className="w-full px-5 py-10 sm:px-8">{children}</main>
+          <main className="w-full px-5 py-10 sm:px-8">
+            <PageTransition>{children}</PageTransition>
+          </main>
         </div>
       </NavigationProvider>
     );
@@ -41,7 +44,9 @@ export function AppShell({
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar profile={profile} />
-          <main className="flex-1 px-5 py-8 sm:px-8">{children}</main>
+          <main className="flex-1 px-5 py-8 sm:px-8">
+            <PageTransition>{children}</PageTransition>
+          </main>
         </div>
       </div>
     </NavigationProvider>

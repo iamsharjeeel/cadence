@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -40,11 +41,9 @@ function NavigationProgressBar({
           className="fixed left-0 right-0 top-0 z-[9999] h-0.5 origin-left bg-[var(--accent)]"
           initial={{ scaleX: 0 }}
           animate={{ scaleX: 1 }}
-          exit={{ scaleX: 1, opacity: 0 }}
+          exit={{ opacity: 0 }}
           transition={{ duration: 0.12, ease: "easeOut" }}
-          onAnimationComplete={(definition) => {
-            if (definition === "animate") onComplete();
-          }}
+          onAnimationComplete={onComplete}
         />
       )}
     </AnimatePresence>
@@ -55,24 +54,40 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
   const [progressActive, setProgressActive] = useState(false);
+  const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearProgress = useCallback(() => {
+    setProgressActive(false);
+    if (progressTimerRef.current) {
+      clearTimeout(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+  }, []);
 
   const startNavigation = useCallback(() => {
     setProgressActive(true);
-  }, []);
+    if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+    // Safety net if navigation aborts or animation callback never fires.
+    progressTimerRef.current = setTimeout(clearProgress, 4000);
+  }, [clearProgress]);
 
   useEffect(() => {
     setOptimisticPath(null);
-    setProgressActive(false);
-  }, [pathname]);
+    clearProgress();
+  }, [pathname, clearProgress]);
+
+  useEffect(
+    () => () => {
+      if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+    },
+    [],
+  );
 
   return (
     <NavigationContext.Provider
       value={{ optimisticPath, setOptimisticPath, startNavigation }}
     >
-      <NavigationProgressBar
-        active={progressActive}
-        onComplete={() => setProgressActive(false)}
-      />
+      <NavigationProgressBar active={progressActive} onComplete={clearProgress} />
       {children}
     </NavigationContext.Provider>
   );
