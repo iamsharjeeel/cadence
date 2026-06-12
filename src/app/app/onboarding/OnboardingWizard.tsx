@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
 import type { OfficialDocument, Profile } from "@/types/db";
 import {
@@ -171,10 +172,9 @@ export function OnboardingWizard({
                 name="job_title"
                 defaultValue={profile.job_title ?? ""}
               />
-              <Input
+              <DatePicker
                 label="Start date"
                 name="start_date"
-                type="date"
                 defaultValue={profile.start_date ?? ""}
                 readOnly={!!profile.start_date}
               />

@@ -38,6 +38,7 @@ export type TimesheetListRow = {
   rejection_note: string | null;
   has_overtime: boolean;
   overtime_hours: number;
+  resubmit_count: number;
 };
 
 type SortKey = "period" | "total" | "submitted";
@@ -264,6 +265,11 @@ export function TimesheetListTable({
                     />
                     {t.has_overtime && t.overtime_hours > 0 && (
                       <OvertimeBadge hours={t.overtime_hours} />
+                    )}
+                    {t.status === "submitted" && t.resubmit_count > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--accent-strong)]">
+                        Resubmitted
+                      </span>
                     )}
                   </div>
                   {t.status === "rejected" && t.rejection_note && (

@@ -38,7 +38,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ACTIVE_STATUSES: TimesheetStatus[] = ["draft", "submitted", "rejected"];
 
 function editableStatus(status: TimesheetStatus): boolean {
-  return status === "draft" || status === "submitted" || status === "rejected";
+  return status === "draft" || status === "rejected";
 }
 
 async function linkOrphanEntriesToTimesheet(
@@ -133,6 +133,7 @@ export async function getTimeTrackingData(weekMonday: string): Promise<
       orgId: string;
       employeeId: string;
       status: TimesheetStatus;
+      rejection_note: string | null;
       entries: TimeEntryWithProject[];
       projects: Project[];
       week: ReturnType<typeof weekPeriodFromMonday>;
@@ -159,7 +160,7 @@ export async function getTimeTrackingData(weekMonday: string): Promise<
 
   const timesheetId = ensured.timesheetId;
 
-  const [, entriesRes, weekStats] = await Promise.all([
+  const [, entriesRes, weekStats, tsDetails] = await Promise.all([
     linkOrphanEntriesToTimesheet(
       timesheetId,
       profile.id,
@@ -173,6 +174,7 @@ export async function getTimeTrackingData(weekMonday: string): Promise<
       .order("entry_date")
       .order("start_time"),
     computeWeekStats(timesheetId),
+    db.from("timesheets").select("rejection_note").eq("id", timesheetId).single(),
   ]);
 
   const projectMap = new Map(projects.map((p) => [p.id, p]));
@@ -189,6 +191,7 @@ export async function getTimeTrackingData(weekMonday: string): Promise<
     orgId: profile.org_id,
     employeeId: profile.id,
     status: ensured.status,
+    rejection_note: tsDetails.data?.rejection_note ?? null,
     entries,
     projects,
     week,
@@ -519,6 +522,113 @@ export async function checkTimeLogReminder(): Promise<ActionResult> {
   });
 
   return { ok: true, message: "Reminder sent." };
+}
+
+// ---------------------------------------------------------------------------
+// Manager week overview
+// ---------------------------------------------------------------------------
+
+export type WeekOverviewRow = {
+  employeeId: string;
+  employeeName: string;
+  avatarInitials: string;
+  timesheetId: string | null;
+  status: TimesheetStatus | "none";
+  totalHours: number;
+  resubmitCount: number;
+};
+
+export async function getWeekOverview(weekMonday: string): Promise<
+  | { ok: true; rows: WeekOverviewRow[]; weekLabel: string }
+  | { ok: false; message: string }
+> {
+  const profile = await requireActiveProfile();
+
+  const isManager =
+    profile.role === "admin" ||
+    profile.role === "superadmin" ||
+    (profile.role as string) === "owner";
+  if (!isManager) return { ok: false, message: "Not authorized." };
+
+  // Superadmin without an org sees an empty list (org filter handles selection)
+  if (!profile.org_id) {
+    return {
+      ok: true,
+      rows: [],
+      weekLabel: weekPeriodFromMonday(weekMonday).label,
+    };
+  }
+
+  const org_id = profile.org_id;
+  const weekEnd = addDays(weekMonday, 6);
+  const weekLabel = weekPeriodFromMonday(weekMonday).label;
+
+  const db = createAdminClient();
+
+  // Fetch all active employees in the org
+  const { data: people, error: peopleError } = await db
+    .from("profiles")
+    .select("id, full_name, email, status")
+    .eq("org_id", org_id)
+    .eq("status", "active");
+  if (peopleError) return { ok: false, message: peopleError.message };
+
+  // Fetch timesheets for this week
+  const { data: timesheets } = await db
+    .from("timesheets")
+    .select("id, employee_id, status, rejection_note, resubmit_count")
+    .eq("org_id", org_id)
+    .eq("period_start", weekMonday);
+
+  // Fetch time_entries hours for this week
+  const { data: entries } = await db
+    .from("time_entries")
+    .select("employee_id, total_hours")
+    .eq("org_id", org_id)
+    .gte("entry_date", weekMonday)
+    .lte("entry_date", weekEnd);
+
+  // Build lookup maps
+  const timesheetByEmployee = new Map<
+    string,
+    { id: string; status: string; resubmitCount: number }
+  >();
+  for (const ts of timesheets ?? []) {
+    timesheetByEmployee.set(ts.employee_id, {
+      id: ts.id,
+      status: ts.status,
+      resubmitCount:
+        ((ts as Record<string, unknown>).resubmit_count as number) ?? 0,
+    });
+  }
+
+  const hoursByEmployee = new Map<string, number>();
+  for (const e of entries ?? []) {
+    hoursByEmployee.set(
+      e.employee_id,
+      (hoursByEmployee.get(e.employee_id) ?? 0) + (e.total_hours ?? 0),
+    );
+  }
+
+  // Build rows
+  const { initials } = await import("@/lib/utils");
+  const rows: WeekOverviewRow[] = (people ?? []).map((p) => {
+    const ts = timesheetByEmployee.get(p.id);
+    const employeeName = (p.full_name as string | null)?.trim() || p.email;
+    return {
+      employeeId: p.id,
+      employeeName,
+      avatarInitials: initials(p.full_name as string | null, p.email),
+      timesheetId: ts?.id ?? null,
+      status: ts ? (ts.status as TimesheetStatus) : "none",
+      totalHours: hoursByEmployee.get(p.id) ?? 0,
+      resubmitCount: ts?.resubmitCount ?? 0,
+    };
+  });
+
+  rows.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+
+  return { ok: true, rows, weekLabel };
 }
 
 export async function getTimesheetEntriesReadOnly(

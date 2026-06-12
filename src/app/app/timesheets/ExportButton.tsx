@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 export function ExportButton() {
   const [from, setFrom] = useState("");
@@ -36,16 +36,14 @@ export function ExportButton() {
 
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <Input
+      <DatePicker
         label="From"
-        type="date"
         value={from}
         onChange={(e) => setFrom(e.target.value)}
         className="h-9 w-40 text-sm"
       />
-      <Input
+      <DatePicker
         label="To"
-        type="date"
         value={to}
         onChange={(e) => setTo(e.target.value)}
         className="h-9 w-40 text-sm"

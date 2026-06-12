@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
 import { updateOwnEmployment, type ActionResult } from "./actions";
 
@@ -43,10 +44,9 @@ export function ProfileEmploymentForm({
         defaultValue={jobTitle}
         maxLength={80}
       />
-      <Input
+      <DatePicker
         label="Start date"
         name="start_date"
-        type="date"
         defaultValue={startDate}
         readOnly={!!startDate}
         hint={startDate ? "Start date is set by your administrator." : undefined}

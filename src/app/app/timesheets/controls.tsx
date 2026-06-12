@@ -7,6 +7,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { fieldBase } from "@/components/ui/Input";
@@ -184,16 +185,14 @@ export function TimesheetFilters({
           ]}
         />
       )}
-      <Input
+      <DatePicker
         label="From"
-        type="date"
         value={from}
         onChange={(e) => setParam("from", e.target.value)}
         className="h-9 w-40 text-sm"
       />
-      <Input
+      <DatePicker
         label="To"
-        type="date"
         value={to}
         onChange={(e) => setParam("to", e.target.value)}
         className="h-9 w-40 text-sm"

@@ -362,7 +362,7 @@ export async function returnTimesheetToDraft(id: string): Promise<ActionResult> 
   const db = createAdminClient();
   const { data: ts } = await db
     .from("timesheets")
-    .select("id, org_id, employee_id, status, period_start, period_end")
+    .select("id, org_id, employee_id, status, period_start, period_end, resubmit_count")
     .eq("id", id)
     .single();
   if (!ts) return { ok: false, message: "Timesheet not found." };
@@ -382,7 +382,7 @@ export async function returnTimesheetToDraft(id: string): Promise<ActionResult> 
 
   const { error } = await db
     .from("timesheets")
-    .update({ status: "draft", rejection_note: null })
+    .update({ status: "draft", rejection_note: null, resubmit_count: ((ts as any).resubmit_count ?? 0) + 1 })
     .eq("id", id);
   if (error) return { ok: false, message: "Couldn't update timesheet." };
 

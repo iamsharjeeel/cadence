@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
 import { MotionModal } from "@/components/motion/MotionModal";
 import { useToast } from "@/components/ui/Toast";
@@ -90,15 +91,13 @@ export function RequestLeaveModal({
             ))}
           </select>
         </label>
-        <Input
+        <DatePicker
           label="Start date"
-          type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
         />
-        <Input
+        <DatePicker
           label="End date"
-          type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
         />

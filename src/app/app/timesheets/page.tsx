@@ -16,6 +16,7 @@ import { thisWeekMonday } from "@/lib/time/periods";
 import type { Organization, Profile, Timesheet, TimesheetStatus } from "@/types/db";
 import { TimesheetFilters } from "./controls";
 import { TimesheetListTable, type TimesheetListRow } from "./TimesheetListTable";
+import { TimesheetWeekOverview } from "./TimesheetWeekOverview";
 import { TimeTrackingView } from "./TimeTrackingView";
 import { TimeLogReminder } from "./TimeLogReminder";
 import { TimesheetPageActions } from "./TimesheetPageActions";
@@ -45,7 +46,7 @@ export default async function TimesheetsPage({
   };
 }) {
   const profile = await requireActiveProfile();
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isManager = profile.role === "admin" || profile.role === "superadmin" || (profile.role as string) === "owner";
   const isSuperadmin = profile.role === "superadmin";
 
   if (!isManager && profile.org_id) {
@@ -159,6 +160,7 @@ export default async function TimesheetsPage({
     rejection_note: t.rejection_note,
     has_overtime: t.has_overtime,
     overtime_hours: t.overtime_hours,
+    resubmit_count: (t as any).resubmit_count ?? 0,
   }));
 
   return (
@@ -173,6 +175,10 @@ export default async function TimesheetsPage({
           />
         }
       />
+
+      {isManager && (
+        <TimesheetWeekOverview initialWeekMonday={thisWeekMonday()} />
+      )}
 
       {isManager && (
         <Card className="mb-4">

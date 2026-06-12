@@ -107,6 +107,7 @@ export function TimeTrackingView({
   const [rate, setRate] = useState<number | null>(null);
   const [rateType, setRateType] = useState("hourly");
   const [currency, setCurrency] = useState<string | null>(null);
+  const [rejectionNote, setRejectionNote] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
 
@@ -114,7 +115,7 @@ export function TimeTrackingView({
   const timesheetIdRef = useRef(timesheetId);
   const orgIdRef = useRef(orgId);
   const employeeIdRef = useRef(employeeId);
-  const editableRef = useRef(status === "draft" || status === "submitted" || status === "rejected");
+  const editableRef = useRef(status === "draft" || status === "rejected");
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
@@ -124,9 +125,9 @@ export function TimeTrackingView({
   timesheetIdRef.current = timesheetId;
   orgIdRef.current = orgId;
   employeeIdRef.current = employeeId;
-  editableRef.current = status === "draft" || status === "submitted" || status === "rejected";
+  editableRef.current = status === "draft" || status === "rejected";
 
-  const editable = status === "draft" || status === "submitted" || status === "rejected";
+  const editable = status === "draft" || status === "rejected";
   const days = useMemo(() => weekDays(weekMonday), [weekMonday]);
   const isoWeek = useMemo(() => isoWeekLabel(weekMonday), [weekMonday]);
   const isCurrentWeek = weekMonday === thisWeekMonday();
@@ -167,6 +168,7 @@ export function TimeTrackingView({
     setOrgId(res.orgId);
     setEmployeeId(res.employeeId);
     setStatus(res.status);
+    setRejectionNote(res.rejection_note ?? null);
     setProjects(res.projects);
     setWeek(res.week);
     setRate(res.rate);
@@ -344,8 +346,8 @@ export function TimeTrackingView({
     }));
   }
 
-  async function handleCreateProject(name: string, color?: string) {
-    const res = await createProject({ name, color });
+  async function handleCreateProject(name: string) {
+    const res = await createProject({ name });
     if (!res.ok) {
       toast(res.message, "error");
       return null;
@@ -394,6 +396,16 @@ export function TimeTrackingView({
             </Button>
           </div>
         </div>
+
+        {!loading && !editable && (
+          <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--bg)] px-3 py-3 text-sm text-muted">
+            {status === "submitted"
+              ? "This timesheet has been submitted and cannot be edited."
+              : status === "approved"
+              ? "This timesheet has been approved and is locked."
+              : null}
+          </div>
+        )}
 
         {loading ? (
           <LogWeekSkeleton />
@@ -596,6 +608,23 @@ export function TimeTrackingView({
               </div>
             )}
 
+            {status === "rejected" && rejectionNote && (
+              <div className="rounded-[var(--radius)] border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-3 py-2.5 text-sm text-ink">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--danger)]">Rejected</p>
+                <p>{rejectionNote}</p>
+              </div>
+            )}
+
+            {!editable && !loading && (
+              <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--bg)] px-3 py-3 text-sm text-muted">
+                {status === "submitted"
+                  ? "This timesheet has been submitted and cannot be edited."
+                  : status === "approved"
+                  ? "This timesheet has been approved and is locked."
+                  : null}
+              </div>
+            )}
+
             <div className="border-t border-[var(--line)] pt-4">
               <p className="text-xs text-muted">Submit progress</p>
               <p className="tnum mt-0.5 text-sm font-medium text-ink">
@@ -612,6 +641,24 @@ export function TimeTrackingView({
                 overtime — your manager will approve the extra time.
               </p>
             )}
+
+            {editable && (() => {
+              const emptyWeekdays = days
+                .filter((d) => !d.isWeekend)
+                .filter((d) => {
+                  const dayEntries = entriesByDay[d.date] ?? [];
+                  return !dayEntries.some((e) => e.id);
+                });
+              return emptyWeekdays.length > 0 ? (
+                <p className="rounded-[var(--radius)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
+                  {emptyWeekdays.length === 1
+                    ? `${emptyWeekdays[0]!.dayName} has no entries.`
+                    : emptyWeekdays.length === 2
+                    ? `${emptyWeekdays[0]!.dayName} and ${emptyWeekdays[1]!.dayName} have no entries.`
+                    : `${emptyWeekdays.slice(0, -1).map((d) => d.dayName).join(", ")}, and ${emptyWeekdays[emptyWeekdays.length - 1]!.dayName} have no entries.`}
+                </p>
+              ) : null;
+            })()}
 
             {editable && (
               <Button
@@ -638,7 +685,7 @@ export function TimeTrackingView({
                   });
                 }}
               >
-                Submit for approval
+                {status === "rejected" ? "Resubmit for approval" : "Submit for approval"}
               </Button>
             )}
 

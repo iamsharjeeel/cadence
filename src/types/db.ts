@@ -244,6 +244,7 @@ export type Database = {
           rate_type_snapshot: string | null
           raw_file_path: string | null
           rejection_note: string | null
+          resubmit_count: number
           status: string
           updated_at: string
         }
@@ -264,6 +265,7 @@ export type Database = {
           rate_type_snapshot?: string | null
           raw_file_path?: string | null
           rejection_note?: string | null
+          resubmit_count?: number
           status?: string
           updated_at?: string
         }
@@ -284,6 +286,7 @@ export type Database = {
           rate_type_snapshot?: string | null
           raw_file_path?: string | null
           rejection_note?: string | null
+          resubmit_count?: number
           status?: string
           updated_at?: string
         }
@@ -329,7 +332,7 @@ export type Database = {
           status_changed_at: string | null
           status_changed_by: string | null
           subtotal: number
-          timesheet_id: string
+          timesheet_id: string | null
           total: number
           type: string
           updated_at: string
@@ -351,7 +354,7 @@ export type Database = {
           status_changed_at?: string | null
           status_changed_by?: string | null
           subtotal: number
-          timesheet_id: string
+          timesheet_id?: string | null
           total: number
           type: string
           updated_at?: string
@@ -373,7 +376,7 @@ export type Database = {
           status_changed_at?: string | null
           status_changed_by?: string | null
           subtotal?: number
-          timesheet_id?: string
+          timesheet_id?: string | null
           total?: number
           type?: string
           updated_at?: string
