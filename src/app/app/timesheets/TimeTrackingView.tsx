@@ -114,7 +114,7 @@ export function TimeTrackingView({
   const timesheetIdRef = useRef(timesheetId);
   const orgIdRef = useRef(orgId);
   const employeeIdRef = useRef(employeeId);
-  const editableRef = useRef(status === "draft" || status === "rejected");
+  const editableRef = useRef(status === "draft" || status === "submitted" || status === "rejected");
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
@@ -124,9 +124,9 @@ export function TimeTrackingView({
   timesheetIdRef.current = timesheetId;
   orgIdRef.current = orgId;
   employeeIdRef.current = employeeId;
-  editableRef.current = status === "draft" || status === "rejected";
+  editableRef.current = status === "draft" || status === "submitted" || status === "rejected";
 
-  const editable = status === "draft" || status === "rejected";
+  const editable = status === "draft" || status === "submitted" || status === "rejected";
   const days = useMemo(() => weekDays(weekMonday), [weekMonday]);
   const isoWeek = useMemo(() => isoWeekLabel(weekMonday), [weekMonday]);
   const isCurrentWeek = weekMonday === thisWeekMonday();
@@ -344,8 +344,8 @@ export function TimeTrackingView({
     }));
   }
 
-  async function handleCreateProject(name: string) {
-    const res = await createProject({ name });
+  async function handleCreateProject(name: string, color?: string) {
+    const res = await createProject({ name, color });
     if (!res.ok) {
       toast(res.message, "error");
       return null;

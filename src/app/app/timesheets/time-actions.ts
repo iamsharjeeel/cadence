@@ -38,7 +38,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ACTIVE_STATUSES: TimesheetStatus[] = ["draft", "submitted", "rejected"];
 
 function editableStatus(status: TimesheetStatus): boolean {
-  return status === "draft" || status === "rejected";
+  return status === "draft" || status === "submitted" || status === "rejected";
 }
 
 async function linkOrphanEntriesToTimesheet(

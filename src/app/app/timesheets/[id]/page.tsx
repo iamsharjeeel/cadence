@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/Button";
 import { requireActiveProfile, hasRole } from "@/lib/auth";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
 import { ApprovalControls } from "./ApprovalControls";
+import { DeleteTimesheetControl } from "../DeleteTimesheetControl";
+import { TimesheetStatusActions } from "../TimesheetStatusActions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getApprovedLeaveInPeriod } from "@/lib/leave/queries";
 import { formatDate, formatMoney, titleCase } from "@/lib/utils";
@@ -52,7 +54,7 @@ export default async function TimesheetDetailPage({
     (profile.role === "admin" && timesheet.org_id === profile.org_id);
   if (!allowed) notFound();
 
-  const [{ data: entryData }, { data: rowData }, { data: people }] = await Promise.all([
+  const [{ data: entryData }, { data: rowData }, { data: people }, { data: docRows }] = await Promise.all([
     db
       .from("time_entries")
       .select("*")
@@ -73,6 +75,11 @@ export default async function TimesheetDetailPage({
           (v): v is string => !!v,
         ),
       ),
+    db
+      .from("documents")
+      .select("id")
+      .eq("timesheet_id", timesheet.id)
+      .limit(1),
   ]);
 
   const rawEntries = entryData ?? [];
@@ -114,6 +121,12 @@ export default async function TimesheetDetailPage({
   const canGenerateDoc =
     status === "approved" &&
     (timesheet.employee_id === profile.id || canApprove);
+  const hasDocument = (docRows?.length ?? 0) > 0;
+  const isOwner = timesheet.employee_id === profile.id;
+  const canDelete =
+    isOwner ||
+    (profile.role === "admin" && timesheet.org_id === profile.org_id) ||
+    profile.role === "superadmin";
 
   // Signed URL for the raw artifact (1-hour expiry) — never a public URL.
   let rawUrl: string | null = null;
@@ -132,7 +145,7 @@ export default async function TimesheetDetailPage({
           timesheet.period_end,
         )} · ${nameById.get(timesheet.employee_id) ?? ""}`}
         action={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {canGenerateDoc && timesheet.calculated_total !== null && (
               <GenerateDocumentButton
                 timesheetIds={[timesheet.id]}
@@ -141,6 +154,19 @@ export default async function TimesheetDetailPage({
                 currency={timesheet.currency_snapshot ?? "USD"}
               />
             )}
+            <TimesheetStatusActions
+              id={timesheet.id}
+              status={status}
+              periodStart={timesheet.period_start}
+              isOwner={isOwner}
+            />
+            <DeleteTimesheetControl
+              id={timesheet.id}
+              status={status}
+              canDelete={canDelete}
+              hasDocument={hasDocument}
+              redirectTo="/app/timesheets"
+            />
             <Link href="/app/timesheets">
               <Button variant="ghost" size="sm">
                 Back
@@ -213,13 +239,25 @@ export default async function TimesheetDetailPage({
         </Card>
       </div>
 
-      {status === "rejected" && timesheet.rejection_note && (
+      {status === "rejected" && (
         <Card className="mb-4 border-[var(--danger)]">
-          <CardContent className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-[var(--danger)]">
-              Rejection note
-            </span>
-            <p className="text-sm text-ink">{timesheet.rejection_note}</p>
+          <CardContent className="flex flex-col gap-3">
+            <div>
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--danger)]">
+                Rejected
+              </span>
+              {timesheet.rejection_note && (
+                <p className="mt-1 text-sm text-ink">{timesheet.rejection_note}</p>
+              )}
+            </div>
+            {isOwner && (
+              <TimesheetStatusActions
+                id={timesheet.id}
+                status={status}
+                periodStart={timesheet.period_start}
+                isOwner={isOwner}
+              />
+            )}
           </CardContent>
         </Card>
       )}

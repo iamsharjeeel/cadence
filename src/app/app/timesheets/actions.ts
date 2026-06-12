@@ -308,7 +308,99 @@ export async function rejectTimesheet(
   return { ok: true, message: "Timesheet rejected." };
 }
 
-/** Deletes a draft or rejected timesheet and its time entries. */
+/** Sets a submitted timesheet back to draft (employee recall). */
+export async function recallTimesheet(id: string): Promise<ActionResult> {
+  const profile = await requireRole(["admin", "superadmin", "employee"]);
+  if (!id) return { ok: false, message: "Timesheet not found." };
+
+  const db = createAdminClient();
+  const { data: ts } = await db
+    .from("timesheets")
+    .select("id, org_id, employee_id, status, period_start, period_end")
+    .eq("id", id)
+    .single();
+  if (!ts) return { ok: false, message: "Timesheet not found." };
+  if (ts.status !== "submitted") {
+    return { ok: false, message: "Only submitted timesheets can be recalled." };
+  }
+
+  const isOwner = ts.employee_id === profile.id;
+  const isOrgAdmin =
+    profile.role === "admin" &&
+    profile.org_id != null &&
+    ts.org_id === profile.org_id;
+  const isSuperadmin = profile.role === "superadmin";
+  if (!isOwner && !isOrgAdmin && !isSuperadmin) {
+    return { ok: false, message: "Not authorized." };
+  }
+
+  const { error } = await db
+    .from("timesheets")
+    .update({ status: "draft" })
+    .eq("id", id);
+  if (error) return { ok: false, message: "Couldn't recall the timesheet." };
+
+  await writeAudit({
+    actorId: profile.id,
+    orgId: ts.org_id,
+    action: "timesheet_recalled",
+    entity: "timesheets",
+    payload: { timesheet_id: id, period_start: ts.period_start, period_end: ts.period_end },
+  });
+
+  revalidatePath("/app/timesheets");
+  revalidatePath("/app/timesheets/log");
+  revalidatePath(`/app/timesheets/${id}`);
+  return { ok: true, message: "Timesheet recalled. You can now edit and resubmit." };
+}
+
+/** Sets a rejected timesheet back to draft so the employee can fix and resubmit. */
+export async function returnTimesheetToDraft(id: string): Promise<ActionResult> {
+  const profile = await requireRole(["admin", "superadmin", "employee"]);
+  if (!id) return { ok: false, message: "Timesheet not found." };
+
+  const db = createAdminClient();
+  const { data: ts } = await db
+    .from("timesheets")
+    .select("id, org_id, employee_id, status, period_start, period_end")
+    .eq("id", id)
+    .single();
+  if (!ts) return { ok: false, message: "Timesheet not found." };
+  if (ts.status !== "rejected") {
+    return { ok: false, message: "Only rejected timesheets can be returned to draft." };
+  }
+
+  const isOwner = ts.employee_id === profile.id;
+  const isOrgAdmin =
+    profile.role === "admin" &&
+    profile.org_id != null &&
+    ts.org_id === profile.org_id;
+  const isSuperadmin = profile.role === "superadmin";
+  if (!isOwner && !isOrgAdmin && !isSuperadmin) {
+    return { ok: false, message: "Not authorized." };
+  }
+
+  const { error } = await db
+    .from("timesheets")
+    .update({ status: "draft", rejection_note: null })
+    .eq("id", id);
+  if (error) return { ok: false, message: "Couldn't update timesheet." };
+
+  await writeAudit({
+    actorId: profile.id,
+    orgId: ts.org_id,
+    action: "timesheet_returned_to_draft",
+    entity: "timesheets",
+    payload: { timesheet_id: id, period_start: ts.period_start, period_end: ts.period_end },
+  });
+
+  revalidatePath("/app/timesheets");
+  revalidatePath("/app/timesheets/log");
+  revalidatePath(`/app/timesheets/${id}`);
+  return { ok: true, message: "Timesheet is now in draft. Make your changes and resubmit." };
+}
+
+/** Deletes a timesheet (any non-approved status, plus approved with explicit confirmation). */
 export async function deleteTimesheet(id: string): Promise<ActionResult> {
   const profile = await requireRole(["admin", "superadmin", "employee"]);
   if (!id) return { ok: false, message: "Timesheet not found." };
@@ -321,13 +413,6 @@ export async function deleteTimesheet(id: string): Promise<ActionResult> {
     .single();
   if (!ts) return { ok: false, message: "Timesheet not found." };
 
-  if (ts.status !== "draft" && ts.status !== "rejected") {
-    return {
-      ok: false,
-      message: "Only draft or rejected timesheets can be deleted.",
-    };
-  }
-
   const isOwner = ts.employee_id === profile.id;
   const isOrgAdmin =
     profile.role === "admin" &&
@@ -339,12 +424,7 @@ export async function deleteTimesheet(id: string): Promise<ActionResult> {
     return { ok: false, message: "Not authorized." };
   }
 
-  await db.from("time_entries").delete().eq("timesheet_id", id);
-  await db.from("timesheet_rows").delete().eq("timesheet_id", id);
-
-  const { error } = await db.from("timesheets").delete().eq("id", id);
-  if (error) return { ok: false, message: "Couldn't delete the timesheet." };
-
+  // Write audit BEFORE deletion so the record exists even after rows are gone.
   await writeAudit({
     actorId: profile.id,
     orgId: ts.org_id,
@@ -355,8 +435,26 @@ export async function deleteTimesheet(id: string): Promise<ActionResult> {
       employee_id: ts.employee_id,
       period_start: ts.period_start,
       period_end: ts.period_end,
+      status_at_delete: ts.status,
     },
   });
+
+  // Clean up FK dependents before deleting the timesheet row.
+  // Documents are orphaned (not deleted) — the warning is shown in the UI.
+  await db.from("time_entries").delete().eq("timesheet_id", id);
+  await db.from("timesheet_rows").delete().eq("timesheet_id", id);
+  await db.from("webhook_deliveries").delete().eq("timesheet_id", id);
+  // Orphan documents so they survive (preserve pay advice / invoices).
+  await db
+    .from("documents")
+    .update({ timesheet_id: null })
+    .eq("timesheet_id", id);
+
+  const { error } = await db.from("timesheets").delete().eq("id", id);
+  if (error) {
+    console.error("[deleteTimesheet] FK constraint on timesheets delete", { id, error });
+    return { ok: false, message: "Couldn't delete the timesheet — a related record is blocking deletion. Contact support." };
+  }
 
   revalidatePath("/app/timesheets");
   revalidatePath("/app/timesheets/log");

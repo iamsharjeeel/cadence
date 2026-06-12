@@ -17,6 +17,7 @@ import {
   RejectTimesheetControl,
 } from "./controls";
 import { DeleteTimesheetControl } from "./DeleteTimesheetControl";
+import { TimesheetStatusActions } from "./TimesheetStatusActions";
 import { bulkApproveTimesheets } from "./actions";
 import { currentSearchParams } from "@/lib/search-params";
 import type { UserRole } from "@/types/db";
@@ -47,7 +48,6 @@ function canDeleteRow(
   role: UserRole,
   userOrgId: string | null,
 ): boolean {
-  if (row.status !== "draft" && row.status !== "rejected") return false;
   if (row.employee_id === userId) return true;
   if (role === "admin" && userOrgId && row.org_id === userOrgId) return true;
   if (role === "superadmin") return true;
@@ -294,6 +294,12 @@ export function TimesheetListTable({
                       <RejectTimesheetControl id={t.id} status={t.status} />
                     </>
                   )}
+                  <TimesheetStatusActions
+                    id={t.id}
+                    status={t.status}
+                    periodStart={t.period_start}
+                    isOwner={t.employee_id === currentUserId}
+                  />
                   {t.status === "approved" && t.calculated_total !== null && (
                     <GenerateDocumentButton
                       timesheetIds={[t.id]}

@@ -808,6 +808,33 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 #### Entry row rebuild
 - `TimeEntryRow.tsx`: stacked layout — times + duration chip (separate, never overlapping inputs), project dot inline, description, billable toggle, save state, delete. Framer Motion 160ms.
 
+### Task A fixes ✅ — Duration chip, window.prompt removal, timesheet status actions
+
+#### Fix 1 — Duration chip layout
+- `TimeEntryRow.tsx`: removed the inner `<div>` wrapper around time inputs. Start time, dash, end time, and chip are now all **direct siblings** in a flat `flex flex-wrap` container — chip can never overlap the end-time field. Time inputs use `w-[7.5rem] flex-none` for cross-browser consistency.
+
+#### Fix 2 — Replace window.prompt()
+- `CreateProjectModal` component added in `TimeEntryRow.tsx`: branded MotionModal with name input, preset color swatches (gold ring on selected), Cancel + Create buttons. No `window.prompt/alert/confirm` anywhere in the codebase.
+- `handleCreateProject` in `TimeTrackingView.tsx` now accepts optional `color` param, passed to `createProject` action.
+
+#### Fix 3 — Status-based timesheet actions
+- `editableStatus()` in `time-actions.ts`: now includes "submitted" — entries are editable while submitted.
+- `TimeTrackingView.tsx`: `editable` flag updated to include submitted.
+- New server actions in `actions.ts`:
+  - `recallTimesheet(id)` — submitted → draft; auth: owner/admin/superadmin; audit: `timesheet_recalled`
+  - `returnTimesheetToDraft(id)` — rejected → draft, clears rejection_note; audit: `timesheet_returned_to_draft`
+  - `deleteTimesheet(id)` — now supports ALL statuses. Writes audit BEFORE delete. Manually cleans: time_entries, timesheet_rows, webhook_deliveries, nulls documents.timesheet_id (documents preserved). Logs FK errors to Vercel.
+- `DeleteTimesheetControl.tsx`: works for all statuses. Approved: shows danger warning. Has document: shows preservation notice. Optional `redirectTo` prop (detail page uses `/app/timesheets`).
+- New `TimesheetStatusActions.tsx`: Recall button (submitted), Edit & resubmit button (rejected, navigates to log view with `?week=` param).
+- `TimesheetListTable.tsx`: `canDeleteRow` no longer restricted to draft/rejected; TimesheetStatusActions added per row.
+- Detail page `[id]/page.tsx`: Queries `documents` for `hasDocument`; surfaces Delete + Recall/Resubmit in header; rejection card shows Edit & resubmit CTA prominently.
+
+**SQL note:** If `timesheets` FK delete fails despite manual cleanup, run the owner-visible migration below to ensure cascades are clean:
+```sql
+-- Surface only — run if deleteTimesheet logs FK errors in Vercel
+-- (Check current FK constraints first: \d timesheets in psql)
+```
+
 ### Task A — Accent swap + dark mode ✅
 
 #### A1 — Warm Gold token swap

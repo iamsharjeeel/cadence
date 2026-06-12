@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { fieldBase } from "@/components/ui/Input";
+import { MotionModal } from "@/components/motion/MotionModal";
 import { cn } from "@/lib/utils";
 import { hoursBetween, isOvernightShift } from "@/lib/time/validation";
+import { PROJECT_PRESET_COLORS } from "@/types/time-tracking";
 import type { Project } from "@/types/time-tracking";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -35,7 +38,7 @@ const ROW_MOTION = {
 
 const timeInputClass = cn(
   fieldBase,
-  "h-9 min-w-[7.25rem] w-[7.25rem] shrink-0 px-2.5 text-sm tnum",
+  "h-9 w-[7.5rem] flex-none px-2.5 text-sm tnum",
 );
 
 function BillableToggle({
@@ -117,6 +120,104 @@ function SaveIndicator({
   return null;
 }
 
+function CreateProjectModal({
+  open,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreate: (name: string, color: string) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(PROJECT_PRESET_COLORS[0]);
+  const [loading, setLoading] = useState(false);
+
+  async function handleCreate() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setLoading(true);
+    try {
+      await onCreate(trimmed, color);
+      setName("");
+      setColor(PROJECT_PRESET_COLORS[0]);
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <MotionModal open={open} onClose={onClose}>
+      <div className="w-full max-w-sm rounded-[var(--radius)] border bg-surface p-6 shadow-card">
+        <h3 className="font-display text-base font-semibold tracking-tightest text-ink">
+          New project
+        </h3>
+        <div className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink" htmlFor="new-project-name">
+              Name
+            </label>
+            <input
+              id="new-project-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleCreate();
+                if (e.key === "Escape") onClose();
+              }}
+              placeholder="Project name"
+              autoFocus
+              className={cn(fieldBase, "h-9 text-sm")}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink">Color</span>
+            <div className="flex flex-wrap gap-2">
+              {PROJECT_PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={c}
+                  onClick={() => setColor(c)}
+                  className={cn(
+                    "h-7 w-7 rounded-full transition-all",
+                    color === c
+                      ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-surface"
+                      : "hover:scale-110",
+                  )}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            loading={loading}
+            disabled={!name.trim()}
+            onClick={() => void handleCreate()}
+          >
+            Create
+          </Button>
+        </div>
+      </div>
+    </MotionModal>
+  );
+}
+
 export function TimeEntryRow({
   entry,
   editable,
@@ -139,9 +240,11 @@ export function TimeEntryRow({
   onDelete: () => void;
   onBillableChange: (billable: boolean) => void;
   onProjectChange: (projectId: string | null) => void;
-  onCreateProject: (name: string) => Promise<string | null>;
+  onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onConfirmOvernight: () => void;
 }) {
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
   const overnight =
     entry.start_time &&
     entry.end_time &&
@@ -166,38 +269,40 @@ export function TimeEntryRow({
           "flex flex-col gap-3",
         )}
       >
-        {/* Row 1: times + duration (always grouped, never overlapping) */}
+        {/*
+          Row 1: flat flex — start · dash · end · duration chip.
+          All four are direct siblings; chip cannot overlap the inputs.
+        */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-          <div className="flex shrink-0 items-center gap-1.5">
-            <input
-              type="time"
-              value={entry.start_time}
-              disabled={!editable}
-              onChange={(e) =>
-                onPatch({ start_time: e.target.value, saveState: "idle" })
-              }
-              onBlur={(e) => onBlurField("start_time", e.target.value)}
-              className={timeInputClass}
-              aria-label="Start time"
-            />
-            <span className="select-none text-sm text-muted" aria-hidden>
-              –
-            </span>
-            <input
-              type="time"
-              value={entry.end_time}
-              disabled={!editable}
-              onChange={(e) =>
-                onPatch({ end_time: e.target.value, saveState: "idle" })
-              }
-              onBlur={(e) => onBlurField("end_time", e.target.value)}
-              className={timeInputClass}
-              aria-label="End time"
-            />
-          </div>
+          <input
+            type="time"
+            value={entry.start_time}
+            disabled={!editable}
+            onChange={(e) =>
+              onPatch({ start_time: e.target.value, saveState: "idle" })
+            }
+            onBlur={(e) => onBlurField("start_time", e.target.value)}
+            className={timeInputClass}
+            aria-label="Start time"
+          />
+          <span className="flex-none select-none text-sm text-muted" aria-hidden>
+            –
+          </span>
+          <input
+            type="time"
+            value={entry.end_time}
+            disabled={!editable}
+            onChange={(e) =>
+              onPatch({ end_time: e.target.value, saveState: "idle" })
+            }
+            onBlur={(e) => onBlurField("end_time", e.target.value)}
+            className={timeInputClass}
+            aria-label="End time"
+          />
+          {/* Duration chip — explicit sibling, never nested inside time inputs */}
           <span
             className={cn(
-              "tnum inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium",
+              "tnum inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-medium",
               "bg-[var(--line)] text-muted",
             )}
           >
@@ -222,10 +327,9 @@ export function TimeEntryRow({
               disabled={!editable}
               onChange={async (e) => {
                 if (e.target.value === "__new__") {
-                  const name = window.prompt("Project name");
-                  if (!name) return;
-                  const id = await onCreateProject(name);
-                  if (id) onProjectChange(id);
+                  /* Reset to previous value while modal is open */
+                  e.target.value = entry.project_id ?? "";
+                  setCreateModalOpen(true);
                   return;
                 }
                 onProjectChange(e.target.value === "" ? null : e.target.value);
@@ -300,6 +404,15 @@ export function TimeEntryRow({
           </Button>
         )}
       </div>
+
+      <CreateProjectModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreate={async (name, color) => {
+          const id = await onCreateProject(name, color);
+          if (id) onProjectChange(id);
+        }}
+      />
     </motion.div>
   );
 }
