@@ -23,7 +23,7 @@ export async function getApprovedTimesheetsWithoutDocuments(
   profile: Profile,
   orgId?: string | null,
 ): Promise<TimesheetDocCandidate[]> {
-  if (profile.role !== "admin" && profile.role !== "superadmin") {
+  if (profile.role !== "admin" && profile.role !== "owner" && profile.role !== "superadmin") {
     return [];
   }
 
@@ -37,7 +37,7 @@ export async function getApprovedTimesheetsWithoutDocuments(
     .eq("status", "approved")
     .not("calculated_total", "is", null);
 
-  if (profile.role === "admin") {
+  if (profile.role === "admin" || profile.role === "owner") {
     if (!profile.org_id) return [];
     tsQuery = tsQuery.eq("org_id", profile.org_id);
   } else if (orgId) {

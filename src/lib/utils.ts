@@ -13,6 +13,16 @@ export function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+/**
+ * Human-readable role label for display. The DB enum value 'admin' is never
+ * shown directly — it maps to "Manager". 'owner' shows as "Owner" (gold badge).
+ */
+export function roleLabel(role: string): string {
+  if (role === "admin") return "Manager";
+  if (role === "owner") return "Owner";
+  return titleCase(role);
+}
+
 /** Formats a money value with tabular-friendly output. */
 export function formatMoney(
   amount: number | null | undefined,

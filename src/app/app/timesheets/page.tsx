@@ -45,7 +45,7 @@ export default async function TimesheetsPage({
   };
 }) {
   const profile = await requireActiveProfile();
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isManager = profile.role === "admin" || profile.role === "owner" || profile.role === "superadmin";
   const isSuperadmin = profile.role === "superadmin";
 
   if (!isManager && profile.org_id) {

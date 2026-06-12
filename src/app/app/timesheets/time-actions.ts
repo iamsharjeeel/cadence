@@ -539,7 +539,7 @@ export async function getTimesheetEntriesReadOnly(
   const allowed =
     profile.role === "superadmin" ||
     ts.employee_id === profile.id ||
-    (profile.role === "admin" && ts.org_id === profile.org_id);
+    ((profile.role === "admin" || profile.role === "owner") && ts.org_id === profile.org_id);
   if (!allowed) return { ok: false, message: "Not authorized." };
 
   const { data } = await db

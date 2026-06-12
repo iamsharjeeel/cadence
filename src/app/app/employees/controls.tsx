@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { fieldBase } from "@/components/ui/Input";
-import { cn, titleCase } from "@/lib/utils";
+import { cn, titleCase, roleLabel } from "@/lib/utils";
 import {
   approveMember,
   setEmployeeBanking,
@@ -45,13 +45,16 @@ export function ApproveButton({ id }: { id: string }) {
 export function RoleSelect({
   id,
   current,
+  viewerRole,
 }: {
   id: string;
-  current: "admin" | "employee";
+  current: "owner" | "admin" | "employee";
+  viewerRole: "owner" | "admin" | "superadmin";
 }) {
   const [state, action] = useFormState(setRole, null);
   useResultToast(state);
   const formRef = useRef<HTMLFormElement>(null);
+  const canAssignOwner = viewerRole === "owner" || viewerRole === "superadmin";
   return (
     <form ref={formRef} action={action}>
       <input type="hidden" name="id" value={id} />
@@ -59,10 +62,11 @@ export function RoleSelect({
         name="role"
         defaultValue={current}
         onChange={() => formRef.current?.requestSubmit()}
-        className={cn(fieldBase, "h-9 w-32 text-sm")}
+        className={cn(fieldBase, "h-9 w-36 text-sm")}
       >
         <option value="employee">Employee</option>
-        <option value="admin">Admin</option>
+        <option value="admin">{roleLabel("admin")}</option>
+        {canAssignOwner && <option value="owner">{roleLabel("owner")}</option>}
       </select>
     </form>
   );

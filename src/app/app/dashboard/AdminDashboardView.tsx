@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import type { AdminDashboardData } from "@/lib/dashboard/queries";
-import { formatDate, formatMoney, titleCase } from "@/lib/utils";
+import { formatDate, formatMoney, roleLabel } from "@/lib/utils";
 import { StatCard } from "./StatCard";
 import { StatCardGrid, StatCardItem } from "@/components/motion/StatCardGrid";
 import { CurrencyTotalsDisplay } from "./CurrencyTotals";
@@ -155,7 +155,7 @@ export function AdminDashboardView({
                 {data.employeeBreakdown.map((e) => (
                   <TR key={e.id}>
                     <TD className="text-sm font-medium">{e.name}</TD>
-                    <TD className="text-sm text-muted">{titleCase(e.role)}</TD>
+                    <TD className="text-sm text-muted">{roleLabel(e.role)}</TD>
                     <TD className="tnum text-sm">
                       {e.rate !== null
                         ? formatMoney(e.rate, e.currency)

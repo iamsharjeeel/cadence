@@ -42,7 +42,7 @@ export async function approveTimesheet(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   const id = String(formData.get("id") ?? "");
 
   const db = createAdminClient();
@@ -52,7 +52,7 @@ export async function approveTimesheet(
     .eq("id", id)
     .single();
   if (!ts) return { ok: false, message: "Timesheet not found." };
-  if (actor.role === "admin" && ts.org_id !== actor.org_id) {
+  if ((actor.role === "admin" || actor.role === "owner") && ts.org_id !== actor.org_id) {
     return { ok: false, message: "That timesheet isn't in your organization." };
   }
   if (ts.status !== "submitted") {
@@ -146,7 +146,7 @@ export async function approveTimesheet(
 export async function bulkApproveTimesheets(
   ids: string[],
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   if (!ids.length) {
     return { ok: false, message: "No timesheets selected." };
   }
@@ -161,7 +161,7 @@ export async function bulkApproveTimesheets(
       .eq("id", id)
       .single();
     if (!ts) continue;
-    if (actor.role === "admin" && ts.org_id !== actor.org_id) continue;
+    if ((actor.role === "admin" || actor.role === "owner") && ts.org_id !== actor.org_id) continue;
     if (ts.status !== "submitted") continue;
 
     const { data: employee } = await db
@@ -257,7 +257,7 @@ export async function rejectTimesheet(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   const id = String(formData.get("id") ?? "");
   const note = String(formData.get("note") ?? "").trim();
   if (!note) return { ok: false, message: "A rejection note is required." };
@@ -271,7 +271,7 @@ export async function rejectTimesheet(
     .eq("id", id)
     .single();
   if (!ts) return { ok: false, message: "Timesheet not found." };
-  if (actor.role === "admin" && ts.org_id !== actor.org_id) {
+  if ((actor.role === "admin" || actor.role === "owner") && ts.org_id !== actor.org_id) {
     return { ok: false, message: "That timesheet isn't in your organization." };
   }
   if (ts.status !== "submitted") {
@@ -310,7 +310,7 @@ export async function rejectTimesheet(
 
 /** Sets a submitted timesheet back to draft (employee recall). */
 export async function recallTimesheet(id: string): Promise<ActionResult> {
-  const profile = await requireRole(["admin", "superadmin", "employee"]);
+  const profile = await requireRole(["admin", "owner", "superadmin", "employee"]);
   if (!id) return { ok: false, message: "Timesheet not found." };
 
   const db = createAdminClient();
@@ -326,7 +326,7 @@ export async function recallTimesheet(id: string): Promise<ActionResult> {
 
   const isOwner = ts.employee_id === profile.id;
   const isOrgAdmin =
-    profile.role === "admin" &&
+    (profile.role === "admin" || profile.role === "owner") &&
     profile.org_id != null &&
     ts.org_id === profile.org_id;
   const isSuperadmin = profile.role === "superadmin";
@@ -356,7 +356,7 @@ export async function recallTimesheet(id: string): Promise<ActionResult> {
 
 /** Sets a rejected timesheet back to draft so the employee can fix and resubmit. */
 export async function returnTimesheetToDraft(id: string): Promise<ActionResult> {
-  const profile = await requireRole(["admin", "superadmin", "employee"]);
+  const profile = await requireRole(["admin", "owner", "superadmin", "employee"]);
   if (!id) return { ok: false, message: "Timesheet not found." };
 
   const db = createAdminClient();
@@ -372,7 +372,7 @@ export async function returnTimesheetToDraft(id: string): Promise<ActionResult> 
 
   const isOwner = ts.employee_id === profile.id;
   const isOrgAdmin =
-    profile.role === "admin" &&
+    (profile.role === "admin" || profile.role === "owner") &&
     profile.org_id != null &&
     ts.org_id === profile.org_id;
   const isSuperadmin = profile.role === "superadmin";
@@ -402,7 +402,7 @@ export async function returnTimesheetToDraft(id: string): Promise<ActionResult> 
 
 /** Deletes a timesheet (any non-approved status, plus approved with explicit confirmation). */
 export async function deleteTimesheet(id: string): Promise<ActionResult> {
-  const profile = await requireRole(["admin", "superadmin", "employee"]);
+  const profile = await requireRole(["admin", "owner", "superadmin", "employee"]);
   if (!id) return { ok: false, message: "Timesheet not found." };
 
   const db = createAdminClient();
@@ -415,7 +415,7 @@ export async function deleteTimesheet(id: string): Promise<ActionResult> {
 
   const isOwner = ts.employee_id === profile.id;
   const isOrgAdmin =
-    profile.role === "admin" &&
+    (profile.role === "admin" || profile.role === "owner") &&
     profile.org_id != null &&
     ts.org_id === profile.org_id;
   const isSuperadmin = profile.role === "superadmin";
@@ -447,7 +447,7 @@ export async function deleteTimesheet(id: string): Promise<ActionResult> {
   // Orphan documents so they survive (preserve pay advice / invoices).
   await db
     .from("documents")
-    .update({ timesheet_id: null })
+    .update({ timesheet_id: null as unknown as string })
     .eq("timesheet_id", id);
 
   const { error } = await db.from("timesheets").delete().eq("id", id);

@@ -1,5 +1,4 @@
-import { cn } from "@/lib/utils";
-import { titleCase } from "@/lib/utils";
+import { cn, titleCase, roleLabel } from "@/lib/utils";
 import type {
   DocumentStatus,
   DocumentType,
@@ -46,7 +45,14 @@ export function StatusPill({ status }: { status: UserStatus }) {
 }
 
 export function RolePill({ role }: { role: UserRole }) {
-  return <Badge tone="muted">{titleCase(role)}</Badge>;
+  if (role === "owner") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent-strong)]">
+        Owner
+      </span>
+    );
+  }
+  return <Badge tone="muted">{roleLabel(role)}</Badge>;
 }
 
 // draft (grey), submitted (blue), approved (teal), rejected (red), live (teal pulse for draft)

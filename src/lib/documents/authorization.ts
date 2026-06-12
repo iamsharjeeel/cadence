@@ -32,7 +32,7 @@ export async function authorizeTimesheetForDocument(
     return { ok: false, status: 403, message: "Forbidden." };
   }
   if (
-    actor.role === "admin" &&
+    (actor.role === "admin" || actor.role === "owner") &&
     timesheet.org_id !== actor.org_id
   ) {
     return { ok: false, status: 403, message: "Forbidden." };

@@ -64,7 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Employees",
     href: "/app/employees",
-    roles: ["superadmin", "admin"],
+    roles: ["superadmin", "owner", "admin"],
     icon: "employees",
   },
   {
@@ -76,13 +76,13 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Settings",
     href: "/app/settings",
-    roles: ["admin", "superadmin"],
+    roles: ["owner", "admin", "superadmin"],
     icon: "settings",
   },
   {
     label: "Audit log",
     href: "/app/audit",
-    roles: ["admin", "superadmin"],
+    roles: ["owner", "admin", "superadmin"],
     icon: "audit",
   },
 ];

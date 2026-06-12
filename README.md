@@ -22,7 +22,7 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 
 ### Phase 1 — Foundation
 - Multi-tenant orgs with domain-gated Google OAuth
-- Three roles: superadmin, admin, employee
+- Roles: superadmin, owner, admin (displayed as "Manager"), employee
 - Profile and employee management with audit logging
 - Quiet-luxury design system (Warm Gold accent, Space Grotesk + Inter, true-black dark mode)
 
@@ -91,6 +91,11 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 1. `supabase/migrations/20260611000000_phase4_documents.sql`
 2. `supabase/migrations/20260612000000_phase5_leave_onboarding_docs.sql`
 3. `supabase/migrations/20260613000000_phase6_notifications_org_logos.sql`
+4. `supabase/migrations/20260614000000_security_rls_storage.sql`
+5. `supabase/migrations/20260615000000_org_logos_bucket.sql`
+6. `supabase/migrations/20260616000000_phase7_time_tracking.sql`
+7. `supabase/migrations/20260617000000_time_entries_perf_index.sql`
+8. **`supabase/migrations/20260618000000_add_owner_role.sql`** — adds `owner` to the `user_role` enum and updates all RLS policies. **Run in Supabase SQL editor before deploying.** The `ALTER TYPE` statement must execute first (it is the first statement in the file).
 
 ## License
 

@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { formatMoney, titleCase } from "@/lib/utils";
+import { formatMoney, titleCase, roleLabel } from "@/lib/utils";
 import type { Organization, Profile } from "@/types/db";
 import { maskSensitive } from "@/lib/bank-crypto";
 import { getOnboardingProgress, getOnboardingStepsDetail } from "@/lib/onboarding/progress";
@@ -31,7 +31,7 @@ import { OnboardingCell } from "./OnboardingCell";
 export const metadata: Metadata = { title: "Employees" };
 
 export default async function EmployeesPage() {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   const isSuperadmin = actor.role === "superadmin";
 
   // Superadmin sees every org's members (service-role read, scoped in code).
@@ -178,7 +178,10 @@ export default async function EmployeesPage() {
                 {team.map((m) => {
                   const isSelf = m.id === actor.id;
                   const isSuper = m.role === "superadmin";
-                  const locked = isSelf || isSuper;
+                  // Admin (Manager) cannot edit owner profiles.
+                  const isOwnerTarget = m.role === "owner";
+                  const locked = isSelf || isSuper || (actor.role === "admin" && isOwnerTarget);
+                  const viewerRole = actor.role as "owner" | "admin" | "superadmin";
                   return (
                     <TR key={m.id}>
                       <TD>
@@ -192,12 +195,13 @@ export default async function EmployeesPage() {
                       <TD>
                         {locked ? (
                           <span className="text-sm text-muted">
-                            {titleCase(m.role)}
+                            {roleLabel(m.role)}
                           </span>
                         ) : (
                           <RoleSelect
                             id={m.id}
-                            current={m.role as "admin" | "employee"}
+                            current={m.role as "owner" | "admin" | "employee"}
+                            viewerRole={viewerRole}
                           />
                         )}
                       </TD>

@@ -25,7 +25,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 
 ## Key product decisions (all locked)
 - **Multi-tenant** from day one. Every table scoped by `org_id`.
-- **Three roles:** `superadmin` (platform — creates orgs, sees all) / `admin` (manages own org) / `employee` (own data only).
+- **Four roles:** `superadmin` (platform — creates orgs, sees all) / `owner` (full org control, below superadmin; displays as "Owner" in gold) / `admin` (manages own org; displays as **"Manager"** in UI — never shown as "admin") / `employee` (own data only).
 - **Auth:** Google OAuth only. Domain-gated — user email domain matched against org `allowed_domains`.
 - **Account creation:** admin invite + self-signup, both gated by admin approval. New users land `pending`.
 - **Org creation:** superadmin creates orgs manually.
@@ -51,7 +51,8 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 ## Database schema (all live in Supabase)
 
 ### Enums
-- `user_role`: superadmin | admin | employee
+- `user_role`: superadmin | owner | admin | employee
+  - `owner` requires running migration `20260618000000_add_owner_role.sql` (see below)
 - `user_status`: pending | active | suspended
 - `rate_type`: hourly | salaried | fixed
 - `period_cadence`: weekly | biweekly | monthly
@@ -853,6 +854,47 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 
 #### A3 — Duration chip layout (already clean)
 - `TimeEntryRow.tsx` chip is a sibling flex item outside the time-inputs container — never overlapping. Confirmed no change needed.
+
+### Build error fix + Owner role + Manager rename ✅
+
+#### Fix 1 — TypeScript build error (TimeEntryRow.tsx)
+- `useState(PROJECT_PRESET_COLORS[0])` → `useState<string>(PROJECT_PRESET_COLORS[0])`.
+- `PROJECT_PRESET_COLORS` is `as const` so `[0]` had literal type `"#B8862F"`; explicit `<string>` annotation fixes it.
+- Also fixed two pre-existing type errors: `AuditAction` missing `timesheet_recalled` / `timesheet_returned_to_draft`; `documents` update with `timesheet_id: null` typed as `unknown as string`.
+
+#### B1 — DB migration
+- Migration: `supabase/migrations/20260618000000_add_owner_role.sql`
+- **Must be run manually** in Supabase SQL Editor before deploying (the `ALTER TYPE` cannot run inside a transaction; run the file top-to-bottom in the editor).
+- SQL: `ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'owner';` then all RLS policy updates.
+
+#### B2 — Role hierarchy
+- `superadmin` → platform (unchanged)
+- `owner` → full org control; superset of admin; can invite/promote owners within their org; cannot be modified by admin; gold badge in UI
+- `admin` → displays as **"Manager"** everywhere in UI (DB enum stays `'admin'`); approves timesheets
+- `employee` → unchanged
+- `owner` assignment: only existing owner or superadmin can assign; admin cannot promote to owner (enforced in `employees/actions.ts:setRole`)
+- `authorizeTarget` in `employees/actions.ts`: admin cannot modify owner profiles; owner scoped to own org like admin
+
+#### B3 — RLS updates
+- All policies with `auth_role() in ('admin', 'superadmin')` updated to include `'owner'`.
+- New explicit `owner manages manager profiles` policy on `profiles` table.
+- `approve_leave_request` / `reject_leave_request` RPCs updated to allow `owner`.
+- All in `20260618000000_add_owner_role.sql` — run manually before deploy.
+
+#### B4 — UI rename
+- New `roleLabel(role)` in `src/lib/utils.ts`: `admin → Manager`, `owner → Owner`, others titleCase.
+- `RolePill`, `Sidebar`, `AdminDashboardView`, `employees/page.tsx`, `audit/summarize.ts`, `employees/controls.tsx` all use `roleLabel`.
+- `notifyOrgAdmins` now queries `role IN ('admin', 'owner')` so owners receive management notifications.
+- Onboarding wizard: "your admin" → "your manager".
+
+#### B5 — Owner UI
+- `RolePill`: owner renders with gold `var(--accent-soft)` / `var(--accent-strong)` (same token as the accent badge), label "Owner".
+- `RoleSelect` (employees page): shows "Manager" for admin option; shows "Owner" option only when `viewerRole` is `owner` or `superadmin`.
+- Owner gets same nav items as admin (Employees, Settings, Audit log) — no separate layout needed.
+- All `requireRole(["admin", "superadmin"])` calls across server actions and pages updated to `["admin", "owner", "superadmin"]`.
+
+#### Manual step required
+Run `supabase/migrations/20260618000000_add_owner_role.sql` in Supabase SQL Editor **before deploying**. Run statements top-to-bottom (not as a transaction block — Supabase SQL Editor is fine).
 
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)

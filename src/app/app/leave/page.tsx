@@ -83,7 +83,7 @@ export default async function LeavePage({
   searchParams: { org?: string };
 }) {
   const profile = await requireActiveProfile();
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isManager = profile.role === "admin" || profile.role === "owner" || profile.role === "superadmin";
   const personalLeave = await loadPersonalLeave(profile);
 
   if (!isManager) {

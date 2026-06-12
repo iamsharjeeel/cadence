@@ -18,7 +18,7 @@ export default async function ProjectsPage({
 }) {
   const profile = await requireActiveProfile();
   const isSuperadmin = profile.role === "superadmin";
-  const isManager = profile.role === "admin" || isSuperadmin;
+  const isManager = profile.role === "admin" || profile.role === "owner" || isSuperadmin;
   const orgId = isSuperadmin ? searchParams.org?.trim() : profile.org_id ?? undefined;
 
   let orgs: { id: string; name: string }[] = [];

@@ -1,4 +1,5 @@
 import type { Json } from "@/types/db";
+import { roleLabel } from "@/lib/utils";
 
 export function summarizePayload(
   action: string,
@@ -13,7 +14,7 @@ export function summarizePayload(
     return `Status changed from ${p.from} → ${p.to}`;
   }
   if (action === "profile.role_change" && p.from && p.to) {
-    return `Role changed from ${p.from} → ${p.to}`;
+    return `Role changed from ${roleLabel(String(p.from))} → ${roleLabel(String(p.to))}`;
   }
   if (action === "timesheet_approved" && p.calculated_total != null) {
     return `Approved · total ${p.calculated_total}`;

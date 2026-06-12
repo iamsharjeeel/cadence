@@ -35,7 +35,7 @@ export default async function OrgDashboardPage({
     .single();
   if (!org) notFound();
 
-  if (profile.role === "admin" && profile.org_id !== org.id) {
+  if ((profile.role === "admin" || profile.role === "owner") && profile.org_id !== org.id) {
     redirect("/app/dashboard");
   }
   if (profile.role === "employee") {

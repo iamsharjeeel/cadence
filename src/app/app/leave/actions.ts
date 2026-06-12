@@ -187,7 +187,7 @@ export async function cancelLeaveRequest(id: string): Promise<ActionResult> {
 }
 
 export async function approveLeaveRequest(id: string): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   const db = createAdminClient();
 
   const { data: req } = await db
@@ -196,7 +196,7 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
     .eq("id", id)
     .single();
   if (!req) return { ok: false, message: "Request not found." };
-  if (actor.role === "admin" && req.org_id !== actor.org_id) {
+  if ((actor.role === "admin" || actor.role === "owner") && req.org_id !== actor.org_id) {
     return { ok: false, message: "Forbidden." };
   }
 
@@ -232,7 +232,7 @@ export async function rejectLeaveRequest(
   id: string,
   note: string,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   if (!note.trim()) return { ok: false, message: "Rejection note required." };
 
   const db = createAdminClient();
@@ -242,7 +242,7 @@ export async function rejectLeaveRequest(
     .eq("id", id)
     .single();
   if (!req) return { ok: false, message: "Request not found." };
-  if (actor.role === "admin" && req.org_id !== actor.org_id) {
+  if ((actor.role === "admin" || actor.role === "owner") && req.org_id !== actor.org_id) {
     return { ok: false, message: "Forbidden." };
   }
 
@@ -279,8 +279,8 @@ export async function applyDefaultBalances(
   orgId: string,
   year: number,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
-  if (actor.role === "admin" && actor.org_id !== orgId) {
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
+  if ((actor.role === "admin" || actor.role === "owner") && actor.org_id !== orgId) {
     return { ok: false, message: "Forbidden." };
   }
   const yearV = validateYear(year);
@@ -298,7 +298,7 @@ export async function updateLeaveBalance(
   id: string,
   allocatedDays: number,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   const db = createAdminClient();
 
   const { data: bal } = await db
@@ -307,7 +307,7 @@ export async function updateLeaveBalance(
     .eq("id", id)
     .single();
   if (!bal) return { ok: false, message: "Balance not found." };
-  if (actor.role === "admin" && bal.org_id !== actor.org_id) {
+  if ((actor.role === "admin" || actor.role === "owner") && bal.org_id !== actor.org_id) {
     return { ok: false, message: "Forbidden." };
   }
 

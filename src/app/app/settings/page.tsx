@@ -20,7 +20,7 @@ export default async function SettingsPage({
 }: {
   searchParams: { tab?: string; org?: string };
 }) {
-  await requireRole(["admin", "superadmin"]);
+  await requireRole(["admin", "owner", "superadmin"]);
 
   return (
     <div>

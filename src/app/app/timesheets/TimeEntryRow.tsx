@@ -130,7 +130,7 @@ function CreateProjectModal({
   onCreate: (name: string, color: string) => Promise<void>;
 }) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState(PROJECT_PRESET_COLORS[0]);
+  const [color, setColor] = useState<string>(PROJECT_PRESET_COLORS[0]);
   const [loading, setLoading] = useState(false);
 
   async function handleCreate() {
