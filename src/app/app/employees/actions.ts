@@ -13,7 +13,7 @@ import { RATE_TYPES } from "@/types/db";
 export type ActionResult = { ok: boolean; message: string };
 
 // Neither admin nor superadmin may assign the superadmin role from this screen.
-const ASSIGNABLE_ROLES: UserRole[] = ["admin", "employee"];
+const ASSIGNABLE_ROLES: UserRole[] = ["owner", "admin", "employee"];
 const ASSIGNABLE_STATUSES: UserStatus[] = ["active", "suspended", "pending"];
 
 /**
@@ -31,7 +31,7 @@ async function authorizeTarget(
   | { ok: true; actor: Profile; target: Profile }
   | { ok: false; message: string }
 > {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
 
   const db = createAdminClient();
   const { data: target } = await db
@@ -48,6 +48,9 @@ async function authorizeTarget(
   if (actor.role === "admin") {
     if (!actor.org_id || target.org_id !== actor.org_id) {
       return { ok: false, message: "That member isn't in your organization." };
+    }
+    if (target.role === "owner") {
+      return { ok: false, message: "Managers can't modify owners." };
     }
   }
 
@@ -94,6 +97,9 @@ export async function setRole(
     return { ok: false, message: "You can't change your own role." };
   if (!ASSIGNABLE_ROLES.includes(role))
     return { ok: false, message: "Invalid role." };
+  if (auth.actor.role === "admin" && role !== "employee") {
+    return { ok: false, message: "Managers can only assign the Employee role." };
+  }
   if (role === auth.target.role) return { ok: true, message: "No change." };
 
   const db = createAdminClient();

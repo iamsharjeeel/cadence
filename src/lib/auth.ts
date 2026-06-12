@@ -37,7 +37,9 @@ export async function getProfile(): Promise<Profile | null> {
 export async function requireActiveProfile(): Promise<Profile> {
   const profile = await getProfile();
   if (!profile) redirect("/login");
-  if (profile.status !== "active") redirect("/pending");
+  if (profile.status === "suspended") {
+    redirect("/login?error=suspended");
+  }
   return profile;
 }
 

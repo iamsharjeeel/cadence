@@ -1,10 +1,11 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
 import { updateOwnEmployment, type ActionResult } from "./actions";
 
@@ -27,6 +28,7 @@ export function ProfileEmploymentForm({
   const [state, action] = useFormState(updateOwnEmployment, null);
   const { toast } = useToast();
   const last = useRef<ActionResult | null>(null);
+  const [startDateValue, setStartDateValue] = useState(startDate);
 
   useEffect(() => {
     if (state && state !== last.current) {
@@ -43,14 +45,18 @@ export function ProfileEmploymentForm({
         defaultValue={jobTitle}
         maxLength={80}
       />
-      <Input
+      <DatePicker
         label="Start date"
         name="start_date"
-        type="date"
-        defaultValue={startDate}
-        readOnly={!!startDate}
-        hint={startDate ? "Start date is set by your administrator." : undefined}
+        value={startDateValue}
+        onChange={setStartDateValue}
+        disabled={!!startDate}
       />
+      {startDate ? (
+        <p className="text-xs text-muted">
+          Start date is set by your administrator.
+        </p>
+      ) : null}
       <SubmitButton />
     </form>
   );

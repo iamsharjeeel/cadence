@@ -1,25 +1,13 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { redeemOrgInvite } from "@/lib/invites";
 import { emailDomain } from "@/lib/utils";
 import type { Profile } from "@/types/db";
 
 /**
- * Post-OAuth onboarding: domain-gating + superadmin backstop.
- *
- * Runs in the `/auth/callback` route with the service-role client (the user is
- * `pending` with no org, so RLS would otherwise block these writes).
- *
- * Rules:
- *   1. SUPERADMIN_EMAIL backstop — if the signed-in email matches the
- *      server-only `SUPERADMIN_EMAIL`, promote to superadmin + active so the
- *      platform is never locked out. (Alternative to the seed SQL.)
- *   2. Domain-gating — if the profile has no org, match the email domain
- *      against every org's `allowed_domains`. Exactly one match → attach
- *      `org_id` (status stays `pending`, awaiting admin approval). Zero or
- *      multiple matches → leave org null (superadmin resolves manually).
- *
- * Returns the up-to-date profile so the caller can route by role/status.
+ * Post-OAuth onboarding: invite redemption, domain-gating, superadmin backstop.
+ * New users land **active** — no pending approval gate.
  */
 export async function runOnboarding(
   userId: string,
@@ -52,7 +40,20 @@ export async function runOnboarding(
     return promoted ?? profile;
   }
 
-  // 2. Domain-gating — only when the profile has no org yet.
+  // 2. Pending org invite — highest priority for org + role assignment.
+  const redeemed = await redeemOrgInvite(userId, email);
+  if (redeemed) {
+    const { data: updated } = await admin
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    return updated ?? profile;
+  }
+
+  const updates: Partial<Profile> = {};
+
+  // 3. Domain-gating — attach org when exactly one org claims the email domain.
   if (!profile.org_id) {
     const domain = emailDomain(email);
     if (domain) {
@@ -61,18 +62,30 @@ export async function runOnboarding(
         .select("id, allowed_domains")
         .contains("allowed_domains", [domain]);
 
-      // Exactly one org claims this domain → attach it.
       if (orgs && orgs.length === 1) {
-        const { data: attached } = await admin
-          .from("profiles")
-          .update({ org_id: orgs[0].id })
-          .eq("id", userId)
-          .select("*")
-          .single();
-        return attached ?? profile;
+        updates.org_id = orgs[0].id;
+        if (profile.role === "employee" || !profile.role) {
+          updates.role = "employee";
+        }
       }
     }
   }
 
-  return profile;
+  // 4. Activate immediately — no admin approval gate.
+  if (profile.status === "pending") {
+    updates.status = "active";
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return profile;
+  }
+
+  const { data: refreshed } = await admin
+    .from("profiles")
+    .update(updates)
+    .eq("id", userId)
+    .select("*")
+    .single();
+
+  return refreshed ?? profile;
 }

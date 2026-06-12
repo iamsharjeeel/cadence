@@ -11,7 +11,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **Frontend/host:** Next.js 14 (App Router, TypeScript, `src/`) on Vercel
 - **Backend:** Supabase (Postgres + Auth + Storage + RLS) via `@supabase/ssr`
 - **Motion:** GSAP (Three.js dropped — premium feel achieved with CSS + GSAP)
-- **Charts:** recharts (teal primary series, muted secondary)
+- **Charts:** `recharts`. Gold via `--accent-rgb` / `useChartColors()` — primary series Warm Gold, muted `#6B6F76` secondary.
 - **Build agents:** Cursor Composer (primary going forward), Claude Code (used for Phases 1–2)
 - **Package manager:** npm
 
@@ -25,9 +25,9 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 
 ## Key product decisions (all locked)
 - **Multi-tenant** from day one. Every table scoped by `org_id`.
-- **Three roles:** `superadmin` (platform — creates orgs, sees all) / `admin` (manages own org) / `employee` (own data only).
+- **Three roles:** `superadmin` (platform — creates orgs, sees all) / `owner` (org owner) / `admin` (manager — manages own org) / `employee` (own data only). UI shows `admin` as “Manager”.
 - **Auth:** Google OAuth only. Domain-gated — user email domain matched against org `allowed_domains`.
-- **Account creation:** admin invite + self-signup, both gated by admin approval. New users land `pending`.
+- **Account creation:** admin invite (email link) or self-signup via matching org domain. New users land **active** — no pending approval gate. Invite redemption assigns org + role on first OAuth sign-in.
 - **Org creation:** superadmin creates orgs manually.
 - **Rates:** admin sets/edits employee rate; employee views own rate read-only.
 - **Rate types:** hourly (hours×rate), salaried (period slice, hours informational), fixed (flat, hours informational).
@@ -42,7 +42,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **Accent:** Warm Gold `#B8862F` (soft `rgba(184,134,47,0.12)`, strong/hover `#A0751F`). Dark mode: `#C9973F`.
 - **Light tokens:** bg `#FBFBF9`, surface `#FFFFFF`, ink `#14151A`, muted `#6B6F76`, line `rgba(20,21,26,0.08)`, radius 16px.
 - **Dark tokens:** bg `#000000` (true black), surface `#0D0D0D`, ink `#EDEDEA`, muted `#6B6F76`, line `rgba(237,237,234,0.08)`.
-- **CSS vars:** `--accent`, `--accent-soft`, `--accent-strong` (= hover); dark overrides in `.dark`.
+- **CSS vars:** `--accent`, `--accent-soft`, `--accent-strong` (= hover), `--accent-rgb` (for rgba chart fills); dark overrides in `.dark`.
 - **Type:** Space Grotesk for headings + ALL numbers (`tabular-nums`); Inter for body/UI.
 - **Motion:** Framer Motion in app shell; GSAP for landing hero only.
 - **Charts:** `recharts`. Gold `#B8862F` primary series, muted `#6B6F76` secondary. Dark mode: `#C9973F`.
@@ -51,7 +51,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 ## Database schema (all live in Supabase)
 
 ### Enums
-- `user_role`: superadmin | admin | employee
+- `user_role`: superadmin | owner | admin | employee
 - `user_status`: pending | active | suspended
 - `rate_type`: hourly | salaried | fixed
 - `period_cadence`: weekly | biweekly | monthly
@@ -853,6 +853,48 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 
 #### A3 — Duration chip layout (already clean)
 - `TimeEntryRow.tsx` chip is a sibling flex item outside the time-inputs container — never overlapping. Confirmed no change needed.
+
+### Session — Build fix, gold accent verify, pickers, perf, invites, pending removal ✅
+
+#### Item 0 — Build fix
+- Added missing `AuditAction` values: `timesheet_recalled`, `timesheet_returned_to_draft` in `src/lib/audit.ts` + summarize entries in `src/lib/audit/summarize.ts`.
+- `documents.timesheet_id?: string | null` on Update type in `src/types/db.ts` (deleteTimesheet orphan flow).
+- PDF `Image` alt: `@react-pdf/renderer` has no `alt` prop — eslint-disable in `InvoicePdf.tsx` / `PayAdvicePdf.tsx`.
+
+#### Item 1 — Teal → gold (verify)
+- `--accent-rgb` in `globals.css`; charts via `useChartColors()` in `src/lib/chart-colors.ts`.
+- `TrendsCharts.tsx`, `DashboardCharts.tsx`, sidebar/topbar pills, `MeshBackground.tsx` all token-driven.
+
+#### Item 2 — Custom TimePicker
+- `src/components/ui/TimePicker.tsx` — gold accent, 160ms Framer Motion popover, hour/minute columns.
+- `TimeEntryRow.tsx` — replaced native `<input type="time">`.
+
+#### Item 3 — Custom DatePicker
+- `src/components/ui/DatePicker.tsx` — branded calendar popover, gold selected state.
+- Replaced native `type="date"` in: leave modal, audit log, timesheet export/controls, documents controls, profile employment form, onboarding wizard.
+
+#### Item 4 — Timesheet load speed
+- **Root cause:** client-only `getTimeTrackingData` on mount + redundant `computeWeekStats` DB query + duplicate auth.
+- **Fix:** `src/lib/time/get-time-tracking-data.ts` — single auth pass, `weekStatsFromEntries` (no extra query).
+- `TimeTrackingData` type in `src/types/time-tracking.ts` (client-safe).
+- SSR prefetch in `timesheets/log/page.tsx` and employee path in `timesheets/page.tsx`.
+- `TimeTrackingView.tsx` accepts `initialData`, skips initial client fetch when SSR data present.
+
+#### Item 5 — Invite flow
+- Migration: `supabase/migrations/20260619000000_org_invites_owner_role.sql` — `owner` enum value, `org_invites` table + RLS, `documents.timesheet_id` nullable.
+- `src/lib/invites.ts` (`redeemOrgInvite`), `InviteMemberModal.tsx`, `invite-actions.ts` (Resend email).
+- `/app/employees` — Invite button; owner/manager hierarchy (manager can only invite/assign Employee).
+- Audit: `member_invited`; `roleLabel()` shows admin as “Manager”.
+
+#### Item 6 — Remove pending gate
+- `runOnboarding()` — new users land **active**; invite redemption first; domain match attaches org; no admin approval step.
+- `/auth/callback` → `/app/onboarding` or `/app/dashboard`; suspended → `/login?error=suspended`.
+- Middleware — only `suspended` blocked; `/pending` redirects away; page deleted.
+- Login copy updated; error banner for suspended/OAuth failures.
+- Removed unused `ApproveButton` (legacy pending UI).
+
+#### Manual step required
+Run migration `20260619000000_org_invites_owner_role.sql` in Supabase SQL editor before testing invites in production.
 
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)

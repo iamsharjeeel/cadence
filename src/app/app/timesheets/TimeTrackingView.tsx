@@ -40,6 +40,7 @@ import {
 } from "@/lib/time/week-constants";
 import type { TimesheetStatus } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
+import type { TimeTrackingData } from "@/types/time-tracking";
 import {
   getTimeTrackingData,
   submitTimesheetForApproval,
@@ -86,10 +87,48 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
   };
 }
 
+function entriesGrouped(entries: TimeEntryWithProject[]): Record<string, DraftEntry[]> {
+  const grouped: Record<string, DraftEntry[]> = {};
+  for (const e of entries) {
+    grouped[e.entry_date] = grouped[e.entry_date] ?? [];
+    grouped[e.entry_date]!.push(entryToDraft(e));
+  }
+  return grouped;
+}
+
+function applyTrackingData(
+  data: TimeTrackingData,
+  setters: {
+    setTimesheetId: (v: string) => void;
+    setOrgId: (v: string) => void;
+    setEmployeeId: (v: string) => void;
+    setStatus: (v: TimesheetStatus) => void;
+    setProjects: (v: Project[]) => void;
+    setWeek: (v: PayPeriod) => void;
+    setRate: (v: number | null) => void;
+    setRateType: (v: string) => void;
+    setCurrency: (v: string | null) => void;
+    setEntriesByDay: (v: Record<string, DraftEntry[]>) => void;
+  },
+) {
+  setters.setTimesheetId(data.timesheetId);
+  setters.setOrgId(data.orgId);
+  setters.setEmployeeId(data.employeeId);
+  setters.setStatus(data.status);
+  setters.setProjects(data.projects);
+  setters.setWeek(data.week);
+  setters.setRate(data.rate);
+  setters.setRateType(data.rateType);
+  setters.setCurrency(data.currency);
+  setters.setEntriesByDay(entriesGrouped(data.entries));
+}
+
 export function TimeTrackingView({
   initialWeekMonday,
+  initialData,
 }: {
   initialWeekMonday?: string;
+  initialData?: TimeTrackingData | null;
 }) {
   const { toast } = useToast();
   const [weekMonday, setWeekMonday] = useState(
@@ -108,7 +147,9 @@ export function TimeTrackingView({
   const [rateType, setRateType] = useState("hourly");
   const [currency, setCurrency] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
+  const skipInitialFetch = useRef(Boolean(initialData));
+  const ssrWeekMonday = initialWeekMonday ?? thisWeekMonday();
 
   const entriesByDayRef = useRef(entriesByDay);
   const timesheetIdRef = useRef(timesheetId);
@@ -163,27 +204,44 @@ export function TimeTrackingView({
       toast(res.message || "Couldn't load time entries.", "error");
       return;
     }
-    setTimesheetId(res.timesheetId);
-    setOrgId(res.orgId);
-    setEmployeeId(res.employeeId);
-    setStatus(res.status);
-    setProjects(res.projects);
-    setWeek(res.week);
-    setRate(res.rate);
-    setRateType(res.rateType);
-    setCurrency(res.currency);
-
-    const grouped: Record<string, DraftEntry[]> = {};
-    for (const e of res.entries) {
-      grouped[e.entry_date] = grouped[e.entry_date] ?? [];
-      grouped[e.entry_date]!.push(entryToDraft(e));
-    }
-    setEntriesByDay(grouped);
+    applyTrackingData(res, {
+      setTimesheetId,
+      setOrgId,
+      setEmployeeId,
+      setStatus,
+      setProjects,
+      setWeek,
+      setRate,
+      setRateType,
+      setCurrency,
+      setEntriesByDay,
+    });
   }, [weekMonday, toast]);
 
   useEffect(() => {
+    if (
+      skipInitialFetch.current &&
+      initialData &&
+      weekMonday === ssrWeekMonday
+    ) {
+      skipInitialFetch.current = false;
+      applyTrackingData(initialData, {
+        setTimesheetId,
+        setOrgId,
+        setEmployeeId,
+        setStatus,
+        setProjects,
+        setWeek,
+        setRate,
+        setRateType,
+        setCurrency,
+        setEntriesByDay,
+      });
+      setLoading(false);
+      return;
+    }
     load();
-  }, [load]);
+  }, [load, weekMonday, initialData, ssrWeekMonday]);
 
   useEffect(() => {
     const timers = debounceTimers.current;

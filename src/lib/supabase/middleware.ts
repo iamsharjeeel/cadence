@@ -41,29 +41,34 @@ export async function updateSession(request: NextRequest) {
   const isLogin = pathname === "/login";
   const isHome = pathname === "/";
 
-  if (!user && (isApp || isPending)) {
+  if (isPending) {
+    const url = request.nextUrl.clone();
+    url.pathname = isLogin ? "/login" : user ? "/app/dashboard" : "/login";
+    return NextResponse.redirect(url);
+  }
+
+  if (!user && isApp) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
   if (user) {
-    if (isApp || isPending || isLogin || isHome) {
+    if (isApp || isLogin || isHome) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("status, role, onboarding_complete")
         .eq("id", user.id)
         .single();
 
-      const status = profile?.status ?? "pending";
-      const blocked = status === "pending" || status === "suspended";
-      const role = profile?.role ?? "employee";
+      const suspended = profile?.status === "suspended";
       const needsOnboarding =
-        status === "active" && !profile?.onboarding_complete;
+        profile?.status === "active" && !profile?.onboarding_complete;
 
-      if (isApp && blocked) {
+      if (isApp && suspended) {
         const url = request.nextUrl.clone();
-        url.pathname = "/pending";
+        url.pathname = "/login";
+        url.searchParams.set("error", "suspended");
         return NextResponse.redirect(url);
       }
 
@@ -73,13 +78,13 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
 
-      if (isOnboarding && (profile?.onboarding_complete || blocked)) {
+      if (isOnboarding && (profile?.onboarding_complete || suspended)) {
         const url = request.nextUrl.clone();
         url.pathname = "/app/dashboard";
         return NextResponse.redirect(url);
       }
 
-      if ((isPending || isLogin || isHome) && !blocked) {
+      if ((isLogin || isHome) && !suspended) {
         const url = request.nextUrl.clone();
         url.pathname = needsOnboarding
           ? "/app/onboarding"

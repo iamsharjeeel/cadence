@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { MotionModal } from "@/components/motion/MotionModal";
 import { useToast } from "@/components/ui/Toast";
 import { countBusinessDays } from "@/lib/leave/days";
@@ -90,17 +91,15 @@ export function RequestLeaveModal({
             ))}
           </select>
         </label>
-        <Input
+        <DatePicker
           label="Start date"
-          type="date"
           value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
+          onChange={setStartDate}
         />
-        <Input
+        <DatePicker
           label="End date"
-          type="date"
           value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
+          onChange={setEndDate}
         />
         <label className="flex items-center gap-2 text-sm">
           <input

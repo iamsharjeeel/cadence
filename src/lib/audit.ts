@@ -8,6 +8,7 @@ export type AuditAction =
   | "profile.role_change"
   | "profile.rate_change"
   | "profile.status_change"
+  | "member_invited"
   | "org.create"
   | "org.update"
   | "org_settings_updated"

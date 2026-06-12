@@ -9,14 +9,13 @@ import { useToast } from "@/components/ui/Toast";
 import { fieldBase } from "@/components/ui/Input";
 import { cn, titleCase } from "@/lib/utils";
 import {
-  approveMember,
   setEmployeeBanking,
   setRate,
   setRole,
   setStatus,
   type ActionResult,
 } from "./actions";
-import type { RateType } from "@/types/db";
+import type { RateType, UserRole, UserStatus } from "@/types/db";
 import { RATE_TYPES } from "@/types/db";
 
 /** Surfaces a server-action result as a toast, once per change. */
@@ -31,27 +30,27 @@ function useResultToast(state: ActionResult | null) {
   }, [state, toast]);
 }
 
-export function ApproveButton({ id }: { id: string }) {
-  const [state, action] = useFormState(approveMember, null);
-  useResultToast(state);
-  return (
-    <form action={action}>
-      <input type="hidden" name="id" value={id} />
-      <SubmitButton size="sm">Approve</SubmitButton>
-    </form>
-  );
-}
-
 export function RoleSelect({
   id,
   current,
+  actorRole,
 }: {
   id: string;
-  current: "admin" | "employee";
+  current: "owner" | "admin" | "employee";
+  actorRole: UserRole;
 }) {
   const [state, action] = useFormState(setRole, null);
   useResultToast(state);
   const formRef = useRef<HTMLFormElement>(null);
+  const options =
+    actorRole === "admin"
+      ? [{ value: "employee", label: "Employee" }]
+      : [
+          { value: "owner", label: "Owner" },
+          { value: "admin", label: "Manager" },
+          { value: "employee", label: "Employee" },
+        ];
+
   return (
     <form ref={formRef} action={action}>
       <input type="hidden" name="id" value={id} />
@@ -59,10 +58,13 @@ export function RoleSelect({
         name="role"
         defaultValue={current}
         onChange={() => formRef.current?.requestSubmit()}
-        className={cn(fieldBase, "h-9 w-32 text-sm")}
+        className={cn(fieldBase, "h-9 w-36 text-sm")}
       >
-        <option value="employee">Employee</option>
-        <option value="admin">Admin</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
       </select>
     </form>
   );

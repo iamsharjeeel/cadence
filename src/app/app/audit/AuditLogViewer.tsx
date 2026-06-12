@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Select } from "@/components/ui/Select";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { summarizePayload } from "@/lib/audit/summarize";
@@ -127,17 +128,17 @@ export function AuditLogViewer({
             Apply
           </Button>
         </div>
-        <Input
+        <DatePicker
           label="From"
-          type="date"
           value={filters.from}
-          onChange={(e) => updateFilter("from", e.target.value)}
+          onChange={(v) => updateFilter("from", v)}
+          className="h-9 text-sm"
         />
-        <Input
+        <DatePicker
           label="To"
-          type="date"
           value={filters.to}
-          onChange={(e) => updateFilter("to", e.target.value)}
+          onChange={(v) => updateFilter("to", v)}
+          className="h-9 text-sm"
         />
         <Button
           variant="secondary"

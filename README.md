@@ -59,7 +59,15 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - Weekly submission (Mon–Sun): log time at `/app/timesheets/log` with auto-save via Supabase browser client (RLS-scoped)
 - Seven-day view (weekends optional); submit gate: 5 days logged or 40 hours; overtime flagged for manager review
 - Draft rows persist only with valid start/end; overlap guard excludes self and invalid DB rows
+- Branded **TimePicker** and **DatePicker** components (gold accent, Framer Motion popovers) replace native time/date inputs app-wide
+- SSR prefetch on timesheet log pages for near-instant first paint (no client waterfall on load)
 - Projects, trends, admin live draft visibility, time-log reminders
+
+### Phase 8 — Invites, roles & onboarding
+- **Owner** role (`owner | admin | employee | superadmin`); UI labels `admin` as “Manager”
+- **Invite flow:** owners/managers send email invites from `/app/employees`; Resend delivery; invite redeemed on Google OAuth sign-in
+- **No pending gate:** new sign-ups land **active** immediately (invite redemption or domain match); onboarding wizard when incomplete
+- **Suspended-only block:** middleware and auth redirect suspended users to login with an error banner
 
 ## Getting started
 
@@ -91,6 +99,11 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 1. `supabase/migrations/20260611000000_phase4_documents.sql`
 2. `supabase/migrations/20260612000000_phase5_leave_onboarding_docs.sql`
 3. `supabase/migrations/20260613000000_phase6_notifications_org_logos.sql`
+4. `supabase/migrations/20260614000000_security_rls_storage.sql`
+5. `supabase/migrations/20260615000000_org_logos_bucket.sql`
+6. `supabase/migrations/20260616000000_phase7_time_tracking.sql`
+7. `supabase/migrations/20260617000000_time_entries_perf_index.sql` (optional perf index)
+8. `supabase/migrations/20260619000000_org_invites_owner_role.sql` — **required for invite flow**
 
 ## License
 

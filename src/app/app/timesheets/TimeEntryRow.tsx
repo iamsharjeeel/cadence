@@ -6,6 +6,7 @@ import { Check, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { fieldBase } from "@/components/ui/Input";
+import { TimePicker } from "@/components/ui/TimePicker";
 import { MotionModal } from "@/components/motion/MotionModal";
 import { cn } from "@/lib/utils";
 import { hoursBetween, isOvernightShift } from "@/lib/time/validation";
@@ -35,11 +36,6 @@ const ROW_MOTION = {
   exit: { opacity: 0, height: 0 },
   transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
 };
-
-const timeInputClass = cn(
-  fieldBase,
-  "h-9 w-[7.5rem] flex-none px-2.5 text-sm tnum",
-);
 
 function BillableToggle({
   checked,
@@ -276,29 +272,25 @@ export function TimeEntryRow({
           All four are direct siblings; chip cannot overlap the inputs.
         */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-          <input
-            type="time"
+          <TimePicker
             value={entry.start_time}
             disabled={!editable}
-            onChange={(e) =>
-              onPatch({ start_time: e.target.value, saveState: "idle" })
+            onChange={(value) =>
+              onPatch({ start_time: value, saveState: "idle" })
             }
-            onBlur={(e) => onBlurField("start_time", e.target.value)}
-            className={timeInputClass}
+            onBlur={() => onBlurField("start_time", entry.start_time)}
             aria-label="Start time"
           />
           <span className="flex-none select-none text-sm text-muted" aria-hidden>
             –
           </span>
-          <input
-            type="time"
+          <TimePicker
             value={entry.end_time}
             disabled={!editable}
-            onChange={(e) =>
-              onPatch({ end_time: e.target.value, saveState: "idle" })
+            onChange={(value) =>
+              onPatch({ end_time: value, saveState: "idle" })
             }
-            onBlur={(e) => onBlurField("end_time", e.target.value)}
-            className={timeInputClass}
+            onBlur={() => onBlurField("end_time", entry.end_time)}
             aria-label="End time"
           />
           {/* Duration chip — explicit sibling, never nested inside time inputs */}

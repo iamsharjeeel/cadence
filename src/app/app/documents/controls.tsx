@@ -7,6 +7,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
 import {
   DOCUMENT_STATUSES,
@@ -148,18 +149,16 @@ export function DocumentFilters({
           ]}
         />
       )}
-      <Input
+      <DatePicker
         label="From"
-        type="date"
         value={from}
-        onChange={(e) => setParam("from", e.target.value)}
+        onChange={(v) => setParam("from", v)}
         className="h-9 w-40 text-sm"
       />
-      <Input
+      <DatePicker
         label="To"
-        type="date"
         value={to}
-        onChange={(e) => setParam("to", e.target.value)}
+        onChange={(v) => setParam("to", v)}
         className="h-9 w-40 text-sm"
       />
     </div>

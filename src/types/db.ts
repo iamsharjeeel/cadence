@@ -507,6 +507,39 @@ export type Database = {
           },
         ]
       }
+      org_invites: {
+        Row: {
+          id: string
+          org_id: string
+          email: string
+          role: Database["public"]["Enums"]["user_role"]
+          invited_by: string
+          created_at: string
+          expires_at: string
+          accepted_at: string | null
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          email: string
+          role?: Database["public"]["Enums"]["user_role"]
+          invited_by: string
+          created_at?: string
+          expires_at?: string
+          accepted_at?: string | null
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          email?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          invited_by?: string
+          created_at?: string
+          expires_at?: string
+          accepted_at?: string | null
+        }
+        Relationships: []
+      }
       leave_types: {
         Row: {
           category: string
@@ -827,7 +860,7 @@ export type Database = {
     Enums: {
       period_cadence: "weekly" | "biweekly" | "monthly"
       rate_type: "hourly" | "salaried" | "fixed"
-      user_role: "superadmin" | "admin" | "employee"
+      user_role: "superadmin" | "owner" | "admin" | "employee"
       user_status: "pending" | "active" | "suspended"
     }
     CompositeTypes: {
@@ -958,7 +991,7 @@ export const Constants = {
     Enums: {
       period_cadence: ["weekly", "biweekly", "monthly"],
       rate_type: ["hourly", "salaried", "fixed"],
-      user_role: ["superadmin", "admin", "employee"],
+      user_role: ["superadmin", "owner", "admin", "employee"],
       user_status: ["pending", "active", "suspended"],
     },
   },

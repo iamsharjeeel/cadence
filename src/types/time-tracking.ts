@@ -1,9 +1,27 @@
-import type { Project, TimeEntry } from "@/types/db";
+import type { Project, TimeEntry, TimesheetStatus } from "@/types/db";
+import type { PayPeriod } from "@/lib/time/periods";
+import type { WeekStats } from "@/lib/time/week-constants";
 
 export type { Project, TimeEntry };
 
 export type TimeEntryWithProject = TimeEntry & {
   project?: Pick<Project, "id" | "name" | "color"> | null;
+};
+
+export type TimeTrackingData = {
+  ok: true;
+  timesheetId: string;
+  orgId: string;
+  employeeId: string;
+  status: TimesheetStatus;
+  entries: TimeEntryWithProject[];
+  projects: Project[];
+  week: PayPeriod;
+  isoWeek: string;
+  weekStats: WeekStats;
+  rate: number | null;
+  rateType: string;
+  currency: string | null;
 };
 
 export const PROJECT_PRESET_COLORS = [
