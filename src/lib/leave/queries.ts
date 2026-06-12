@@ -44,7 +44,7 @@ export async function getLeaveBalancesForEmployee(
     leave_type: {
       name: typeMap.get(r.leave_type_id)?.name ?? "—",
       category: typeMap.get(r.leave_type_id)?.category ?? "custom",
-      color: typeMap.get(r.leave_type_id)?.color ?? "#1F8A8A",
+      color: typeMap.get(r.leave_type_id)?.color ?? "#B8862F",
     },
   }));
 }
@@ -68,7 +68,7 @@ export async function getLeaveRequestsForEmployee(
       ...r,
       leave_type: {
         name: lt?.name ?? "—",
-        color: lt?.color ?? "#1F8A8A",
+        color: lt?.color ?? "#B8862F",
         category: lt?.category ?? "custom",
       },
     };
@@ -117,7 +117,7 @@ export async function getPendingLeaveRequests(
       ...r,
       leave_type: {
         name: lt?.name ?? "—",
-        color: lt?.color ?? "#1F8A8A",
+        color: lt?.color ?? "#B8862F",
         category: lt?.category ?? "custom",
       },
       employee_name: nameById.get(r.employee_id),

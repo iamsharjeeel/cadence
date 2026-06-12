@@ -26,19 +26,19 @@ type AdminTrends = Awaited<
 >;
 
 const CHART_COLORS = [
-  "#1F8A8A",
+  "#B8862F",
   "#6B6F76",
-  "#157070",
-  "#2AA6A6",
-  "#4A9E9E",
-  "#8AB8B8",
-  "#3D7A7A",
+  "#A0751F",
+  "#C9973F",
+  "#D4A84A",
+  "#E8C87A",
+  "#8C6520",
   "#5C636A",
 ];
 
 export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
   const { resolvedTheme } = useTheme();
-  const primary = resolvedTheme === "dark" ? "#2AA6A6" : "#1F8A8A";
+  const primary = resolvedTheme === "dark" ? "#C9973F" : "#B8862F";
   const secondary = "#6B6F76";
   const reducedMotion =
     typeof window !== "undefined" &&
@@ -93,7 +93,7 @@ export function AdminTrendsView({
   adminData: AdminTrends;
 }) {
   const { resolvedTheme } = useTheme();
-  const primary = resolvedTheme === "dark" ? "#2AA6A6" : "#1F8A8A";
+  const primary = resolvedTheme === "dark" ? "#C9973F" : "#B8862F";
   const reducedMotion =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;

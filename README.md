@@ -24,7 +24,7 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - Multi-tenant orgs with domain-gated Google OAuth
 - Three roles: superadmin, admin, employee
 - Profile and employee management with audit logging
-- Quiet-luxury design system (Mineral Teal accent, Space Grotesk + Inter)
+- Quiet-luxury design system (Warm Gold accent, Space Grotesk + Inter, true-black dark mode)
 
 ### Phase 2 — Timesheets
 - Three-method upload pipeline (file / paste / Google Sheet)

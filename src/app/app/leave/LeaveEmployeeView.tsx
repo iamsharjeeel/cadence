@@ -47,7 +47,7 @@ function buildDisplayBalances(
         leave_type: {
           name: lt.name,
           category: lt.category,
-          color: lt.color ?? "#1F8A8A",
+          color: lt.color ?? "#B8862F",
         },
       } as BalanceWithType;
     });
@@ -148,7 +148,7 @@ export function LeaveEmployeeView({
                   <CardTitle className="text-sm font-medium">
                     <span
                       className="mr-2 inline-block h-2 w-2 rounded-full"
-                      style={{ background: b.leave_type.color ?? "#1F8A8A" }}
+                      style={{ background: b.leave_type.color ?? "#B8862F" }}
                     />
                     {b.leave_type.name}
                   </CardTitle>
@@ -206,8 +206,8 @@ export function LeaveEmployeeView({
                   style={
                     hit
                       ? {
-                          background: `${hit.leave_type.color ?? "#1F8A8A"}22`,
-                          borderLeft: `3px solid ${hit.leave_type.color ?? "#1F8A8A"}`,
+                          background: `${hit.leave_type.color ?? "#B8862F"}22`,
+                          borderLeft: `3px solid ${hit.leave_type.color ?? "#B8862F"}`,
                         }
                       : undefined
                   }

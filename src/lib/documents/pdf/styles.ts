@@ -15,7 +15,7 @@ export const pdfStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 700,
     marginBottom: 16,
-    color: "#1F8A8A",
+    color: "#B8862F",
   },
   h2: {
     fontSize: 12,
@@ -31,7 +31,7 @@ export const pdfStyles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "rgba(31,138,138,0.08)",
+    backgroundColor: "rgba(184,134,47,0.08)",
     padding: 6,
     fontWeight: 700,
   },

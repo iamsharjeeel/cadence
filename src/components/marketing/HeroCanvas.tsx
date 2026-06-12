@@ -18,7 +18,7 @@ export function HeroCanvas({ heroRef }: { heroRef: React.RefObject<HTMLElement |
 
     const reduced = prefersReducedMotion();
     const isDark = resolvedTheme === "dark";
-    const color = isDark ? 0x2aa6a6 : 0x1f8a8a;
+    const color = isDark ? 0xc9973f : 0xb8862f;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);

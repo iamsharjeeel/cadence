@@ -39,12 +39,13 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 
 ## Design system — "Quiet luxury for data"
 - **Theme:** light-default + dark mode. Reference: Linear × Mercury × Vercel.
-- **Accent:** Mineral Teal `#1F8A8A` (soft `rgba(31,138,138,0.12)`, strong `#157070`). Dark mode: `#2AA6A6`.
+- **Accent:** Warm Gold `#B8862F` (soft `rgba(184,134,47,0.12)`, strong/hover `#A0751F`). Dark mode: `#C9973F`.
 - **Light tokens:** bg `#FBFBF9`, surface `#FFFFFF`, ink `#14151A`, muted `#6B6F76`, line `rgba(20,21,26,0.08)`, radius 16px.
-- **Dark tokens:** bg `#0E0F12`, surface `#16181D`, ink `#EDEDEA`, hairline borders low-opacity white.
+- **Dark tokens:** bg `#000000` (true black), surface `#0D0D0D`, ink `#EDEDEA`, muted `#6B6F76`, line `rgba(237,237,234,0.08)`.
+- **CSS vars:** `--accent`, `--accent-soft`, `--accent-strong` (= hover); dark overrides in `.dark`.
 - **Type:** Space Grotesk for headings + ALL numbers (`tabular-nums`); Inter for body/UI.
-- **Motion (GSAP):** fade+rise route transitions (~300ms power2.out), staggered list reveals, number count-ups, subtle button lift. Respect `prefers-reduced-motion`.
-- **Charts:** `recharts`. Teal `#1F8A8A` primary series, muted `#6B6F76` secondary. Dark mode: `#2AA6A6`.
+- **Motion:** Framer Motion in app shell; GSAP for landing hero only.
+- **Charts:** `recharts`. Gold `#B8862F` primary series, muted `#6B6F76` secondary. Dark mode: `#C9973F`.
 - **Cards:** surface bg, 1px hairline border, 16–18px radius, soft diffuse shadow only.
 
 ## Database schema (all live in Supabase)
@@ -806,6 +807,25 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 
 #### Entry row rebuild
 - `TimeEntryRow.tsx`: stacked layout — times + duration chip (separate, never overlapping inputs), project dot inline, description, billable toggle, save state, delete. Framer Motion 160ms.
+
+### Task A — Accent swap + dark mode ✅
+
+#### A1 — Warm Gold token swap
+- All Mineral Teal values (`#1F8A8A`, `#2AA6A6`, `rgba(31,138,138,*)`, `#157070`, `#4FC3C3`) replaced with Warm Gold throughout the codebase.
+- `globals.css`: `--accent #B8862F`, `--accent-soft rgba(184,134,47,0.12)`, `--accent-strong #A0751F` (light); `--accent #C9973F`, `--accent-soft rgba(201,151,63,0.16)`, `--accent-strong #B8862F` (dark).
+- Charts: `DashboardCharts.tsx`, `TrendsCharts.tsx` — primary series gold (`#B8862F` / `#C9973F`).
+- `OrgLogo.tsx` fallback placeholder: `bg-[var(--accent)]` (token-driven, not hardcoded).
+- `HeroCanvas.tsx` particle color: `0xB8862F` (light) / `0xC9973F` (dark).
+- PDF styles (`pdf/styles.ts`) and email HTML (`generate.tsx`): `#B8862F`.
+- Leave seeds, fallback colors, settings defaults: `#B8862F` / `#A0751F`.
+- `PROJECT_PRESET_COLORS[0]`: `#B8862F`.
+
+#### A2 — True black dark mode
+- Dark bg: `#000000`, surface: `#0D0D0D`. Visually distinct: surface has subtle `#0D0D0D` warmth against pure black bg.
+- Dark muted: `#6B6F76` (same as light per spec); line: `rgba(237,237,234,0.08)`.
+
+#### A3 — Duration chip layout (already clean)
+- `TimeEntryRow.tsx` chip is a sibling flex item outside the time-inputs container — never overlapping. Confirmed no change needed.
 
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)

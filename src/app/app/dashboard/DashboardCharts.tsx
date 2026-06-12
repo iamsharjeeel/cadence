@@ -13,8 +13,8 @@ import {
   YAxis,
 } from "recharts";
 
-const TEAL_LIGHT = "#1F8A8A";
-const TEAL_DARK = "#2AA6A6";
+const TEAL_LIGHT = "#B8862F";
+const TEAL_DARK = "#C9973F";
 const MUTED = "#6B6F76";
 
 function chartColors(resolvedTheme: string | undefined) {

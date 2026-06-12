@@ -13,9 +13,9 @@
   --muted: #6b6f76;
   --line: rgba(20, 21, 26, 0.08);
 
-  --accent: #1f8a8a; /* Mineral Teal */
-  --accent-soft: rgba(31, 138, 138, 0.12);
-  --accent-strong: #157070;
+  --accent: #b8862f; /* Warm Gold */
+  --accent-soft: rgba(184, 134, 47, 0.12);
+  --accent-strong: #a0751f;
 
   --danger: #b3261e;
   --danger-soft: rgba(179, 38, 30, 0.1);
@@ -24,15 +24,15 @@
 }
 
 .dark {
-  --bg: #0e0f12;
-  --surface: #16181d;
+  --bg: #000000;
+  --surface: #0d0d0d;
   --ink: #ededea;
-  --muted: #9a9ea6;
-  --line: rgba(255, 255, 255, 0.08);
+  --muted: #6b6f76;
+  --line: rgba(237, 237, 234, 0.08);
 
-  --accent: #2aa6a6; /* slightly brightened teal for dark */
-  --accent-soft: rgba(42, 166, 166, 0.16);
-  --accent-strong: #4fc3c3;
+  --accent: #c9973f; /* Warm Gold — dark mode */
+  --accent-soft: rgba(201, 151, 63, 0.16);
+  --accent-strong: #b8862f;
 
   --danger: #f2655c;
   --danger-soft: rgba(242, 101, 92, 0.14);

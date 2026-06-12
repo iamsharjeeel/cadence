@@ -241,7 +241,7 @@ export async function generateAndEmailDocument(params: {
       subject: `Your ${typeLabel} — ${period} — ${docNumber}`,
       html: `
         <div style="font-family: Inter, sans-serif; color: #14151A; max-width: 520px;">
-          <p style="font-size: 18px; font-weight: 600; color: #1F8A8A;">Cadence</p>
+          <p style="font-size: 18px; font-weight: 600; color: #B8862F;">Cadence</p>
           <p>Hi ${employee.full_name?.split(" ")[0] ?? "there"},</p>
           <p>Your ${typeLabel.toLowerCase()} for <strong>${period}</strong> is attached.</p>
           <p style="color: #6B6F76; font-size: 14px;">Document: ${docNumber}<br/>Total: ${totalLabel}</p>

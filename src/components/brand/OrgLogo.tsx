@@ -37,7 +37,7 @@ export function OrgLogo({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center bg-[#1F8A8A] font-semibold text-white",
+        "flex shrink-0 items-center justify-center bg-[var(--accent)] font-semibold text-white",
         SIZES[size],
         className,
       )}

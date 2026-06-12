@@ -55,7 +55,7 @@ export async function upsertLeaveType(
   if (!categoryV.ok) return { ok: false, message: categoryV.error };
   const category = categoryV.value;
 
-  const color = String(formData.get("color") ?? "#1F8A8A").trim();
+  const color = String(formData.get("color") ?? "#B8862F").trim();
   const defaultDaysRaw = formData.get("default_days_per_year");
   let defaultDaysPerYear: number | null = null;
   if (defaultDaysRaw) {

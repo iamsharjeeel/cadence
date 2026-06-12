@@ -7,7 +7,7 @@ const DEFAULT_TYPES = [
     name: "Annual Leave",
     category: "annual",
     default_days_per_year: 20,
-    color: "#1F8A8A",
+    color: "#B8862F",
   },
   {
     name: "Sick Leave",
@@ -25,7 +25,7 @@ const DEFAULT_TYPES = [
     name: "Public Holiday",
     category: "public_holiday",
     default_days_per_year: null,
-    color: "#157070",
+    color: "#A0751F",
   },
 ] as const;
 

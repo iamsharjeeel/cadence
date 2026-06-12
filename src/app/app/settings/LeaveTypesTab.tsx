@@ -100,7 +100,7 @@ export function LeaveTypesTab({
               <TD>
                 <span
                   className="inline-block h-4 w-4 rounded-full"
-                  style={{ background: t.color ?? "#1F8A8A" }}
+                  style={{ background: t.color ?? "#B8862F" }}
                 />
               </TD>
               <TD className="text-sm">{t.is_active ? "Yes" : "No"}</TD>
@@ -135,7 +135,7 @@ export function LeaveTypesTab({
           type="number"
           step="0.5"
         />
-        <Input label="Color" name="color" defaultValue="#1F8A8A" />
+        <Input label="Color" name="color" defaultValue="#B8862F" />
         <label className="flex items-center gap-2 text-sm sm:col-span-2">
           <input
             type="checkbox"

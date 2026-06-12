@@ -7,7 +7,7 @@ export type TimeEntryWithProject = TimeEntry & {
 };
 
 export const PROJECT_PRESET_COLORS = [
-  "#1F8A8A",
+  "#B8862F",
   "#2563EB",
   "#7C3AED",
   "#DB2777",
