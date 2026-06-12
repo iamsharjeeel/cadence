@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from "@/components/ui/Card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
-import { Badge, TimesheetStatusPill } from "@/components/ui/Badge";
+import { Badge, OvertimeBadge, TimesheetStatusPill } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { requireActiveProfile, hasRole } from "@/lib/auth";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
@@ -173,10 +173,15 @@ export default async function TimesheetDetailPage({
             <span className="text-xs uppercase tracking-wide text-muted">
               Status
             </span>
-            <TimesheetStatusPill
-              status={status}
-              live={canApprove && status === "draft"}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <TimesheetStatusPill
+                status={status}
+                live={canApprove && status === "draft"}
+              />
+              {timesheet.has_overtime && timesheet.overtime_hours > 0 && (
+                <OvertimeBadge hours={timesheet.overtime_hours} />
+              )}
+            </div>
           </CardContent>
         </Card>
         <Card>

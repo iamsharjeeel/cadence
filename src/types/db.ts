@@ -234,8 +234,10 @@ export type Database = {
           created_at: string
           currency_snapshot: string | null
           employee_id: string
+          has_overtime: boolean
           id: string
           org_id: string
+          overtime_hours: number
           period_end: string
           period_start: string
           rate_snapshot: number | null
@@ -252,8 +254,10 @@ export type Database = {
           created_at?: string
           currency_snapshot?: string | null
           employee_id: string
+          has_overtime?: boolean
           id?: string
           org_id: string
+          overtime_hours?: number
           period_end: string
           period_start: string
           rate_snapshot?: number | null
@@ -270,8 +274,10 @@ export type Database = {
           created_at?: string
           currency_snapshot?: string | null
           employee_id?: string
+          has_overtime?: boolean
           id?: string
           org_id?: string
+          overtime_hours?: number
           period_end?: string
           period_start?: string
           rate_snapshot?: number | null
@@ -711,7 +717,8 @@ export type Database = {
           start_time: string
           end_time: string
           is_overnight?: boolean
-          total_hours: number
+          /** Generated column — omit on insert. */
+          total_hours?: number
           description?: string | null
           billable?: boolean
           created_at?: string

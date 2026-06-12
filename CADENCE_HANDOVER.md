@@ -59,10 +59,10 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - `organizations`: id, name, slug, base_currency, allowed_domains[], default_cadence, logo_url, created_at
 - `profiles`: id=auth.users.id, org_id, full_name, email, role, status, rate, rate_type, currency, bank_name, bank_account_name, bank_account_number (encrypted), bank_bsb_swift (encrypted), tax_id, address, payment_terms_days, created_at
 - `audit_log`: id, org_id, actor_id, action, entity, payload jsonb, created_at
-- `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), raw_file_path (legacy upload path), rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, created_at, updated_at
+- `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), has_overtime, overtime_hours, raw_file_path (legacy upload path), rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, created_at, updated_at
 - `timesheet_rows`: id, timesheet_id, org_id, row_date, hours, project, description, billable, created_at — **legacy** (pre–Phase 7 uploads); kept for historical rows
 - `projects`: id, org_id, owner_id, name, color, is_org_wide, is_active, created_at — org-wide or personal projects for time entry
-- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, entry_date, start_time, end_time, is_overnight, total_hours, description, billable, created_at, updated_at — in-app time logging (replaces upload flow)
+- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, entry_date, start_time, end_time, is_overnight, total_hours (generated column — never written from client), description, billable, created_at, updated_at — in-app time logging (replaces upload flow)
 - `webhook_deliveries`: id, org_id, timesheet_id, payload jsonb, status (pending|delivered|failed), attempts, last_attempted_at, delivered_at, created_at
 - `documents`: id, org_id, timesheet_id, employee_id, type (pay_advice|invoice), status (draft|in_progress|verified|corrections_needed), document_number, gst_enabled, gst_rate, subtotal, gst_amount, total, currency, file_path, emailed_at, generated_by, status_changed_by, status_changed_at, created_at, updated_at
 
@@ -737,6 +737,29 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 #### UI
 - Days logged counts distinct dates with saved entries or complete start/end times
 - Page title: `Log time · Cadence` on `/app/timesheets/log` and employee `/app/timesheets`
+
+### Phase 7 — Weekly submission model ✅
+
+**Issues #1, #2, #3 — RESOLVED** (core log → submit loop)
+
+#### Model
+- **Submission unit is the calendar week (Mon–Sun).** `period_start` = Monday, `period_end` = Sunday.
+- Org `default_cadence` no longer gates submission; it only affects pay-doc grouping later.
+- Partial unique index: one active timesheet per `(employee_id, period_start)` for status in `draft` / `submitted` / `rejected`.
+- `timesheets.has_overtime` + `timesheets.overtime_hours` set server-side on submit when total hours > 40.
+
+#### `/app/timesheets/log` (and employee `/app/timesheets`)
+- Weekly nav: Prev week / This week / Next week; header shows Mon–Sun range + ISO week label.
+- Fetch-or-create draft timesheet for `(employee, week Monday)` via `ensureTimesheetForWeek` (handles unique-index race with `23505` retry).
+- Mon–Fri working-day rows; multiple entries per day; auto-save on blur (~600ms debounce) + per-row Save button.
+- Per-row save state: idle / saving / saved / error (retry on error).
+- Submit gate (server-enforced): `days_logged >= 5 OR total_hours >= 40`; progress shown as `4 / 5 days · 32.0 / 40.0h`.
+- Overtime notice before submit when > 40h; manager sees `Overtime +X.Xh` badge on list + detail.
+
+#### Key files
+- `src/lib/time/week-constants.ts` — shared submit thresholds + `WeekStats` type
+- `src/lib/time/week-stats.ts` — server-side `computeWeekStats`, `canSubmitWeek`, `overtimeHours`
+- `src/lib/time/periods.ts` — `mondayOfWeek`, `weekPeriodFromMonday`, `isoWeekLabel`, `workingWeekDays`
 
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)

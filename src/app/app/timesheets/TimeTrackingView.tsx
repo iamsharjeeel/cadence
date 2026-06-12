@@ -10,7 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { TimesheetStatusPill } from "@/components/ui/Badge";
@@ -18,14 +18,20 @@ import { useToast } from "@/components/ui/Toast";
 import { CountUp } from "@/components/motion/CountUp";
 import { hoursBetween, isOvernightShift } from "@/lib/time/validation";
 import {
-  defaultWeekStart,
-  shiftPeriod,
+  isoWeekLabel,
+  shiftWeekMonday,
+  thisWeekMonday,
   toIsoDate,
-  weekDaysInPeriod,
-  countWorkingDays,
+  workingWeekDays,
   type PayPeriod,
 } from "@/lib/time/periods";
-import type { PeriodCadence, TimesheetStatus } from "@/types/db";
+import {
+  OVERTIME_HOURS_THRESHOLD,
+  SUBMIT_MIN_DAYS,
+  SUBMIT_MIN_HOURS,
+  type WeekStats,
+} from "@/lib/time/week-constants";
+import type { TimesheetStatus } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
 import {
   deleteTimeEntry,
@@ -34,6 +40,8 @@ import {
   upsertTimeEntry,
 } from "./time-actions";
 import { createProject } from "../projects/actions";
+
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 type DraftEntry = {
   clientId: string;
@@ -45,20 +53,12 @@ type DraftEntry = {
   description: string;
   billable: boolean;
   overnightConfirmed?: boolean;
+  saveState: SaveState;
   error?: string;
-  saving?: boolean;
 };
 
 function formatTime(value: string): string {
   return value.slice(0, 5);
-}
-
-function mondayOfWeek(iso: string): string {
-  const d = new Date(iso);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return toIsoDate(d);
 }
 
 function newDraft(date: string, lastEnd?: string): DraftEntry {
@@ -70,6 +70,7 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
     project_id: null,
     description: "",
     billable: true,
+    saveState: "idle",
   };
 }
 
@@ -84,46 +85,96 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
     description: e.description ?? "",
     billable: e.billable,
     overnightConfirmed: e.is_overnight,
+    saveState: "saved",
   };
 }
 
-export function TimeTrackingView({
-  initialPeriod,
-  cadence,
+function EntrySaveIndicator({
+  state,
+  error,
+  onRetry,
 }: {
-  initialPeriod: PayPeriod;
-  cadence: PeriodCadence;
+  state: SaveState;
+  error?: string;
+  onRetry?: () => void;
+}) {
+  if (state === "saving") {
+    return <span className="text-xs text-muted">Saving…</span>;
+  }
+  if (state === "saved") {
+    return (
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="text-xs font-medium text-[var(--accent-strong)]"
+      >
+        Saved
+      </motion.span>
+    );
+  }
+  if (state === "error") {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-[var(--danger)]">{error ?? "Couldn't save"}</span>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="text-xs font-medium text-[var(--accent-strong)] hover:underline"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    );
+  }
+  return null;
+}
+
+export function TimeTrackingView({
+  initialWeekMonday,
+}: {
+  initialWeekMonday?: string;
 }) {
   const { toast } = useToast();
-  const [period, setPeriod] = useState(initialPeriod);
-  const [weekStart, setWeekStart] = useState(defaultWeekStart(initialPeriod));
+  const [weekMonday, setWeekMonday] = useState(
+    initialWeekMonday ?? thisWeekMonday(),
+  );
+  const [week, setWeek] = useState<PayPeriod | null>(null);
   const [timesheetId, setTimesheetId] = useState("");
   const [status, setStatus] = useState<TimesheetStatus>("draft");
   const [projects, setProjects] = useState<Project[]>([]);
   const [entriesByDay, setEntriesByDay] = useState<Record<string, DraftEntry[]>>({});
+  const [weekStats, setWeekStats] = useState<WeekStats>({
+    daysLogged: 0,
+    totalHours: 0,
+    canSubmit: false,
+    overtimeHours: 0,
+  });
   const [rate, setRate] = useState<number | null>(null);
   const [rateType, setRateType] = useState("hourly");
   const [currency, setCurrency] = useState<string | null>(null);
-  const [savedFlash, setSavedFlash] = useState(false);
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
+
   const entriesByDayRef = useRef(entriesByDay);
   const timesheetIdRef = useRef(timesheetId);
   const editableRef = useRef(status === "draft" || status === "rejected");
+  const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   entriesByDayRef.current = entriesByDay;
   timesheetIdRef.current = timesheetId;
   editableRef.current = status === "draft" || status === "rejected";
 
   const editable = status === "draft" || status === "rejected";
-  const weekDays = useMemo(
-    () => weekDaysInPeriod(period, weekStart),
-    [period, weekStart],
-  );
+  const workDays = useMemo(() => workingWeekDays(weekMonday), [weekMonday]);
+  const isoWeek = useMemo(() => isoWeekLabel(weekMonday), [weekMonday]);
+  const isCurrentWeek = weekMonday === thisWeekMonday();
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await getTimeTrackingData(period.start, period.end);
+    const res = await getTimeTrackingData(weekMonday);
     setLoading(false);
     if (!res.ok || !("entries" in res)) {
       toast(res.message || "Couldn't load time entries.", "error");
@@ -132,6 +183,8 @@ export function TimeTrackingView({
     setTimesheetId(res.timesheetId);
     setStatus(res.status);
     setProjects(res.projects);
+    setWeek(res.week);
+    setWeekStats(res.weekStats);
     setRate(res.rate);
     setRateType(res.rateType);
     setCurrency(res.currency);
@@ -142,31 +195,23 @@ export function TimeTrackingView({
       grouped[e.entry_date]!.push(entryToDraft(e));
     }
     setEntriesByDay(grouped);
-  }, [period.end, period.start, toast]);
+  }, [weekMonday, toast]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  function flashSaved() {
-    setSavedFlash(true);
-    window.setTimeout(() => setSavedFlash(false), 1000);
-  }
-
-  function addEntry(date: string) {
-    const dayEntries = entriesByDay[date] ?? [];
-    const lastEnd = dayEntries[dayEntries.length - 1]?.end_time;
-    setEntriesByDay({
-      ...entriesByDay,
-      [date]: [...dayEntries, newDraft(date, lastEnd || undefined)],
-    });
-  }
+  useEffect(() => {
+    return () => {
+      for (const t of debounceTimers.current.values()) clearTimeout(t);
+    };
+  }, []);
 
   function updateEntry(date: string, clientId: string, patch: Partial<DraftEntry>) {
     setEntriesByDay((prev) => ({
       ...prev,
       [date]: (prev[date] ?? []).map((e) =>
-        e.clientId === clientId ? { ...e, ...patch, error: undefined } : e,
+        e.clientId === clientId ? { ...e, ...patch } : e,
       ),
     }));
   }
@@ -175,7 +220,7 @@ export function TimeTrackingView({
     return entriesByDayRef.current[date]?.find((e) => e.clientId === clientId);
   }
 
-  const saveEntry = useCallback(
+  const persistEntry = useCallback(
     async (date: string, clientId: string, overrides?: Partial<DraftEntry>) => {
       const base = getEntry(date, clientId);
       if (!base) return;
@@ -185,7 +230,10 @@ export function TimeTrackingView({
 
       if (!editableRef.current) return;
       if (!tsId) {
-        toast("Still loading your timesheet — try again in a moment.", "error");
+        updateEntry(date, clientId, {
+          saveState: "error",
+          error: "Timesheet not ready.",
+        });
         return;
       }
       if (!entry.start_time || !entry.end_time) return;
@@ -193,12 +241,13 @@ export function TimeTrackingView({
       const overnight = isOvernightShift(entry.start_time, entry.end_time);
       if (overnight && !entry.overnightConfirmed) {
         updateEntry(date, clientId, {
+          saveState: "error",
           error: "Overnight shift — confirm to save.",
         });
         return;
       }
 
-      updateEntry(date, clientId, { saving: true, error: undefined });
+      updateEntry(date, clientId, { saveState: "saving", error: undefined });
       const res = await upsertTimeEntry({
         id: entry.id,
         timesheetId: tsId,
@@ -213,24 +262,55 @@ export function TimeTrackingView({
 
       if (!res.ok) {
         updateEntry(date, clientId, {
-          saving: false,
+          saveState: "error",
           error: res.message,
         });
         return;
       }
 
       updateEntry(date, clientId, {
-        saving: false,
+        saveState: "saved",
         id: res.id ?? entry.id,
         project_id: entry.project_id,
         description: entry.description,
         billable: entry.billable,
         overnightConfirmed: overnight || entry.overnightConfirmed,
       });
-      flashSaved();
+      if (res.weekStats) setWeekStats(res.weekStats);
+
+      window.setTimeout(() => {
+        const cur = getEntry(date, clientId);
+        if (cur?.saveState === "saved") {
+          updateEntry(date, clientId, { saveState: "idle" });
+        }
+      }, 1500);
     },
-    [toast],
+    [],
   );
+
+  const scheduleSave = useCallback(
+    (date: string, clientId: string, overrides?: Partial<DraftEntry>) => {
+      const key = clientId;
+      const existing = debounceTimers.current.get(key);
+      if (existing) clearTimeout(existing);
+      debounceTimers.current.set(
+        key,
+        setTimeout(() => {
+          void persistEntry(date, clientId, overrides);
+        }, 600),
+      );
+    },
+    [persistEntry],
+  );
+
+  function addEntry(date: string) {
+    const dayEntries = entriesByDay[date] ?? [];
+    const lastEnd = dayEntries[dayEntries.length - 1]?.end_time;
+    setEntriesByDay((prev) => ({
+      ...prev,
+      [date]: [...(prev[date] ?? []), newDraft(date, lastEnd || undefined)],
+    }));
+  }
 
   async function removeEntry(entry: DraftEntry) {
     if (!editable) return;
@@ -240,14 +320,14 @@ export function TimeTrackingView({
         toast(res.message, "error");
         return;
       }
+      if (res.weekStats) setWeekStats(res.weekStats);
     }
-    setEntriesByDay({
-      ...entriesByDay,
-      [entry.entry_date]: (entriesByDay[entry.entry_date] ?? []).filter(
+    setEntriesByDay((prev) => ({
+      ...prev,
+      [entry.entry_date]: (prev[entry.entry_date] ?? []).filter(
         (e) => e.clientId !== entry.clientId,
       ),
-    });
-    flashSaved();
+    }));
   }
 
   async function handleCreateProject(name: string) {
@@ -265,34 +345,10 @@ export function TimeTrackingView({
     [entriesByDay],
   );
 
-  const totalHours = useMemo(() => {
-    return allEntries.reduce((sum, e) => {
-      if (!e.start_time || !e.end_time) return sum;
-      const h = hoursBetween(
-        e.start_time,
-        e.end_time,
-        Boolean(e.overnightConfirmed) || isOvernightShift(e.start_time, e.end_time),
-      );
-      return sum + (h ?? 0);
-    }, 0);
-  }, [allEntries]);
-
-  const billableHours = useMemo(() => {
-    return allEntries.reduce((sum, e) => {
-      if (!e.billable || !e.start_time || !e.end_time) return sum;
-      const h = hoursBetween(
-        e.start_time,
-        e.end_time,
-        Boolean(e.overnightConfirmed) || isOvernightShift(e.start_time, e.end_time),
-      );
-      return sum + (h ?? 0);
-    }, 0);
-  }, [allEntries]);
-
   const byProject = useMemo(() => {
     const map = new Map<string, { name: string; color: string; hours: number }>();
     for (const e of allEntries) {
-      if (!e.start_time || !e.end_time) continue;
+      if (!e.id || !e.start_time || !e.end_time) continue;
       const h =
         hoursBetween(
           e.start_time,
@@ -312,85 +368,65 @@ export function TimeTrackingView({
     return [...map.values()].sort((a, b) => b.hours - a.hours);
   }, [allEntries, projects]);
 
-  const savedEntries = useMemo(
-    () => allEntries.filter((e) => e.id),
-    [allEntries],
-  );
-
-  const daysLogged = useMemo(() => {
-    const logged = allEntries.filter(
-      (e) => e.id || (e.start_time && e.end_time),
-    );
-    return new Set(logged.map((e) => e.entry_date)).size;
+  const billableHours = useMemo(() => {
+    return allEntries.reduce((sum, e) => {
+      if (!e.billable || !e.id || !e.start_time || !e.end_time) return sum;
+      const h = hoursBetween(
+        e.start_time,
+        e.end_time,
+        Boolean(e.overnightConfirmed) || isOvernightShift(e.start_time, e.end_time),
+      );
+      return sum + (h ?? 0);
+    }, 0);
   }, [allEntries]);
 
-  const workingDays = countWorkingDays(period.start, period.end);
   const showEarnings = rateType === "hourly" && rate != null;
-
-  function shiftWeek(dir: -1 | 1) {
-    const monday = mondayOfWeek(weekStart);
-    const d = new Date(monday);
-    d.setDate(d.getDate() + dir * 7);
-    setWeekStart(toIsoDate(d));
-  }
+  const totalHours = weekStats.totalHours;
+  const showOvertimeNotice = totalHours > OVERTIME_HOURS_THRESHOLD;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
       <div className="relative flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-display text-base font-medium tracking-tightest">
+              {week?.label ?? "…"}
+            </p>
+            <p className="tnum text-sm text-muted">{isoWeek}</p>
+            <TimesheetStatusPill status={status} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              aria-label="Previous period"
-              onClick={() => setPeriod((p) => shiftPeriod(p, cadence, -1))}
+              onClick={() => setWeekMonday((m) => shiftWeekMonday(m, -1))}
             >
-              <ChevronLeft className="h-4 w-4" />
+              ← Prev week
             </Button>
-            <div className="text-center">
-              <p className="font-display text-base font-medium tracking-tightest">
-                {period.label}
-              </p>
-              <TimesheetStatusPill status={status} />
-            </div>
+            <Button
+              type="button"
+              variant={isCurrentWeek ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setWeekMonday(thisWeekMonday())}
+            >
+              This week
+            </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              aria-label="Next period"
-              onClick={() => setPeriod((p) => shiftPeriod(p, cadence, 1))}
+              onClick={() => setWeekMonday((m) => shiftWeekMonday(m, 1))}
             >
-              <ChevronRight className="h-4 w-4" />
+              Next week →
             </Button>
           </div>
-          <AnimatePresence>
-            {savedFlash && (
-              <motion.span
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="text-sm font-medium text-[var(--accent-strong)]"
-              >
-                ✓ Saved
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <Button type="button" variant="ghost" size="sm" onClick={() => shiftWeek(-1)}>
-            ← Week
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => shiftWeek(1)}>
-            Week →
-          </Button>
         </div>
 
         {loading ? (
           <p className="text-sm text-muted">Loading entries…</p>
         ) : (
-          weekDays.map((day) => (
+          workDays.map((day) => (
             <div
               key={day.date}
               className={`rounded-[var(--radius)] border bg-surface p-4 ${
@@ -447,10 +483,11 @@ export function TimeTrackingView({
                           onChange={(e) =>
                             updateEntry(day.date, entry.clientId, {
                               start_time: e.target.value,
+                              saveState: "idle",
                             })
                           }
                           onBlur={(e) =>
-                            saveEntry(day.date, entry.clientId, {
+                            scheduleSave(day.date, entry.clientId, {
                               start_time: e.target.value,
                             })
                           }
@@ -462,10 +499,13 @@ export function TimeTrackingView({
                           value={entry.end_time}
                           disabled={!editable}
                           onChange={(e) =>
-                            updateEntry(day.date, entry.clientId, { end_time: e.target.value })
+                            updateEntry(day.date, entry.clientId, {
+                              end_time: e.target.value,
+                              saveState: "idle",
+                            })
                           }
                           onBlur={(e) =>
-                            saveEntry(day.date, entry.clientId, {
+                            scheduleSave(day.date, entry.clientId, {
                               end_time: e.target.value,
                             })
                           }
@@ -492,22 +532,25 @@ export function TimeTrackingView({
                           value={entry.project_id ?? ""}
                           disabled={!editable}
                           onChange={async (e) => {
-                            const projectId =
-                              e.target.value === "" ? null : e.target.value;
                             if (e.target.value === "__new__") {
                               const name = window.prompt("Project name");
                               if (!name) return;
                               const id = await handleCreateProject(name);
                               if (id) {
                                 updateEntry(day.date, entry.clientId, { project_id: id });
-                                await saveEntry(day.date, entry.clientId, {
+                                await persistEntry(day.date, entry.clientId, {
                                   project_id: id,
                                 });
                               }
                               return;
                             }
-                            updateEntry(day.date, entry.clientId, { project_id: projectId });
-                            await saveEntry(day.date, entry.clientId, {
+                            const projectId =
+                              e.target.value === "" ? null : e.target.value;
+                            updateEntry(day.date, entry.clientId, {
+                              project_id: projectId,
+                              saveState: "idle",
+                            });
+                            await persistEntry(day.date, entry.clientId, {
                               project_id: projectId,
                             });
                           }}
@@ -532,17 +575,18 @@ export function TimeTrackingView({
                         onChange={(e) =>
                           updateEntry(day.date, entry.clientId, {
                             description: e.target.value,
+                            saveState: "idle",
                           })
                         }
                         onBlur={(e) =>
-                          saveEntry(day.date, entry.clientId, {
+                          scheduleSave(day.date, entry.clientId, {
                             description: e.target.value,
                           })
                         }
                         className="h-9 rounded border bg-surface px-2 text-sm"
                       />
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         <label className="flex items-center gap-1.5 text-sm">
                           <input
                             type="checkbox"
@@ -551,8 +595,9 @@ export function TimeTrackingView({
                             onChange={(e) => {
                               updateEntry(day.date, entry.clientId, {
                                 billable: e.target.checked,
+                                saveState: "idle",
                               });
-                              void saveEntry(day.date, entry.clientId, {
+                              void persistEntry(day.date, entry.clientId, {
                                 billable: e.target.checked,
                               });
                             }}
@@ -560,15 +605,32 @@ export function TimeTrackingView({
                           Billable
                         </label>
                         {editable && (
-                          <button
-                            type="button"
-                            aria-label="Delete entry"
-                            onClick={() => removeEntry(entry)}
-                            className="text-muted hover:text-[var(--danger)]"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => persistEntry(day.date, entry.clientId)}
+                            >
+                              Save
+                            </Button>
+                            <button
+                              type="button"
+                              aria-label="Delete entry"
+                              onClick={() => removeEntry(entry)}
+                              className="text-muted hover:text-[var(--danger)]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
                         )}
+                        <AnimatePresence mode="wait">
+                          <EntrySaveIndicator
+                            state={entry.saveState}
+                            error={entry.error}
+                            onRetry={() => persistEntry(day.date, entry.clientId)}
+                          />
+                        </AnimatePresence>
                       </div>
 
                       {overnight && !entry.overnightConfirmed && editable && (
@@ -581,7 +643,7 @@ export function TimeTrackingView({
                               updateEntry(day.date, entry.clientId, {
                                 overnightConfirmed: true,
                               });
-                              void saveEntry(day.date, entry.clientId, {
+                              void persistEntry(day.date, entry.clientId, {
                                 overnightConfirmed: true,
                               });
                             }}
@@ -589,11 +651,6 @@ export function TimeTrackingView({
                             Confirm overnight shift (+24h)
                           </Button>
                         </div>
-                      )}
-                      {entry.error && (
-                        <p className="text-xs text-[var(--danger)] sm:col-span-4">
-                          {entry.error}
-                        </p>
                       )}
                     </div>
                   );
@@ -606,7 +663,7 @@ export function TimeTrackingView({
 
       <aside className="flex flex-col gap-4 rounded-[var(--radius)] border bg-surface p-5 lg:sticky lg:top-6 lg:self-start">
         <h3 className="font-display text-base font-medium tracking-tightest">
-          Period summary
+          Week summary
         </h3>
         <div>
           <p className="text-xs uppercase tracking-wide text-muted">Total hours</p>
@@ -652,7 +709,9 @@ export function TimeTrackingView({
           </div>
           <div>
             <p className="text-xs text-muted">Non-billable</p>
-            <p className="tnum font-medium">{(totalHours - billableHours).toFixed(1)}h</p>
+            <p className="tnum font-medium">
+              {(totalHours - billableHours).toFixed(1)}h
+            </p>
           </div>
         </div>
 
@@ -666,19 +725,29 @@ export function TimeTrackingView({
         )}
 
         <div>
-          <p className="text-xs text-muted">Days logged</p>
-          <p className="tnum font-medium">
-            {daysLogged} of {workingDays} working days
+          <p className="text-xs text-muted">Submit progress</p>
+          <p className="tnum text-sm font-medium">
+            {weekStats.daysLogged} / {SUBMIT_MIN_DAYS} days ·{" "}
+            {weekStats.totalHours.toFixed(1)} / {SUBMIT_MIN_HOURS}.0h
           </p>
         </div>
+
+        {showOvertimeNotice && editable && (
+          <p className="rounded-[var(--radius)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent-strong)]">
+            <span className="tnum font-medium">
+              {(totalHours - OVERTIME_HOURS_THRESHOLD).toFixed(1)}h
+            </span>{" "}
+            overtime — your manager will approve the extra time.
+          </p>
+        )}
 
         {editable && (
           <Button
             className="mt-2"
-            disabled={pending || !timesheetId || savedEntries.length === 0}
+            disabled={pending || !timesheetId || !weekStats.canSubmit}
             title={
-              savedEntries.length === 0
-                ? "Add at least one saved entry"
+              !weekStats.canSubmit
+                ? `Log at least ${SUBMIT_MIN_DAYS} days or ${SUBMIT_MIN_HOURS} hours`
                 : undefined
             }
             onClick={() => {

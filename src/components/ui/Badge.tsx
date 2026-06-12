@@ -80,6 +80,15 @@ export function DocumentTypePill({ type }: { type: DocumentType }) {
   );
 }
 
+export function OvertimeBadge({ hours }: { hours: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(245,158,11,0.15)] px-2.5 py-1 text-xs font-medium text-[#B45309] dark:text-[#FBBF24]">
+      Overtime{" "}
+      <span className="tnum">+{hours.toFixed(1)}h</span>
+    </span>
+  );
+}
+
 export function DocumentStatusPill({ status }: { status: DocumentStatus }) {
   if (status === "verified")
     return <Badge tone="accent">Verified</Badge>;

@@ -12,8 +12,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { getProfile, requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { periodForDate, toIsoDate } from "@/lib/time/periods";
-import type { Organization, PeriodCadence, Profile, Timesheet, TimesheetStatus } from "@/types/db";
+import { thisWeekMonday } from "@/lib/time/periods";
+import type { Organization, Profile, Timesheet, TimesheetStatus } from "@/types/db";
 import { TimesheetFilters } from "./controls";
 import { TimesheetListTable, type TimesheetListRow } from "./TimesheetListTable";
 import { TimeTrackingView } from "./TimeTrackingView";
@@ -49,23 +49,14 @@ export default async function TimesheetsPage({
   const isSuperadmin = profile.role === "superadmin";
 
   if (!isManager && profile.org_id) {
-    const db = createAdminClient();
-    const { data: org } = await db
-      .from("organizations")
-      .select("default_cadence")
-      .eq("id", profile.org_id)
-      .single();
-    const cadence = (org?.default_cadence as PeriodCadence) ?? "monthly";
-    const period = periodForDate(toIsoDate(new Date()), cadence);
-
     return (
       <div>
         <TimeLogReminder />
         <PageHeader
           title="Timesheets"
-          description="Log your hours day by day, then submit the period for approval."
+          description="Log your hours for the week (Mon–Sun), then submit for approval."
         />
-        <TimeTrackingView initialPeriod={period} cadence={cadence} />
+        <TimeTrackingView initialWeekMonday={thisWeekMonday()} />
       </div>
     );
   }
@@ -166,6 +157,8 @@ export default async function TimesheetsPage({
     calculated_total: t.calculated_total,
     currency_snapshot: t.currency_snapshot,
     rejection_note: t.rejection_note,
+    has_overtime: t.has_overtime,
+    overtime_hours: t.overtime_hours,
   }));
 
   return (

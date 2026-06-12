@@ -2,11 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireActiveProfile, requireRole } from "@/lib/auth";
+import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins } from "@/lib/notifications";
-import { periodForDate, toIsoDate } from "@/lib/time/periods";
+import {
+  addDays,
+  isoWeekLabel,
+  mondayOfWeek,
+  toIsoDate,
+  weekPeriodFromMonday,
+} from "@/lib/time/periods";
+import {
+  canSubmitWeek,
+  computeWeekStats,
+  overtimeHours,
+  type WeekStats,
+} from "@/lib/time/week-stats";
 import {
   hoursBetween,
   isOvernightShift,
@@ -14,13 +26,16 @@ import {
   rangesOverlap,
   toRange,
 } from "@/lib/time/validation";
-import type { PeriodCadence, TimesheetStatus } from "@/types/db";
+import type { TimesheetStatus } from "@/types/db";
 import { fetchProjectsForTimeEntry } from "@/app/app/projects/actions";
 import type { Project, TimeEntry, TimeEntryWithProject } from "@/types/time-tracking";
 
 export type ActionResult = { ok: boolean; message: string; id?: string };
 
+export type SaveEntryResult = ActionResult & { weekStats?: WeekStats };
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ACTIVE_STATUSES: TimesheetStatus[] = ["draft", "submitted", "rejected"];
 
 function editableStatus(status: TimesheetStatus): boolean {
   return status === "draft" || status === "rejected";
@@ -42,57 +57,23 @@ async function linkOrphanEntriesToTimesheet(
     .lte("entry_date", periodEnd);
 }
 
-async function countEntriesForTimesheet(
-  timesheetId: string,
-  employeeId: string,
-  periodStart: string,
-  periodEnd: string,
-): Promise<number> {
-  const db = createAdminClient();
-  const { count: linked } = await db
-    .from("time_entries")
-    .select("id", { count: "exact", head: true })
-    .eq("timesheet_id", timesheetId);
-
-  if (linked && linked > 0) return linked;
-
-  const { count: inPeriod } = await db
-    .from("time_entries")
-    .select("id", { count: "exact", head: true })
-    .eq("employee_id", employeeId)
-    .gte("entry_date", periodStart)
-    .lte("entry_date", periodEnd);
-
-  return inPeriod ?? 0;
-}
-
-async function getOrgCadence(orgId: string): Promise<PeriodCadence> {
-  const db = createAdminClient();
-  const { data } = await db
-    .from("organizations")
-    .select("default_cadence")
-    .eq("id", orgId)
-    .single();
-  return (data?.default_cadence as PeriodCadence) ?? "monthly";
-}
-
-export async function ensureTimesheetForPeriod(
-  periodStart: string,
-  periodEnd: string,
+/** Fetch-or-create the single active draft timesheet for (employee, week Monday). */
+export async function ensureTimesheetForWeek(
+  weekMonday: string,
 ): Promise<{ ok: true; timesheetId: string; status: TimesheetStatus } | ActionResult> {
   const profile = await requireActiveProfile();
   if (!profile.org_id) return { ok: false, message: "Your account has no organization." };
-  if (!ISO_DATE.test(periodStart) || !ISO_DATE.test(periodEnd)) {
-    return { ok: false, message: "Invalid period." };
-  }
+  if (!ISO_DATE.test(weekMonday)) return { ok: false, message: "Invalid week." };
 
+  const periodEnd = addDays(weekMonday, 6);
   const db = createAdminClient();
+
   const { data: existing } = await db
     .from("timesheets")
     .select("id, status")
     .eq("employee_id", profile.id)
-    .eq("period_start", periodStart)
-    .eq("period_end", periodEnd)
+    .eq("period_start", weekMonday)
+    .in("status", ACTIVE_STATUSES)
     .maybeSingle();
 
   if (existing) {
@@ -108,15 +89,36 @@ export async function ensureTimesheetForPeriod(
     .insert({
       org_id: profile.org_id,
       employee_id: profile.id,
-      period_start: periodStart,
+      period_start: weekMonday,
       period_end: periodEnd,
       status: "draft",
     })
     .select("id, status")
     .single();
 
-  if (error || !created) return { ok: false, message: "Couldn't create timesheet period." };
+  if (error) {
+    if (error.code === "23505") {
+      const { data: retry } = await db
+        .from("timesheets")
+        .select("id, status")
+        .eq("employee_id", profile.id)
+        .eq("period_start", weekMonday)
+        .in("status", ACTIVE_STATUSES)
+        .maybeSingle();
+      if (retry) {
+        return {
+          ok: true,
+          timesheetId: retry.id,
+          status: retry.status as TimesheetStatus,
+        };
+      }
+    }
+    return { ok: false, message: "Couldn't create timesheet for this week." };
+  }
+
+  if (!created) return { ok: false, message: "Couldn't create timesheet for this week." };
   revalidatePath("/app/timesheets");
+  revalidatePath("/app/timesheets/log");
   return {
     ok: true,
     timesheetId: created.id,
@@ -124,17 +126,16 @@ export async function ensureTimesheetForPeriod(
   };
 }
 
-export async function getTimeTrackingData(
-  periodStart: string,
-  periodEnd: string,
-): Promise<
+export async function getTimeTrackingData(weekMonday: string): Promise<
   | {
       ok: true;
       timesheetId: string;
       status: TimesheetStatus;
       entries: TimeEntryWithProject[];
       projects: Project[];
-      cadence: PeriodCadence;
+      week: ReturnType<typeof weekPeriodFromMonday>;
+      isoWeek: string;
+      weekStats: WeekStats;
       rate: number | null;
       rateType: string;
       currency: string | null;
@@ -144,7 +145,8 @@ export async function getTimeTrackingData(
   const profile = await requireActiveProfile();
   if (!profile.org_id) return { ok: false, message: "Your account has no organization." };
 
-  const ensured = await ensureTimesheetForPeriod(periodStart, periodEnd);
+  const week = weekPeriodFromMonday(weekMonday);
+  const ensured = await ensureTimesheetForWeek(weekMonday);
   if (!ensured.ok) return ensured;
   if (!("timesheetId" in ensured)) return ensured;
 
@@ -152,21 +154,20 @@ export async function getTimeTrackingData(
   await linkOrphanEntriesToTimesheet(
     ensured.timesheetId,
     profile.id,
-    periodStart,
-    periodEnd,
+    week.start,
+    week.end,
   );
 
-  const [entriesRes, projects, cadence] = await Promise.all([
+  const [entriesRes, projects] = await Promise.all([
     db
       .from("time_entries")
       .select("*")
       .eq("employee_id", profile.id)
-      .gte("entry_date", periodStart)
-      .lte("entry_date", periodEnd)
+      .gte("entry_date", week.start)
+      .lte("entry_date", week.end)
       .order("entry_date")
       .order("start_time"),
     fetchProjectsForTimeEntry(profile.org_id, profile.id),
-    getOrgCadence(profile.org_id),
   ]);
 
   const projectMap = new Map(projects.map((p) => [p.id, p]));
@@ -177,13 +178,17 @@ export async function getTimeTrackingData(
     }),
   );
 
+  const weekStats = await computeWeekStats(ensured.timesheetId);
+
   return {
     ok: true,
     timesheetId: ensured.timesheetId,
     status: ensured.status,
     entries,
     projects,
-    cadence,
+    week,
+    isoWeek: isoWeekLabel(weekMonday),
+    weekStats,
     rate: profile.rate,
     rateType: profile.rate_type,
     currency: profile.currency,
@@ -255,7 +260,6 @@ function validateEntryPayload(payload: EntryPayload): {
   start: string;
   end: string;
   overnight: boolean;
-  hours: number;
 } | ActionResult {
   if (!ISO_DATE.test(payload.entryDate)) {
     return { ok: false, message: "Invalid date." };
@@ -275,23 +279,17 @@ function validateEntryPayload(payload: EntryPayload): {
     return { ok: false, message: "Invalid time range." };
   }
 
-  return { ok: true, start, end, overnight, hours };
+  return { ok: true, start, end, overnight };
 }
 
 export async function upsertTimeEntry(
   payload: EntryPayload & { id?: string },
-): Promise<ActionResult> {
+): Promise<SaveEntryResult> {
   const profile = await requireActiveProfile();
   if (!profile.org_id) return { ok: false, message: "Your account has no organization." };
   if (!payload.timesheetId) {
     return { ok: false, message: "Timesheet not ready — refresh and try again." };
   }
-
-  console.info("[upsertTimeEntry] project_id:", payload.projectId ?? null, {
-    timesheetId: payload.timesheetId,
-    entryDate: payload.entryDate,
-    entryId: payload.id ?? null,
-  });
 
   const validated = validateEntryPayload(payload);
   if (!validated.ok || !("start" in validated)) return validated;
@@ -324,7 +322,6 @@ export async function upsertTimeEntry(
     start_time: validated.start,
     end_time: validated.end,
     is_overnight: validated.overnight,
-    total_hours: validated.hours,
     description: payload.description?.trim() || null,
     billable: payload.billable ?? true,
   };
@@ -336,23 +333,28 @@ export async function upsertTimeEntry(
       .eq("id", payload.id)
       .eq("employee_id", profile.id);
     if (error) return { ok: false, message: "Couldn't save entry." };
-    revalidatePath("/app/timesheets");
-    revalidatePath("/app/timesheets/log");
-    return { ok: true, message: "Saved.", id: payload.id };
+  } else {
+    const { data, error } = await db
+      .from("time_entries")
+      .insert(row)
+      .select("id")
+      .single();
+    if (error || !data) return { ok: false, message: "Couldn't create entry." };
+    payload.id = data.id;
   }
 
-  const { data, error } = await db
-    .from("time_entries")
-    .insert(row)
-    .select("id")
-    .single();
-  if (error || !data) return { ok: false, message: "Couldn't create entry." };
+  const stats = await computeWeekStats(payload.timesheetId);
   revalidatePath("/app/timesheets");
   revalidatePath("/app/timesheets/log");
-  return { ok: true, message: "Saved.", id: data.id };
+  return {
+    ok: true,
+    message: "Saved.",
+    id: payload.id,
+    weekStats: stats,
+  };
 }
 
-export async function deleteTimeEntry(id: string): Promise<ActionResult> {
+export async function deleteTimeEntry(id: string): Promise<SaveEntryResult> {
   const profile = await requireActiveProfile();
   const db = createAdminClient();
   const { data: entry } = await db
@@ -368,8 +370,11 @@ export async function deleteTimeEntry(id: string): Promise<ActionResult> {
 
   const { error } = await db.from("time_entries").delete().eq("id", id);
   if (error) return { ok: false, message: "Couldn't delete entry." };
+
+  const stats = await computeWeekStats(entry.timesheet_id!);
   revalidatePath("/app/timesheets");
-  return { ok: true, message: "Deleted." };
+  revalidatePath("/app/timesheets/log");
+  return { ok: true, message: "Deleted.", weekStats: stats };
 }
 
 export async function submitTimesheetForApproval(
@@ -398,19 +403,25 @@ export async function submitTimesheetForApproval(
     ts.period_end,
   );
 
-  const entryCount = await countEntriesForTimesheet(
-    timesheetId,
-    profile.id,
-    ts.period_start,
-    ts.period_end,
-  );
-  if (!entryCount) {
-    return { ok: false, message: "Add at least one time entry first." };
+  const stats = await computeWeekStats(timesheetId);
+  if (!canSubmitWeek(stats.daysLogged, stats.totalHours)) {
+    return {
+      ok: false,
+      message: `Submit requires at least 5 days logged or 40 hours (currently ${stats.daysLogged} days · ${stats.totalHours.toFixed(1)}h).`,
+    };
   }
+
+  const hasOvertime = stats.totalHours > 40;
+  const otHours = overtimeHours(stats.totalHours);
 
   const { error } = await db
     .from("timesheets")
-    .update({ status: "submitted", updated_at: new Date().toISOString() })
+    .update({
+      status: "submitted",
+      has_overtime: hasOvertime,
+      overtime_hours: hasOvertime ? otHours : 0,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", timesheetId);
   if (error) return { ok: false, message: "Couldn't submit timesheet." };
 
@@ -424,6 +435,10 @@ export async function submitTimesheetForApproval(
       timesheet_id: timesheetId,
       period_start: ts.period_start,
       period_end: ts.period_end,
+      days_logged: stats.daysLogged,
+      total_hours: stats.totalHours,
+      has_overtime: hasOvertime,
+      overtime_hours: otHours,
     },
   });
 
@@ -431,7 +446,7 @@ export async function submitTimesheetForApproval(
     orgId: profile.org_id,
     type: "timesheet_submitted",
     title: "New timesheet submitted",
-    body: `${employeeName} · ${ts.period_start} – ${ts.period_end}`,
+    body: `${employeeName} · ${ts.period_start} – ${ts.period_end}${hasOvertime ? ` · Overtime +${otHours}h` : ""}`,
     entity: "timesheets",
     entityId: timesheetId,
     excludeUserId: profile.id,
@@ -449,9 +464,9 @@ export async function checkTimeLogReminder(): Promise<ActionResult> {
     return { ok: true, message: "" };
   }
 
-  const cadence = await getOrgCadence(profile.org_id);
   const today = toIsoDate(new Date());
-  const period = periodForDate(today, cadence);
+  const weekMonday = mondayOfWeek(today);
+  const week = weekPeriodFromMonday(weekMonday);
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
   const since = toIsoDate(threeDaysAgo);
@@ -480,7 +495,7 @@ export async function checkTimeLogReminder(): Promise<ActionResult> {
     user_id: profile.id,
     type: "time_log_reminder",
     title: "Log your time",
-    body: `You haven't logged time in the last 3 days (${period.label}).`,
+    body: `You haven't logged time in the last 3 days (${week.label}).`,
     entity: "timesheets",
   });
 

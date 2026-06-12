@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { TimesheetStatusPill } from "@/components/ui/Badge";
+import { OvertimeBadge, TimesheetStatusPill } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type { TimesheetStatus } from "@/types/db";
@@ -35,6 +35,8 @@ export type TimesheetListRow = {
   calculated_total: number | null;
   currency_snapshot: string | null;
   rejection_note: string | null;
+  has_overtime: boolean;
+  overtime_hours: number;
 };
 
 type SortKey = "period" | "total" | "submitted";
@@ -255,10 +257,15 @@ export function TimesheetListTable({
               <TD className="tnum text-sm text-muted">{t.rowCount}</TD>
               <TD>
                 <div className="flex flex-col gap-1">
-                  <TimesheetStatusPill
-                    status={t.status}
-                    live={isManager && t.status === "draft"}
-                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <TimesheetStatusPill
+                      status={t.status}
+                      live={isManager && t.status === "draft"}
+                    />
+                    {t.has_overtime && t.overtime_hours > 0 && (
+                      <OvertimeBadge hours={t.overtime_hours} />
+                    )}
+                  </div>
                   {t.status === "rejected" && t.rejection_note && (
                     <span className="max-w-xs text-xs text-[var(--danger)]">
                       {t.rejection_note}

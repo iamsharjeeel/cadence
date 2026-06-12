@@ -19,18 +19,71 @@ function parseIso(iso: string): Date {
   return new Date(y!, m! - 1, d!);
 }
 
-function addDays(iso: string, days: number): string {
+export function addDays(iso: string, days: number): string {
   const d = parseIso(iso);
   d.setDate(d.getDate() + days);
   return toIsoDate(d);
 }
 
-function mondayOfWeek(iso: string): string {
+export function mondayOfWeek(iso: string): string {
   const d = parseIso(iso);
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
   return toIsoDate(d);
+}
+
+export function thisWeekMonday(today = toIsoDate(new Date())): string {
+  return mondayOfWeek(today);
+}
+
+export function shiftWeekMonday(weekMonday: string, direction: -1 | 1): string {
+  return addDays(weekMonday, direction * 7);
+}
+
+/** Mon–Sun week used as the timesheet submission unit. */
+export function weekPeriodFromMonday(weekMonday: string): PayPeriod {
+  const end = addDays(weekMonday, 6);
+  return {
+    start: weekMonday,
+    end,
+    label: formatLabel(weekMonday, end),
+  };
+}
+
+/** ISO-8601 week label, e.g. 2026-W24 */
+export function isoWeekLabel(weekMonday: string): string {
+  const d = parseIso(weekMonday);
+  const thursday = new Date(d);
+  thursday.setDate(thursday.getDate() + 3);
+  const yearStart = new Date(thursday.getFullYear(), 0, 1);
+  const week =
+    1 +
+    Math.floor(
+      (thursday.getTime() - yearStart.getTime()) / 86_400_000 -
+        ((yearStart.getDay() + 6) % 7) +
+        3) /
+      7;
+  return `${thursday.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+/** Monday–Friday rows for the weekly log view. */
+export function workingWeekDays(
+  weekMonday: string,
+): { date: string; dayName: string; isFuture: boolean; isToday: boolean }[] {
+  const today = toIsoDate(new Date());
+  const days: { date: string; dayName: string; isFuture: boolean; isToday: boolean }[] =
+    [];
+  for (let i = 0; i < 5; i++) {
+    const date = addDays(weekMonday, i);
+    days.push({
+      date,
+      dayName: dayName(date),
+      isFuture: date > today,
+      isToday: date === today,
+    });
+  }
+  return days;
 }
 
 function formatLabel(start: string, end: string): string {

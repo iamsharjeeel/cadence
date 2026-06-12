@@ -5,9 +5,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireActiveProfile } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { periodForDate, toIsoDate } from "@/lib/time/periods";
-import type { PeriodCadence } from "@/types/db";
+import { thisWeekMonday } from "@/lib/time/periods";
 import { TimeTrackingView } from "../TimeTrackingView";
 import { TimeLogReminder } from "../TimeLogReminder";
 
@@ -33,14 +31,6 @@ export default async function LogTimePage() {
     );
   }
 
-  const db = createAdminClient();
-  const { data: org } = await db
-    .from("organizations")
-    .select("default_cadence")
-    .eq("id", profile.org_id)
-    .single();
-  const cadence = (org?.default_cadence as PeriodCadence) ?? "monthly";
-  const period = periodForDate(toIsoDate(new Date()), cadence);
   const isManager = profile.role === "admin" || profile.role === "superadmin";
 
   return (
@@ -48,7 +38,7 @@ export default async function LogTimePage() {
       <TimeLogReminder />
       <PageHeader
         title="Log time"
-        description="Record your hours day by day, then submit the period for approval."
+        description="Log your hours for the week (Mon–Sun), then submit for approval."
         action={
           isManager ? (
             <Link href="/app/timesheets">
@@ -59,7 +49,7 @@ export default async function LogTimePage() {
           ) : undefined
         }
       />
-      <TimeTrackingView initialPeriod={period} cadence={cadence} />
+      <TimeTrackingView initialWeekMonday={thisWeekMonday()} />
     </div>
   );
 }
