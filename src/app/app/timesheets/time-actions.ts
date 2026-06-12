@@ -148,28 +148,31 @@ export async function getTimeTrackingData(weekMonday: string): Promise<
   if (!profile.org_id) return { ok: false, message: "Your account has no organization." };
 
   const week = weekPeriodFromMonday(weekMonday);
-  const ensured = await ensureTimesheetForWeek(weekMonday);
+  const db = createAdminClient();
+
+  const [ensured, projects] = await Promise.all([
+    ensureTimesheetForWeek(weekMonday),
+    fetchProjectsForTimeEntry(profile.org_id, profile.id),
+  ]);
   if (!ensured.ok) return ensured;
   if (!("timesheetId" in ensured)) return ensured;
 
-  const db = createAdminClient();
-  await linkOrphanEntriesToTimesheet(
-    ensured.timesheetId,
-    profile.id,
-    week.start,
-    week.end,
-  );
+  const timesheetId = ensured.timesheetId;
 
-  const [entriesRes, projects] = await Promise.all([
+  const [, entriesRes, weekStats] = await Promise.all([
+    linkOrphanEntriesToTimesheet(
+      timesheetId,
+      profile.id,
+      week.start,
+      week.end,
+    ),
     db
       .from("time_entries")
       .select("*")
-      .eq("employee_id", profile.id)
-      .gte("entry_date", week.start)
-      .lte("entry_date", week.end)
+      .eq("timesheet_id", timesheetId)
       .order("entry_date")
       .order("start_time"),
-    fetchProjectsForTimeEntry(profile.org_id, profile.id),
+    computeWeekStats(timesheetId),
   ]);
 
   const projectMap = new Map(projects.map((p) => [p.id, p]));
@@ -180,11 +183,9 @@ export async function getTimeTrackingData(weekMonday: string): Promise<
     }),
   );
 
-  const weekStats = await computeWeekStats(ensured.timesheetId);
-
   return {
     ok: true,
-    timesheetId: ensured.timesheetId,
+    timesheetId,
     orgId: profile.org_id,
     employeeId: profile.id,
     status: ensured.status,

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import {
+  hoursBetween,
   isOvernightShift,
   parseTime,
   rangesOverlap,
@@ -77,6 +78,22 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
   };
 }
 
+function isPersistableTimePair(start: string | null, end: string | null): boolean {
+  if (!start || !end) return false;
+  const s = parseTime(String(start).slice(0, 5));
+  const e = parseTime(String(end).slice(0, 5));
+  if (!s || !e) return false;
+  const overnight = isOvernightShift(s, e);
+  if (!overnight && e <= s) return false;
+  const h = hoursBetween(s, e, overnight);
+  return h !== null && h > 0;
+}
+
+/** True when an entry has valid start + end and may be written to the DB. */
+export function canPersistTimeEntry(startTime: string, endTime: string): boolean {
+  return isPersistableTimePair(startTime, endTime);
+}
+
 async function checkOverlap(
   employeeId: string,
   entryDate: string,
@@ -93,12 +110,15 @@ async function checkOverlap(
     .from("time_entries")
     .select("id, start_time, end_time")
     .eq("employee_id", employeeId)
-    .eq("entry_date", entryDate);
+    .eq("entry_date", entryDate)
+    .not("start_time", "is", null)
+    .not("end_time", "is", null);
 
   for (const s of siblings ?? []) {
     if (excludeId && s.id === excludeId) continue;
     const otherStart = String(s.start_time).slice(0, 5);
     const otherEnd = String(s.end_time).slice(0, 5);
+    if (!isPersistableTimePair(otherStart, otherEnd)) continue;
     const otherOvernight = isOvernightShift(otherStart, otherEnd);
     const other = toRange(otherStart, otherEnd, otherOvernight);
     if (other && rangesOverlap(range, other)) {

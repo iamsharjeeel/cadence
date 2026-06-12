@@ -788,6 +788,25 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 - `src/lib/time/time-entry-client.ts` — RLS-scoped save/delete
 - `src/lib/time/week-stats-client.ts` — client-side stats from persisted entries
 
+### Phase 7 — Log UI polish ✅
+
+#### Ghost entry / phantom overlap fix
+- **Root cause:** concurrent debounced saves could insert twice before `entry.id` was written back, leaving an invisible DB row that still triggered overlap; overlap also counted invalid/zero-duration rows.
+- Draft rows never persist until `canPersistTimeEntry()` (valid start + end, positive duration).
+- Overlap compares only persisted rows with valid times; excludes self by `id`; in-flight save deduped per `clientId`.
+- Cleanup SQL: `supabase/scripts/cleanup_ghost_time_entries.sql` (SELECT preview, then DELETE).
+
+#### Seven-day view
+- Mon–Sun day cards; Sat/Sun styled as optional weekend (dashed border, muted label). Submit gate unchanged — weekend days count normally.
+
+#### Load performance
+- `getTimeTrackingData`: parallel `ensureTimesheetForWeek` + projects, then parallel orphan-link + entries-by-`timesheet_id` + `computeWeekStats`.
+- Skeleton loaders for day cards + summary (`LogWeekSkeleton`).
+- Optional index migration: `supabase/migrations/20260617000000_time_entries_perf_index.sql` (`employee_id, entry_date`).
+
+#### Entry row rebuild
+- `TimeEntryRow.tsx`: stacked layout — times + duration chip (separate, never overlapping inputs), project dot inline, description, billable toggle, save state, delete. Framer Motion 160ms.
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

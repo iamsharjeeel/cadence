@@ -67,23 +67,35 @@ export function isoWeekLabel(weekMonday: string): string {
   return `${thursday.getFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-/** Monday–Friday rows for the weekly log view. */
-export function workingWeekDays(
-  weekMonday: string,
-): { date: string; dayName: string; isFuture: boolean; isToday: boolean }[] {
+export type WeekDayRow = {
+  date: string;
+  dayName: string;
+  isFuture: boolean;
+  isToday: boolean;
+  isWeekend: boolean;
+};
+
+/** Monday–Sunday rows for the weekly log view. */
+export function weekDays(weekMonday: string): WeekDayRow[] {
   const today = toIsoDate(new Date());
-  const days: { date: string; dayName: string; isFuture: boolean; isToday: boolean }[] =
-    [];
-  for (let i = 0; i < 5; i++) {
+  const days: WeekDayRow[] = [];
+  for (let i = 0; i < 7; i++) {
     const date = addDays(weekMonday, i);
+    const dow = parseIso(date).getDay();
     days.push({
       date,
       dayName: dayName(date),
       isFuture: date > today,
       isToday: date === today,
+      isWeekend: dow === 0 || dow === 6,
     });
   }
   return days;
+}
+
+/** @deprecated Use weekDays — Mon–Sun including optional weekends. */
+export function workingWeekDays(weekMonday: string): WeekDayRow[] {
+  return weekDays(weekMonday).filter((d) => !d.isWeekend);
 }
 
 function formatLabel(start: string, end: string): string {

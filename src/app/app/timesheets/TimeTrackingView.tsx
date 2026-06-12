@@ -9,17 +9,15 @@ import {
   useTransition,
 } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, Trash2 } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/Button";
 import { TimesheetStatusPill } from "@/components/ui/Badge";
-import { fieldBase } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { CountUp } from "@/components/motion/CountUp";
-import { cn } from "@/lib/utils";
-import { hoursBetween, isOvernightShift } from "@/lib/time/validation";
+import { isOvernightShift } from "@/lib/time/validation";
 import {
+  canPersistTimeEntry,
   deleteTimeEntryClient,
   saveTimeEntryClient,
 } from "@/lib/time/time-entry-client";
@@ -31,7 +29,7 @@ import {
   isoWeekLabel,
   shiftWeekMonday,
   thisWeekMonday,
-  workingWeekDays,
+  weekDays,
   type PayPeriod,
 } from "@/lib/time/periods";
 import {
@@ -47,35 +45,11 @@ import {
   submitTimesheetForApproval,
 } from "./time-actions";
 import { createProject } from "../projects/actions";
+import { LogSummarySkeleton, LogWeekSkeleton } from "./LogWeekSkeleton";
+import { TimeEntryRow, type EntryRowData } from "./TimeEntryRow";
+import { cn } from "@/lib/utils";
 
-type SaveState = "idle" | "saving" | "saved" | "error";
-
-type DraftEntry = {
-  clientId: string;
-  id?: string;
-  entry_date: string;
-  start_time: string;
-  end_time: string;
-  project_id: string | null;
-  description: string;
-  billable: boolean;
-  total_hours?: number | null;
-  overnightConfirmed?: boolean;
-  saveState: SaveState;
-  error?: string;
-};
-
-const ROW_MOTION = {
-  initial: { opacity: 0, height: 0 },
-  animate: { opacity: 1, height: "auto" },
-  exit: { opacity: 0, height: 0 },
-  transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
-};
-
-const timeFieldClass = cn(
-  fieldBase,
-  "h-9 w-[5.5rem] shrink-0 px-2.5 text-sm tnum",
-);
+type DraftEntry = EntryRowData;
 
 function formatTime(value: string): string {
   return value.slice(0, 5);
@@ -95,101 +69,21 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
 }
 
 function entryToDraft(e: TimeEntryWithProject): DraftEntry {
+  const start = formatTime(e.start_time);
+  const end = formatTime(e.end_time);
   return {
     clientId: e.id,
     id: e.id,
     entry_date: e.entry_date,
-    start_time: formatTime(e.start_time),
-    end_time: formatTime(e.end_time),
+    start_time: start,
+    end_time: end,
     project_id: e.project_id,
     description: e.description ?? "",
     billable: e.billable,
     total_hours: Number(e.total_hours),
-    overnightConfirmed: isOvernightShift(
-      formatTime(e.start_time),
-      formatTime(e.end_time),
-    ),
+    overnightConfirmed: isOvernightShift(start, end),
     saveState: "saved",
   };
-}
-
-function BillableToggle({
-  checked,
-  disabled,
-  onChange,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)]",
-        checked
-          ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
-          : "bg-[var(--line)] text-muted",
-        disabled && "cursor-not-allowed opacity-60",
-      )}
-    >
-      Billable
-    </button>
-  );
-}
-
-function EntrySaveIndicator({
-  state,
-  error,
-  onRetry,
-}: {
-  state: SaveState;
-  error?: string;
-  onRetry?: () => void;
-}) {
-  if (state === "saving") {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-muted">
-        <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-        Saving
-      </span>
-    );
-  }
-  if (state === "saved") {
-    return (
-      <motion.span
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0 }}
-        className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)]"
-      >
-        <Check className="h-3 w-3" aria-hidden />
-        Saved
-      </motion.span>
-    );
-  }
-  if (state === "error") {
-    return (
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        <span className="text-xs text-muted">{error ?? "Couldn't save"}</span>
-        {onRetry && (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="text-xs font-medium text-[var(--accent-strong)] hover:underline"
-          >
-            Retry
-          </button>
-        )}
-      </div>
-    );
-  }
-  return null;
 }
 
 export function TimeTrackingView({
@@ -224,6 +118,7 @@ export function TimeTrackingView({
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
+  const inFlightSaves = useRef<Map<string, Promise<void>>>(new Map());
 
   entriesByDayRef.current = entriesByDay;
   timesheetIdRef.current = timesheetId;
@@ -232,7 +127,7 @@ export function TimeTrackingView({
   editableRef.current = status === "draft" || status === "rejected";
 
   const editable = status === "draft" || status === "rejected";
-  const workDays = useMemo(() => workingWeekDays(weekMonday), [weekMonday]);
+  const days = useMemo(() => weekDays(weekMonday), [weekMonday]);
   const isoWeek = useMemo(() => isoWeekLabel(weekMonday), [weekMonday]);
   const isCurrentWeek = weekMonday === thisWeekMonday();
 
@@ -312,78 +207,100 @@ export function TimeTrackingView({
 
   const persistEntry = useCallback(
     async (date: string, clientId: string, overrides?: Partial<DraftEntry>) => {
-      const base = getEntry(date, clientId);
-      if (!base) return;
-
-      const entry = { ...base, ...overrides };
-      const tsId = timesheetIdRef.current;
-      const org = orgIdRef.current;
-      const empId = employeeIdRef.current;
-
-      if (!editableRef.current) return;
-      if (!tsId || !org || !empId) {
-        updateEntry(date, clientId, {
-          saveState: "error",
-          error: "Timesheet not ready.",
-        });
-        return;
-      }
-      if (!entry.start_time || !entry.end_time) return;
-
-      const overnight = isOvernightShift(entry.start_time, entry.end_time);
-      if (overnight && !entry.overnightConfirmed) {
-        updateEntry(date, clientId, {
-          saveState: "error",
-          error: "Overnight shift — confirm to save.",
-        });
+      const existing = inFlightSaves.current.get(clientId);
+      if (existing) {
+        await existing;
         return;
       }
 
-      updateEntry(date, clientId, { saveState: "saving", error: undefined });
+      const run = async () => {
+        const base = getEntry(date, clientId);
+        if (!base) return;
 
-      const res = await saveTimeEntryClient({
-        id: entry.id,
-        orgId: org,
-        employeeId: empId,
-        timesheetId: tsId,
-        entryDate: entry.entry_date,
-        startTime: entry.start_time,
-        endTime: entry.end_time,
-        projectId: entry.project_id,
-        description: entry.description,
-        billable: entry.billable,
-      });
+        const entry = { ...base, ...overrides };
+        const tsId = timesheetIdRef.current;
+        const org = orgIdRef.current;
+        const empId = employeeIdRef.current;
 
-      if (!res.ok) {
-        updateEntry(date, clientId, {
-          saveState: "error",
-          error: res.message,
-        });
-        return;
-      }
-
-      updateEntry(date, clientId, {
-        saveState: "saved",
-        id: res.id,
-        total_hours: res.total_hours,
-        project_id: entry.project_id,
-        description: entry.description,
-        billable: entry.billable,
-        overnightConfirmed: overnight || entry.overnightConfirmed,
-      });
-
-      window.setTimeout(() => {
-        const cur = getEntry(date, clientId);
-        if (cur?.saveState === "saved") {
-          updateEntry(date, clientId, { saveState: "idle" });
+        if (!editableRef.current) return;
+        if (!tsId || !org || !empId) {
+          updateEntry(date, clientId, {
+            saveState: "error",
+            error: "Timesheet not ready.",
+          });
+          return;
         }
-      }, 1600);
+
+        if (!canPersistTimeEntry(entry.start_time, entry.end_time)) {
+          return;
+        }
+
+        const overnight = isOvernightShift(entry.start_time, entry.end_time);
+        if (overnight && !entry.overnightConfirmed) {
+          updateEntry(date, clientId, {
+            saveState: "error",
+            error: "Overnight shift — confirm to save.",
+          });
+          return;
+        }
+
+        updateEntry(date, clientId, { saveState: "saving", error: undefined });
+
+        const res = await saveTimeEntryClient({
+          id: entry.id,
+          orgId: org,
+          employeeId: empId,
+          timesheetId: tsId,
+          entryDate: entry.entry_date,
+          startTime: entry.start_time,
+          endTime: entry.end_time,
+          projectId: entry.project_id,
+          description: entry.description,
+          billable: entry.billable,
+        });
+
+        if (!res.ok) {
+          updateEntry(date, clientId, {
+            saveState: "error",
+            error: res.message,
+          });
+          return;
+        }
+
+        updateEntry(date, clientId, {
+          saveState: "saved",
+          id: res.id,
+          total_hours: res.total_hours,
+          project_id: entry.project_id,
+          description: entry.description,
+          billable: entry.billable,
+          overnightConfirmed: overnight || entry.overnightConfirmed,
+        });
+
+        window.setTimeout(() => {
+          const cur = getEntry(date, clientId);
+          if (cur?.saveState === "saved") {
+            updateEntry(date, clientId, { saveState: "idle" });
+          }
+        }, 1600);
+      };
+
+      const promise = run().finally(() => {
+        inFlightSaves.current.delete(clientId);
+      });
+      inFlightSaves.current.set(clientId, promise);
+      await promise;
     },
     [],
   );
 
   const scheduleSave = useCallback(
     (date: string, clientId: string, overrides?: Partial<DraftEntry>) => {
+      const entry = getEntry(date, clientId);
+      if (!entry) return;
+      const merged = { ...entry, ...overrides };
+      if (!canPersistTimeEntry(merged.start_time, merged.end_time)) return;
+
       const key = clientId;
       const existing = debounceTimers.current.get(key);
       if (existing) clearTimeout(existing);
@@ -408,6 +325,10 @@ export function TimeTrackingView({
 
   async function removeEntry(entry: DraftEntry) {
     if (!editable) return;
+    const timer = debounceTimers.current.get(entry.clientId);
+    if (timer) clearTimeout(timer);
+    inFlightSaves.current.delete(entry.clientId);
+
     if (entry.id) {
       const res = await deleteTimeEntryClient(entry.id, employeeIdRef.current);
       if (!res.ok) {
@@ -475,20 +396,26 @@ export function TimeTrackingView({
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted">Loading entries…</p>
+          <LogWeekSkeleton />
         ) : (
-          workDays.map((day) => (
+          days.map((day) => (
             <div
               key={day.date}
               className={cn(
                 "rounded-[var(--radius)] border border-[var(--line)] bg-surface p-5 shadow-sm",
                 day.isToday && "border-l-4 border-l-[var(--accent)]",
-                day.isFuture && "opacity-70",
+                day.isFuture && !day.isWeekend && "opacity-80",
+                day.isWeekend && "border-dashed bg-[var(--bg)]/60",
               )}
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-display text-base font-medium tracking-tightest text-ink">
+                  <p
+                    className={cn(
+                      "font-display text-base font-medium tracking-tightest",
+                      day.isWeekend ? "text-muted" : "text-ink",
+                    )}
+                  >
                     {day.dayName}
                   </p>
                   <p className="tnum text-sm text-muted">
@@ -496,6 +423,9 @@ export function TimeTrackingView({
                       day: "numeric",
                       month: "short",
                     })}
+                    {day.isWeekend && (
+                      <span className="ml-2 text-xs">Weekend · optional</span>
+                    )}
                   </p>
                 </div>
                 {editable && (
@@ -512,241 +442,69 @@ export function TimeTrackingView({
 
               <div className="flex flex-col gap-3">
                 <AnimatePresence initial={false}>
-                  {(entriesByDay[day.date] ?? []).map((entry) => {
-                    const overnight =
-                      entry.start_time &&
-                      entry.end_time &&
-                      isOvernightShift(entry.start_time, entry.end_time);
-                    const previewHours =
-                      entry.start_time && entry.end_time
-                        ? hoursBetween(
-                            entry.start_time,
-                            entry.end_time,
-                            Boolean(entry.overnightConfirmed) || Boolean(overnight),
-                          )
-                        : null;
-                    const displayHours =
-                      entry.id && entry.total_hours != null
-                        ? entry.total_hours
-                        : previewHours;
-                    const selectedProject = projects.find(
-                      (p) => p.id === entry.project_id,
-                    );
-
-                    return (
-                      <motion.div
-                        key={entry.clientId}
-                        layout
-                        {...ROW_MOTION}
-                        className="overflow-hidden"
-                      >
-                        <div
-                          className={cn(
-                            "flex flex-col gap-3 rounded-[calc(var(--radius)-4px)]",
-                            "border border-[var(--line)] bg-[var(--bg)]/40 p-3",
-                            "lg:grid lg:grid-cols-[auto_auto_minmax(10rem,1fr)_minmax(8rem,2fr)_auto] lg:items-center lg:gap-3",
-                          )}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="time"
-                              value={entry.start_time}
-                              disabled={!editable}
-                              onChange={(e) =>
-                                updateEntry(day.date, entry.clientId, {
-                                  start_time: e.target.value,
-                                  saveState: "idle",
-                                })
-                              }
-                              onBlur={(e) =>
-                                scheduleSave(day.date, entry.clientId, {
-                                  start_time: e.target.value,
-                                })
-                              }
-                              className={timeFieldClass}
-                              aria-label="Start time"
-                            />
-                            <span className="text-sm text-muted" aria-hidden>
-                              –
-                            </span>
-                            <input
-                              type="time"
-                              value={entry.end_time}
-                              disabled={!editable}
-                              onChange={(e) =>
-                                updateEntry(day.date, entry.clientId, {
-                                  end_time: e.target.value,
-                                  saveState: "idle",
-                                })
-                              }
-                              onBlur={(e) =>
-                                scheduleSave(day.date, entry.clientId, {
-                                  end_time: e.target.value,
-                                })
-                              }
-                              className={timeFieldClass}
-                              aria-label="End time"
-                            />
-                          </div>
-
-                          <span
-                            className={cn(
-                              "tnum inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-medium",
-                              "bg-[var(--line)] text-muted",
-                            )}
-                          >
-                            {displayHours != null
-                              ? `${displayHours.toFixed(1)}h`
-                              : "—"}
-                          </span>
-
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span
-                              className="h-2 w-2 shrink-0 rounded-full"
-                              style={{
-                                backgroundColor:
-                                  selectedProject?.color ?? "transparent",
-                              }}
-                              aria-hidden
-                            />
-                            <select
-                              value={entry.project_id ?? ""}
-                              disabled={!editable}
-                              onChange={async (e) => {
-                                if (e.target.value === "__new__") {
-                                  const name = window.prompt("Project name");
-                                  if (!name) return;
-                                  const id = await handleCreateProject(name);
-                                  if (id) {
-                                    updateEntry(day.date, entry.clientId, {
-                                      project_id: id,
-                                    });
-                                    await persistEntry(day.date, entry.clientId, {
-                                      project_id: id,
-                                    });
-                                  }
-                                  return;
-                                }
-                                const projectId =
-                                  e.target.value === "" ? null : e.target.value;
-                                updateEntry(day.date, entry.clientId, {
-                                  project_id: projectId,
-                                  saveState: "idle",
-                                });
-                                await persistEntry(day.date, entry.clientId, {
-                                  project_id: projectId,
-                                });
-                              }}
-                              className={cn(
-                                fieldBase,
-                                "h-9 min-w-0 flex-1 py-0 text-sm",
-                              )}
-                            >
-                              <option value="">No project</option>
-                              {projects.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.is_org_wide ? "[Org] " : ""}
-                                  {p.name}
-                                </option>
-                              ))}
-                              {editable && (
-                                <option value="__new__">+ New project</option>
-                              )}
-                            </select>
-                          </div>
-
-                          <input
-                            type="text"
-                            placeholder="What did you work on?"
-                            value={entry.description}
-                            disabled={!editable}
-                            onChange={(e) =>
-                              updateEntry(day.date, entry.clientId, {
-                                description: e.target.value,
-                                saveState: "idle",
-                              })
-                            }
-                            onBlur={(e) =>
-                              scheduleSave(day.date, entry.clientId, {
-                                description: e.target.value,
-                              })
-                            }
-                            className={cn(fieldBase, "h-9 min-w-0 text-sm")}
-                          />
-
-                          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                            <BillableToggle
-                              checked={entry.billable}
-                              disabled={!editable}
-                              onChange={(next) => {
-                                updateEntry(day.date, entry.clientId, {
-                                  billable: next,
-                                  saveState: "idle",
-                                });
-                                void persistEntry(day.date, entry.clientId, {
-                                  billable: next,
-                                });
-                              }}
-                            />
-                            {editable && (
-                              <>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    persistEntry(day.date, entry.clientId)
-                                  }
-                                >
-                                  Save
-                                </Button>
-                                <button
-                                  type="button"
-                                  aria-label="Delete entry"
-                                  onClick={() => removeEntry(entry)}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-[var(--line)] hover:text-[var(--danger)]"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </>
-                            )}
-                            <AnimatePresence mode="wait">
-                              {(entry.saveState !== "idle" ||
-                                entry.error) && (
-                                <EntrySaveIndicator
-                                  state={entry.saveState}
-                                  error={entry.error}
-                                  onRetry={() =>
-                                    persistEntry(day.date, entry.clientId)
-                                  }
-                                />
-                              )}
-                            </AnimatePresence>
-                          </div>
-
-                          {overnight && !entry.overnightConfirmed && editable && (
-                            <div className="lg:col-span-full">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  updateEntry(day.date, entry.clientId, {
-                                    overnightConfirmed: true,
-                                  });
-                                  void persistEntry(day.date, entry.clientId, {
-                                    overnightConfirmed: true,
-                                  });
-                                }}
-                              >
-                                Confirm overnight shift
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                  {(entriesByDay[day.date] ?? []).map((entry) => (
+                    <TimeEntryRow
+                      key={entry.clientId}
+                      entry={entry}
+                      editable={editable}
+                      projects={projects}
+                      onPatch={(patch) =>
+                        updateEntry(day.date, entry.clientId, patch)
+                      }
+                      onBlurField={(field, value) => {
+                        if (
+                          field === "start_time" ||
+                          field === "end_time" ||
+                          field === "description"
+                        ) {
+                          scheduleSave(day.date, entry.clientId, {
+                            [field]: value,
+                          });
+                        }
+                      }}
+                      onSave={() => persistEntry(day.date, entry.clientId)}
+                      onDelete={() => removeEntry(entry)}
+                      onBillableChange={(next) => {
+                        updateEntry(day.date, entry.clientId, {
+                          billable: next,
+                          saveState: "idle",
+                        });
+                        const cur = getEntry(day.date, entry.clientId);
+                        if (
+                          cur &&
+                          canPersistTimeEntry(cur.start_time, cur.end_time)
+                        ) {
+                          void persistEntry(day.date, entry.clientId, {
+                            billable: next,
+                          });
+                        }
+                      }}
+                      onConfirmOvernight={() => {
+                        updateEntry(day.date, entry.clientId, {
+                          overnightConfirmed: true,
+                        });
+                        void persistEntry(day.date, entry.clientId, {
+                          overnightConfirmed: true,
+                        });
+                      }}
+                      onProjectChange={(projectId) => {
+                        updateEntry(day.date, entry.clientId, {
+                          project_id: projectId,
+                          saveState: "idle",
+                        });
+                        const cur = getEntry(day.date, entry.clientId);
+                        if (
+                          cur &&
+                          canPersistTimeEntry(cur.start_time, cur.end_time)
+                        ) {
+                          void persistEntry(day.date, entry.clientId, {
+                            project_id: projectId,
+                          });
+                        }
+                      }}
+                      onCreateProject={handleCreateProject}
+                    />
+                  ))}
                 </AnimatePresence>
 
                 {(entriesByDay[day.date] ?? []).length === 0 && (
@@ -759,130 +517,139 @@ export function TimeTrackingView({
       </div>
 
       <aside className="flex flex-col gap-5 rounded-[var(--radius)] border border-[var(--line)] bg-surface p-5 shadow-sm lg:sticky lg:top-6 lg:self-start">
-        <h3 className="font-display text-base font-medium tracking-tightest text-ink">
-          Week summary
-        </h3>
+        {loading ? (
+          <LogSummarySkeleton />
+        ) : (
+          <>
+            <h3 className="font-display text-base font-medium tracking-tightest text-ink">
+              Week summary
+            </h3>
 
-        <div className="border-b border-[var(--line)] pb-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Total hours
-          </p>
-          <p className="tnum mt-1 text-3xl font-semibold text-ink">
-            <CountUp value={totalHours} decimals={1} />
-          </p>
-        </div>
+            <div className="border-b border-[var(--line)] pb-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                Total hours
+              </p>
+              <p className="tnum mt-1 text-3xl font-semibold text-ink">
+                <CountUp value={totalHours} decimals={1} />
+              </p>
+            </div>
 
-        <div className="flex flex-col gap-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            By project
-          </p>
-          {byProject.length === 0 ? (
-            <p className="text-sm text-muted">No entries yet.</p>
-          ) : (
-            byProject.map((p) => (
-              <div key={p.projectId ?? p.name} className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="flex min-w-0 items-center gap-2 text-ink">
-                    <span
-                      className="inline-block h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: p.color }}
-                    />
-                    <span className="truncate">{p.name}</span>
-                  </span>
-                  <span className="tnum shrink-0 font-medium">
-                    {p.hours.toFixed(1)}h
-                  </span>
-                </div>
-                <div className="h-1 overflow-hidden rounded-full bg-[var(--line)]">
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                By project
+              </p>
+              {byProject.length === 0 ? (
+                <p className="text-sm text-muted">No entries yet.</p>
+              ) : (
+                byProject.map((p) => (
                   <div
-                    className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
-                    style={{
-                      width: `${totalHours ? (p.hours / totalHours) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
+                    key={p.projectId ?? p.name}
+                    className="flex flex-col gap-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="flex min-w-0 items-center gap-2 text-ink">
+                        <span
+                          className="inline-block h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: p.color }}
+                        />
+                        <span className="truncate">{p.name}</span>
+                      </span>
+                      <span className="tnum shrink-0 font-medium">
+                        {p.hours.toFixed(1)}h
+                      </span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-[var(--line)]">
+                      <div
+                        className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
+                        style={{
+                          width: `${totalHours ? (p.hours / totalHours) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 border-t border-[var(--line)] pt-4 text-sm">
+              <div>
+                <p className="text-xs text-muted">Billable</p>
+                <p className="tnum mt-0.5 font-medium text-ink">
+                  {billableHours.toFixed(1)}h
+                </p>
               </div>
-            ))
-          )}
-        </div>
+              <div>
+                <p className="text-xs text-muted">Non-billable</p>
+                <p className="tnum mt-0.5 font-medium text-ink">
+                  {(totalHours - billableHours).toFixed(1)}h
+                </p>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4 border-t border-[var(--line)] pt-4 text-sm">
-          <div>
-            <p className="text-xs text-muted">Billable</p>
-            <p className="tnum mt-0.5 font-medium text-ink">
-              {billableHours.toFixed(1)}h
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted">Non-billable</p>
-            <p className="tnum mt-0.5 font-medium text-ink">
-              {(totalHours - billableHours).toFixed(1)}h
-            </p>
-          </div>
-        </div>
+            {showEarnings && (
+              <div className="border-t border-[var(--line)] pt-4">
+                <p className="text-xs text-muted">Estimated earnings</p>
+                <p className="tnum mt-0.5 font-medium text-ink">
+                  {currency ?? "USD"}{" "}
+                  {(totalHours * (rate ?? 0)).toFixed(2)}
+                </p>
+              </div>
+            )}
 
-        {showEarnings && (
-          <div className="border-t border-[var(--line)] pt-4">
-            <p className="text-xs text-muted">Estimated earnings</p>
-            <p className="tnum mt-0.5 font-medium text-ink">
-              {currency ?? "USD"}{" "}
-              {(totalHours * (rate ?? 0)).toFixed(2)}
-            </p>
-          </div>
+            <div className="border-t border-[var(--line)] pt-4">
+              <p className="text-xs text-muted">Submit progress</p>
+              <p className="tnum mt-0.5 text-sm font-medium text-ink">
+                {weekStats.daysLogged} / {SUBMIT_MIN_DAYS} days ·{" "}
+                {weekStats.totalHours.toFixed(1)} / {SUBMIT_MIN_HOURS}.0h
+              </p>
+            </div>
+
+            {showOvertimeNotice && editable && (
+              <p className="rounded-[var(--radius)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
+                <span className="tnum font-medium">
+                  {(totalHours - OVERTIME_HOURS_THRESHOLD).toFixed(1)}h
+                </span>{" "}
+                overtime — your manager will approve the extra time.
+              </p>
+            )}
+
+            {editable && (
+              <Button
+                className="w-full"
+                disabled={pending || !timesheetId || !weekStats.canSubmit}
+                title={
+                  !weekStats.canSubmit
+                    ? `Log at least ${SUBMIT_MIN_DAYS} days or ${SUBMIT_MIN_HOURS} hours`
+                    : undefined
+                }
+                onClick={() => {
+                  const tsId = timesheetIdRef.current;
+                  if (!tsId) {
+                    toast(
+                      "Still loading your timesheet — try again in a moment.",
+                      "error",
+                    );
+                    return;
+                  }
+                  startTransition(async () => {
+                    const res = await submitTimesheetForApproval(tsId);
+                    toast(res.message, res.ok ? "success" : "error");
+                    if (res.ok) await load();
+                  });
+                }}
+              >
+                Submit for approval
+              </Button>
+            )}
+
+            <Link
+              href="/app/projects"
+              className="text-center text-sm font-medium text-[var(--accent-strong)] hover:underline"
+            >
+              Manage projects
+            </Link>
+          </>
         )}
-
-        <div className="border-t border-[var(--line)] pt-4">
-          <p className="text-xs text-muted">Submit progress</p>
-          <p className="tnum mt-0.5 text-sm font-medium text-ink">
-            {weekStats.daysLogged} / {SUBMIT_MIN_DAYS} days ·{" "}
-            {weekStats.totalHours.toFixed(1)} / {SUBMIT_MIN_HOURS}.0h
-          </p>
-        </div>
-
-        {showOvertimeNotice && editable && (
-          <p className="rounded-[var(--radius)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
-            <span className="tnum font-medium">
-              {(totalHours - OVERTIME_HOURS_THRESHOLD).toFixed(1)}h
-            </span>{" "}
-            overtime — your manager will approve the extra time.
-          </p>
-        )}
-
-        {editable && (
-          <Button
-            className="w-full"
-            disabled={pending || !timesheetId || !weekStats.canSubmit}
-            title={
-              !weekStats.canSubmit
-                ? `Log at least ${SUBMIT_MIN_DAYS} days or ${SUBMIT_MIN_HOURS} hours`
-                : undefined
-            }
-            onClick={() => {
-              const tsId = timesheetIdRef.current;
-              if (!tsId) {
-                toast(
-                  "Still loading your timesheet — try again in a moment.",
-                  "error",
-                );
-                return;
-              }
-              startTransition(async () => {
-                const res = await submitTimesheetForApproval(tsId);
-                toast(res.message, res.ok ? "success" : "error");
-                if (res.ok) await load();
-              });
-            }}
-          >
-            Submit for approval
-          </Button>
-        )}
-
-        <Link
-          href="/app/projects"
-          className="text-center text-sm font-medium text-[var(--accent-strong)] hover:underline"
-        >
-          Manage projects
-        </Link>
       </aside>
     </div>
   );

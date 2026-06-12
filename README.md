@@ -57,7 +57,8 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 
 ### Phase 7 — In-app time tracking
 - Weekly submission (Mon–Sun): log time at `/app/timesheets/log` with auto-save via Supabase browser client (RLS-scoped)
-- Submit gate: 5 days logged or 40 hours; overtime flagged for manager review
+- Seven-day view (weekends optional); submit gate: 5 days logged or 40 hours; overtime flagged for manager review
+- Draft rows persist only with valid start/end; overlap guard excludes self and invalid DB rows
 - Projects, trends, admin live draft visibility, time-log reminders
 
 ## Getting started
