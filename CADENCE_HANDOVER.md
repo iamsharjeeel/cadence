@@ -761,6 +761,33 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 - `src/lib/time/week-stats.ts` — server-side `computeWeekStats`, `canSubmitWeek`, `overtimeHours`
 - `src/lib/time/periods.ts` — `mondayOfWeek`, `weekPeriodFromMonday`, `isoWeekLabel`, `workingWeekDays`
 
+### Phase 7 — Time entry insert fix + log UI redesign ✅
+
+#### Root cause (insert silently failing)
+- Server action `upsertTimeEntry` sent **`is_overnight`** in the insert/update payload.
+- Live `time_entries` schema no longer has that column (`total_hours` is `GENERATED ALWAYS`).
+- Postgres rejected the insert; the action returned generic `"Couldn't create entry."` without surfacing `error.message`.
+
+#### Fix
+- Time entry **create/update/delete** now uses the **browser Supabase client** (`@/lib/supabase/client`) under RLS.
+- Insert payload is **exactly**: `org_id`, `employee_id`, `timesheet_id`, `project_id`, `entry_date`, `start_time`, `end_time`, `description`, `billable` — never `total_hours` or `is_overnight`.
+- `org_id` / `employee_id` / `timesheet_id` asserted from session + `ensureTimesheetForWeek()` before insert.
+- `total_hours` read back from `.select("id, total_hours")` after save for summary display.
+- Real Postgres errors surfaced inline on the row; **Retry** only when `error !== null`.
+
+#### Week summary
+- Totals, by-project breakdown, billable split, and submit progress recomputed from **persisted** entries (`total_hours` from DB).
+- Estimated earnings = `total_hours × employee rate` (single currency, no FX).
+
+#### Log UI redesign (`TimeTrackingView`)
+- Day cards: surface bg, hairline border, 16px radius, Space Grotesk headings.
+- Entry rows: aligned time inputs, duration chip, project select with inline color dot, description flex-grow, styled billable toggle, save-state indicator (saving/saved ✓/error), quiet delete icon.
+- Framer Motion 160ms on row add/remove; week summary panel tightened with tabular-nums throughout.
+
+#### Key files
+- `src/lib/time/time-entry-client.ts` — RLS-scoped save/delete
+- `src/lib/time/week-stats-client.ts` — client-side stats from persisted entries
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

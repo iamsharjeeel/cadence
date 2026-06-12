@@ -2,7 +2,7 @@
 
 **Time, tracked with rhythm.**
 
-Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Employees submit timesheets via file upload, clipboard paste, or Google Sheets; admins review and approve with rate snapshots locked at approval time; pay advices and contractor invoices are generated as PDFs and emailed automatically. Leave management, employee onboarding, official document signing, and in-app notifications round out a full people-ops workflow — all scoped per organization with role-based access and a complete audit trail.
+Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Employees log time in-app (weekly Mon–Sun timesheets, start/end per day, project + billable); admins review and approve with rate snapshots locked at approval time; pay advices and contractor invoices are generated as PDFs and emailed automatically. Leave management, employee onboarding, official document signing, and in-app notifications round out a full people-ops workflow — all scoped per organization with role-based access and a complete audit trail.
 
 **Live:** [https://cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app)
 
@@ -54,6 +54,11 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - Audit log viewer with CSV export
 - Profile completeness indicator
 - Enhanced landing page
+
+### Phase 7 — In-app time tracking
+- Weekly submission (Mon–Sun): log time at `/app/timesheets/log` with auto-save via Supabase browser client (RLS-scoped)
+- Submit gate: 5 days logged or 40 hours; overtime flagged for manager review
+- Projects, trends, admin live draft visibility, time-log reminders
 
 ## Getting started
 

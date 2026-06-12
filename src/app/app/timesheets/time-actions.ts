@@ -130,6 +130,8 @@ export async function getTimeTrackingData(weekMonday: string): Promise<
   | {
       ok: true;
       timesheetId: string;
+      orgId: string;
+      employeeId: string;
       status: TimesheetStatus;
       entries: TimeEntryWithProject[];
       projects: Project[];
@@ -183,6 +185,8 @@ export async function getTimeTrackingData(weekMonday: string): Promise<
   return {
     ok: true,
     timesheetId: ensured.timesheetId,
+    orgId: profile.org_id,
+    employeeId: profile.id,
     status: ensured.status,
     entries,
     projects,
@@ -226,16 +230,18 @@ async function checkOverlap(
   const db = createAdminClient();
   const { data: siblings } = await db
     .from("time_entries")
-    .select("id, start_time, end_time, is_overnight")
+    .select("id, start_time, end_time")
     .eq("employee_id", employeeId)
     .eq("entry_date", entryDate);
 
   for (const s of siblings ?? []) {
     if (excludeId && s.id === excludeId) continue;
+    const otherStart = String(s.start_time).slice(0, 5);
+    const otherEnd = String(s.end_time).slice(0, 5);
     const other = toRange(
-      String(s.start_time).slice(0, 5),
-      String(s.end_time).slice(0, 5),
-      Boolean(s.is_overnight),
+      otherStart,
+      otherEnd,
+      isOvernightShift(otherStart, otherEnd),
     );
     if (other && rangesOverlap(range, other)) {
       return "This entry overlaps another on the same day.";
@@ -321,7 +327,6 @@ export async function upsertTimeEntry(
     entry_date: payload.entryDate,
     start_time: validated.start,
     end_time: validated.end,
-    is_overnight: validated.overnight,
     description: payload.description?.trim() || null,
     billable: payload.billable ?? true,
   };
@@ -329,17 +334,30 @@ export async function upsertTimeEntry(
   if (payload.id) {
     const { error } = await db
       .from("time_entries")
-      .update(row)
+      .update({
+        timesheet_id: row.timesheet_id,
+        project_id: row.project_id,
+        entry_date: row.entry_date,
+        start_time: row.start_time,
+        end_time: row.end_time,
+        description: row.description,
+        billable: row.billable,
+      })
       .eq("id", payload.id)
       .eq("employee_id", profile.id);
-    if (error) return { ok: false, message: "Couldn't save entry." };
+    if (error) return { ok: false, message: error.message ?? "Couldn't save entry." };
   } else {
     const { data, error } = await db
       .from("time_entries")
       .insert(row)
-      .select("id")
+      .select("id, total_hours")
       .single();
-    if (error || !data) return { ok: false, message: "Couldn't create entry." };
+    if (error || !data) {
+      return {
+        ok: false,
+        message: error?.message ?? "Couldn't create entry.",
+      };
+    }
     payload.id = data.id;
   }
 
