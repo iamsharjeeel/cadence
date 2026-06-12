@@ -75,6 +75,14 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - **Decimal hours entry:** per-row toggle (Time range vs Total hours) on weekly log grid; synthetic `00:00` + offset times feed generated `total_hours`
 - **Test-account cleanup:** `supabase/scripts/unstick_owner_test_account.sql` and `scripts/unstick-test-account.mjs`
 
+### Phase 9 — Asana OAuth + project import
+- **Per-user OAuth:** each Cadence user connects their own Asana account (not org-level)
+- **Profile → Connected accounts:** Connect / Disconnect Asana; tokens encrypted at rest (AES-256-GCM via `DOCUMENT_ENCRYPTION_KEY`)
+- **OAuth callback:** `GET /api/asana/callback` (registered redirect URI in Asana + Vercel)
+- **Project import:** browse workspaces/projects from Asana, import into personal `asana_imported_projects` list
+- **Token refresh:** automatic refresh when access token expires (5-minute buffer)
+- **Deferred:** linking imported Asana projects to timesheet entries (next session)
+
 ## Getting started
 
 ```bash
@@ -97,6 +105,9 @@ npm run dev                        # http://localhost:3000
 | `DOCUMENT_ENCRYPTION_KEY` | server-only | AES-256-GCM for bank field encryption |
 | `RESEND_API_KEY` | server-only | Resend API key |
 | `RESEND_FROM_EMAIL` | server-only | Sender address for document emails |
+| `ASANA_CLIENT_ID` | server-only | Asana OAuth app client ID |
+| `ASANA_CLIENT_SECRET` | server-only | Asana OAuth app client secret |
+| `ASANA_REDIRECT_URI` | server-only | Must match Asana app registration (`…/api/asana/callback`) |
 
 ## Database migrations
 
@@ -111,6 +122,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 7. `supabase/migrations/20260617000000_time_entries_perf_index.sql` (optional perf index)
 8. `supabase/migrations/20260619000000_org_invites_owner_role.sql` — **required for invite flow**
 9. `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` — **required for decimal-hours entry mode**
+10. `supabase/migrations/20260621000000_asana_oauth.sql` — **required for Asana OAuth + import**
 
 ## License
 

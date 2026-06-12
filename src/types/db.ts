@@ -63,6 +63,91 @@ export type Database = {
           },
         ]
       }
+      asana_connections: {
+        Row: {
+          id: string
+          user_id: string
+          access_token_enc: string
+          refresh_token_enc: string
+          expires_at: string
+          asana_user_gid: string | null
+          asana_user_name: string | null
+          asana_user_email: string | null
+          connected_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          access_token_enc: string
+          refresh_token_enc: string
+          expires_at: string
+          asana_user_gid?: string | null
+          asana_user_name?: string | null
+          asana_user_email?: string | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          access_token_enc?: string
+          refresh_token_enc?: string
+          expires_at?: string
+          asana_user_gid?: string | null
+          asana_user_name?: string | null
+          asana_user_email?: string | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asana_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asana_imported_projects: {
+        Row: {
+          id: string
+          user_id: string
+          asana_project_gid: string
+          asana_project_name: string
+          asana_workspace_gid: string
+          asana_workspace_name: string | null
+          imported_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          asana_project_gid: string
+          asana_project_name: string
+          asana_workspace_gid: string
+          asana_workspace_name?: string | null
+          imported_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          asana_project_gid?: string
+          asana_project_name?: string
+          asana_workspace_gid?: string
+          asana_workspace_name?: string | null
+          imported_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asana_imported_projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           allowed_domains: string[]
@@ -1008,6 +1093,8 @@ export const Constants = {
 // ---------------------------------------------------------------------------
 
 export type Organization = Tables<"organizations">
+export type AsanaConnection = Tables<"asana_connections">
+export type AsanaImportedProject = Tables<"asana_imported_projects">
 export type Profile = Tables<"profiles">
 export type AuditLog = Tables<"audit_log">
 export type Document = Tables<"documents">

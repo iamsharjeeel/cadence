@@ -21,7 +21,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **GitHub repo:** `cadence` (private, `iamsharjeeel/cadence`)
 - **Google OAuth:** configured — redirect URI `https://irybkcryeywmwpcmhlaa.supabase.co/auth/v1/callback`, JS origin `https://cadence-eta-five.vercel.app`
 - **Supabase Auth URL config:** Site URL = Vercel URL; Redirect URLs include `https://cadence-eta-five.vercel.app/**`
-- **Env vars (set in Vercel):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `SUPERADMIN_EMAIL` (server-only), `DOCUMENT_ENCRYPTION_KEY` (server-only), `RESEND_API_KEY` (server-only), `RESEND_FROM_EMAIL` (server-only)
+- **Env vars (set in Vercel):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `SUPERADMIN_EMAIL` (server-only), `DOCUMENT_ENCRYPTION_KEY` (server-only), `RESEND_API_KEY` (server-only), `RESEND_FROM_EMAIL` (server-only), `ASANA_CLIENT_ID` (server-only), `ASANA_CLIENT_SECRET` (server-only), `ASANA_REDIRECT_URI` (server-only — `https://cadence-eta-five.vercel.app/api/asana/callback`)
 
 ## Key product decisions (all locked)
 - **Multi-tenant** from day one. Every table scoped by `org_id`.
@@ -928,9 +928,55 @@ Run migration `20260619000000_org_invites_owner_role.sql` in Supabase SQL editor
 1. Run `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` before decimal-hours testing.
 2. Run Item 1 cleanup SQL/script for stuck test email if not already done.
 
+### Session — Asana OAuth + project import ✅
+
+**Branch:** `cursor/asana-oauth-integration-894a` (branched from PR #9 `cursor/unstick-test-account-edab`, which is still open — not merged to `main`).
+
+**PR #9 status:** Open on `cursor/unstick-test-account-edab`; 4 commits ahead of `main`. This session continues that branch lineage.
+
+#### Architecture
+- **Per-user OAuth** — each Cadence user connects their own Asana account; not org-scoped.
+- **Entry point:** Profile → **Connected accounts** (`/app/profile#section-connected`).
+- **OAuth flow:**
+  - `GET /api/asana/connect` — sets httpOnly state cookie, redirects to `https://app.asana.com/-/oauth_authorize`
+  - `GET /api/asana/callback` — exchanges code, stores tokens, redirects to `/app/profile?asana=connected`
+  - Scope: `projects:read` (list workspaces + projects)
+- **Token encryption:** AES-256-GCM via existing `DOCUMENT_ENCRYPTION_KEY`, scrypt salt `cadence-asana-v1` (`src/lib/asana-crypto.ts`). Same pattern as bank fields; tokens never sent to client.
+- **Token refresh:** `getValidAsanaAccessToken()` refreshes when expired or within 5 minutes of expiry (`src/lib/asana/connection.ts`).
+- **Disconnect:** revokes access token via Asana `/-/oauth_revoke`, deletes `asana_connections` row + all `asana_imported_projects` for user (clean slate — user can reconnect and re-import).
+
+#### Database (`supabase/migrations/20260621000000_asana_oauth.sql`)
+- **`asana_connections`** — `user_id` (unique FK → profiles), `access_token_enc`, `refresh_token_enc`, `expires_at`, `asana_user_gid/name/email`, timestamps. RLS: user SELECT/DELETE own row; INSERT/UPDATE via service role only.
+- **`asana_imported_projects`** — `user_id`, `asana_project_gid`, `asana_project_name`, `asana_workspace_gid/name`, `imported_at`. Unique `(user_id, asana_project_gid)`. RLS: user CRUD own rows only.
+- **Intentionally separate** from org-scoped `projects` table — personal reference layer until entry linking is designed.
+
+#### UI
+- `ConnectedAccountsSection.tsx` — connect button, connected state, disconnect modal, imported list + remove, sync names.
+- `AsanaImportModal.tsx` — workspace-grouped checkbox list, gold-accent MotionModal.
+
+#### Key files
+- `src/lib/asana/config.ts`, `connection.ts`, `projects.ts`, `asana-crypto.ts`
+- `src/app/api/asana/connect/route.ts`, `callback/route.ts`
+- `src/app/app/profile/asana-actions.ts`, `ConnectedAccountsSection.tsx`, `AsanaImportModal.tsx`
+
+#### Manual step required
+Run `supabase/migrations/20260621000000_asana_oauth.sql` in Supabase SQL editor before testing Asana connect/import in production.
+
+#### Next session — linking to timesheet entries (NOT built)
+Design decision needed: should an imported Asana project map to/create an org-scoped Cadence `projects` row (color dot in Trends) or remain a per-user reference on the entry "What did you work on?" field? Hook point: `asana_imported_projects` + `time_entries.project_id` / description field.
+
+#### Token refresh — owner verification (later)
+If access token expiry can't be observed in one session: run in Supabase SQL editor:
+```sql
+UPDATE asana_connections
+SET expires_at = now() - interval '1 minute'
+WHERE user_id = '<your-user-uuid>';
+```
+Then open Import projects — should succeed without re-OAuth (refresh happens server-side).
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
-- Asana OAuth integration (dedicated future session)
+- Linking imported Asana projects to timesheet entries (foundation ships this session)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)
 - DOCX → PDF server-side conversion on Vercel (DOCX shows download + acknowledge flow)
