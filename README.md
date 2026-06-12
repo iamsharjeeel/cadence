@@ -61,6 +61,14 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - Draft rows persist only with valid start/end; overlap guard excludes self and invalid DB rows
 - Projects, trends, admin live draft visibility, time-log reminders
 
+### Task C — Timesheet robustness
+- **Gap warning (C1):** amber/gold inline notice before submit listing empty Mon–Fri days (warn-only, non-blocking)
+- **Rejection + resubmit (C2):** `resubmit_count` tracks how many times a sheet was returned from rejection; "Resubmitted" badge shown in manager list and week overview; `returnTimesheetToDraft` increments the counter
+- **Past-week history (C3):** unlimited backward navigation; submitted/approved weeks fully read-only with clear non-alarming notice; rejection note surfaced inline in log view; draft past weeks editable
+- **Manager week overview (C4):** `TimesheetWeekOverview` with Prev/This/Next selector, per-employee row (avatar, status, hours, action), filter pills, sort by name/hours/status, staggered Framer Motion entrance
+- **Overlap audit (C5):** confirmed zero ghost rows; `canPersistTimeEntry` gate intact; overlap self-exclusion correct; no patches required
+- **Branded date picker (C6):** `DatePicker` component (gold focus ring, Space Grotesk, `color-scheme` aware); replaces all 7 raw `type="date"` inputs across timesheets, leave, documents, audit, profile, onboarding
+
 ## Getting started
 
 ```bash
@@ -91,6 +99,11 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 1. `supabase/migrations/20260611000000_phase4_documents.sql`
 2. `supabase/migrations/20260612000000_phase5_leave_onboarding_docs.sql`
 3. `supabase/migrations/20260613000000_phase6_notifications_org_logos.sql`
+4. `supabase/migrations/20260614000000_security_rls_storage.sql`
+5. `supabase/migrations/20260615000000_org_logos_bucket.sql`
+6. `supabase/migrations/20260616000000_phase7_time_tracking.sql`
+7. `supabase/migrations/20260617000000_time_entries_perf_index.sql`
+8. `supabase/migrations/20260618000000_task_c_resubmit_count.sql`
 
 ## License
 

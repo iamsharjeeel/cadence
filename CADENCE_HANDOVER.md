@@ -854,6 +854,58 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 #### A3 — Duration chip layout (already clean)
 - `TimeEntryRow.tsx` chip is a sibling flex item outside the time-inputs container — never overlapping. Confirmed no change needed.
 
+### Task C ✅ — Timesheet robustness
+
+#### C1 — Gap warning before submit
+- `TimeTrackingView.tsx`: IIFE in aside panel computes `emptyWeekdays` (Mon–Fri days with zero persisted entries). Shows amber/gold notice naming the specific days before the submit button — warn-only, non-blocking. Saturday/Sunday never trigger it.
+
+#### C2 — Rejection note + resubmit tracking
+- New column `resubmit_count smallint NOT NULL DEFAULT 0` on `timesheets`.
+- Migration: `supabase/migrations/20260618000000_task_c_resubmit_count.sql` (applied).
+- `returnTimesheetToDraft` in `actions.ts` now increments `resubmit_count` in the same update as status→draft + rejection_note→null.
+- `TimesheetListTable` + `TimesheetWeekOverview`: show "Resubmitted" amber badge when `resubmit_count > 0 && status === "submitted"`.
+- Detail page already shows rejection note + "Edit & resubmit" CTA via `TimesheetStatusActions`.
+
+#### C3 — Full past-week history
+- `editable` in `TimeTrackingView` is now `status === "draft" || status === "rejected"` (submitted removed).
+- `editableRef` updated to match.
+- Read-only notice shown when `!editable` (submitted: "This timesheet has been submitted and cannot be edited." / approved: locked).
+- `rejection_note` returned from `getTimeTrackingData` and shown prominently in aside when status is rejected.
+- Past-week navigation: unlimited backward — `shiftWeekMonday` has no lower bound.
+
+#### C4 — Manager week overview (`/app/timesheets`)
+- New client component `TimesheetWeekOverview.tsx` with Prev/This/Next week selector, ISO week label, filter pills (All/Submitted/Approved/Rejected/No entry), sort by name/hours/status.
+- Server action `getWeekOverview(weekMonday)` in `time-actions.ts`: fetches active employees, week timesheets, and time-entry hours for that week; joins and returns `WeekOverviewRow[]`.
+- Rows: avatar initials, employee name, `TimesheetStatusPill`, "Resubmitted" badge if applicable, total hours (tnum), action button (Review for submitted, "Approved ✓" for approved).
+- Staggered Framer Motion `motion.tr` at 160ms; 3-row skeleton on load.
+- Rendered above the existing `TimesheetListTable` in the manager view.
+
+#### C5 — Overlap audit
+- Queried Supabase live: **zero** ghost rows (null start/end or zero duration). No DELETE needed.
+- `canPersistTimeEntry()` gate confirmed intact in `time-entry-client.ts`.
+- Client overlap check: filters null start/end + uses `isPersistableTimePair` before comparing.
+- Server overlap check: `toRange()` returns null for invalid inputs, safely skipping them.
+- No patches required.
+
+#### C6 — Branded date pickers
+- New `src/components/ui/DatePicker.tsx`: `forwardRef` wrapper around `<input type="date">` with gold focus ring (`focus:border-[var(--accent)] focus:ring-[var(--accent-soft)]`), Space Grotesk, `[color-scheme:light] dark:[color-scheme:dark]`, disabled state, optional `label`/`hint`/`error` props.
+- `globals.css`: `input[type="date"]::-webkit-calendar-picker-indicator` opacity + hover styles added.
+- Replaced all 7 raw `type="date"` inputs: `timesheets/controls.tsx`, `timesheets/ExportButton.tsx`, `profile/ProfileEmploymentForm.tsx`, `onboarding/OnboardingWizard.tsx`, `leave/RequestLeaveModal.tsx`, `documents/controls.tsx`, `audit/AuditLogViewer.tsx`.
+
+#### Type fixes (Task C)
+- `src/lib/audit.ts`: Added `timesheet_recalled` and `timesheet_returned_to_draft` to `AuditAction` union.
+- `src/types/db.ts`: Added `resubmit_count` to `timesheets` Row/Insert/Update; made `documents.timesheet_id` nullable in Row/Insert/Update.
+- `src/app/app/timesheets/TimeEntryRow.tsx`: `useState<string>` for color swatch to avoid literal-type narrowing error.
+
+#### Key files (Task C)
+- `src/app/app/timesheets/TimeTrackingView.tsx` — C1 gap warning, C3 read-only, C3 rejection note
+- `src/app/app/timesheets/TimesheetWeekOverview.tsx` — C4 week overview component (new)
+- `src/app/app/timesheets/time-actions.ts` — C3 rejection_note in getTimeTrackingData, C4 getWeekOverview
+- `src/app/app/timesheets/actions.ts` — C2 resubmit_count increment
+- `src/app/app/timesheets/TimesheetListTable.tsx` — C2 Resubmitted badge
+- `src/components/ui/DatePicker.tsx` — C6 branded date picker (new)
+- `supabase/migrations/20260618000000_task_c_resubmit_count.sql` — C2 migration (applied)
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)
