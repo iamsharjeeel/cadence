@@ -49,8 +49,14 @@ export function RolePill({ role }: { role: UserRole }) {
   return <Badge tone="muted">{titleCase(role)}</Badge>;
 }
 
-// draft (grey), submitted (blue), approved (teal), rejected (red)
-export function TimesheetStatusPill({ status }: { status: TimesheetStatus }) {
+// draft (grey), submitted (blue), approved (teal), rejected (red), live (teal pulse for draft)
+export function TimesheetStatusPill({
+  status,
+  live,
+}: {
+  status: TimesheetStatus;
+  live?: boolean;
+}) {
   if (status === "approved") return <Badge tone="accent">Approved</Badge>;
   if (status === "rejected") return <Badge tone="danger">Rejected</Badge>;
   if (status === "submitted")
@@ -59,6 +65,10 @@ export function TimesheetStatusPill({ status }: { status: TimesheetStatus }) {
         Submitted
       </span>
     );
+  if (status === "draft") {
+    if (live) return <Badge tone="accent">Live</Badge>;
+    return <Badge tone="muted">In progress</Badge>;
+  }
   return <Badge tone="muted">Draft</Badge>;
 }
 

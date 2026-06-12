@@ -7,6 +7,7 @@ import {
   Bell,
   Calendar,
   CheckCircle2,
+  Clock,
   FileText,
   XCircle,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
   timesheet_submitted: FileText,
   timesheet_approved: CheckCircle2,
   timesheet_rejected: XCircle,
+  time_log_reminder: Clock,
   leave_requested: Calendar,
   leave_approved: CheckCircle2,
   leave_rejected: XCircle,

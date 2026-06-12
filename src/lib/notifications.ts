@@ -6,6 +6,7 @@ export type NotificationType =
   | "timesheet_submitted"
   | "timesheet_approved"
   | "timesheet_rejected"
+  | "time_log_reminder"
   | "leave_requested"
   | "leave_approved"
   | "leave_rejected"

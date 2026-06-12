@@ -233,7 +233,10 @@ export function TimesheetListTable({
               <TD className="tnum text-sm text-muted">{t.rowCount}</TD>
               <TD>
                 <div className="flex flex-col gap-1">
-                  <TimesheetStatusPill status={t.status} />
+                  <TimesheetStatusPill
+                    status={t.status}
+                    live={isManager && t.status === "draft"}
+                  />
                   {t.status === "rejected" && t.rejection_note && (
                     <span className="max-w-xs text-xs text-[var(--danger)]">
                       {t.rejection_note}

@@ -58,8 +58,8 @@ export default async function DashboardPage({
           title={`Good to see you, ${firstName}.`}
           description="Your approved hours and earnings this month."
           action={
-            <Link href="/app/timesheets/new">
-              <Button size="sm">Submit new timesheet</Button>
+            <Link href="/app/timesheets">
+              <Button size="sm">Log time</Button>
             </Link>
           }
         />

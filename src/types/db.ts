@@ -651,6 +651,90 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          id: string
+          org_id: string
+          owner_id: string | null
+          name: string
+          color: string
+          is_org_wide: boolean
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          owner_id?: string | null
+          name: string
+          color?: string
+          is_org_wide?: boolean
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          owner_id?: string | null
+          name?: string
+          color?: string
+          is_org_wide?: boolean
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      time_entries: {
+        Row: {
+          id: string
+          org_id: string
+          employee_id: string
+          timesheet_id: string | null
+          project_id: string | null
+          entry_date: string
+          start_time: string
+          end_time: string
+          is_overnight: boolean
+          total_hours: number
+          description: string | null
+          billable: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          employee_id: string
+          timesheet_id?: string | null
+          project_id?: string | null
+          entry_date: string
+          start_time: string
+          end_time: string
+          is_overnight?: boolean
+          total_hours: number
+          description?: string | null
+          billable?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          employee_id?: string
+          timesheet_id?: string | null
+          project_id?: string | null
+          entry_date?: string
+          start_time?: string
+          end_time?: string
+          is_overnight?: boolean
+          total_hours?: number
+          description?: string | null
+          billable?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       official_documents: {
         Row: {
           category: string
@@ -890,6 +974,9 @@ export type LeaveRequest = Tables<"leave_requests">
 export type OnboardingStep = Tables<"onboarding_steps">
 export type OfficialDocument = Tables<"official_documents">
 export type Notification = Tables<"notifications">
+export type Project = Tables<"projects">
+export type TimeEntry = Tables<"time_entries">
+export type { TimeEntryWithProject } from "./time-tracking";
 
 export type UserRole = Enums<"user_role">
 export type UserStatus = Enums<"user_status">

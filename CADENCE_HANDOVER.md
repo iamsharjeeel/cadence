@@ -5,7 +5,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 ---
 
 ## What we're building
-**Cadence** — a premium, multi-tenant SaaS timesheet portal. Employees have profiles (info, rate, etc.) and upload timesheets (CSV / Excel / Google Sheets). The system parses, validates, stores them, and admins approve. Approved data will later be pushed to a "CFO Claude Agent" via webhook (deferred). Tagline: "Time, tracked with rhythm."
+**Cadence** — a premium, multi-tenant SaaS timesheet portal. Employees log time in-app (start/end, project, description, billable); admins approve period timesheets. Approved data will later be pushed to a "CFO Claude Agent" via webhook (deferred). Tagline: "Time, tracked with rhythm."
 
 ## Stack
 - **Frontend/host:** Next.js 14 (App Router, TypeScript, `src/`) on Vercel
@@ -59,8 +59,10 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - `organizations`: id, name, slug, base_currency, allowed_domains[], default_cadence, logo_url, created_at
 - `profiles`: id=auth.users.id, org_id, full_name, email, role, status, rate, rate_type, currency, bank_name, bank_account_name, bank_account_number (encrypted), bank_bsb_swift (encrypted), tax_id, address, payment_terms_days, created_at
 - `audit_log`: id, org_id, actor_id, action, entity, payload jsonb, created_at
-- `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), raw_file_path, rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, created_at, updated_at
-- `timesheet_rows`: id, timesheet_id, org_id, row_date, hours, project, description, billable, created_at
+- `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), raw_file_path (legacy upload path), rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, created_at, updated_at
+- `timesheet_rows`: id, timesheet_id, org_id, row_date, hours, project, description, billable, created_at — **legacy** (pre–Phase 7 uploads); kept for historical rows
+- `projects`: id, org_id, owner_id, name, color, is_org_wide, is_active, created_at — org-wide or personal projects for time entry
+- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, entry_date, start_time, end_time, is_overnight, total_hours, description, billable, created_at, updated_at — in-app time logging (replaces upload flow)
 - `webhook_deliveries`: id, org_id, timesheet_id, payload jsonb, status (pending|delivered|failed), attempts, last_attempted_at, delivered_at, created_at
 - `documents`: id, org_id, timesheet_id, employee_id, type (pay_advice|invoice), status (draft|in_progress|verified|corrections_needed), document_number, gst_enabled, gst_rate, subtotal, gst_amount, total, currency, file_path, emailed_at, generated_by, status_changed_by, status_changed_at, created_at, updated_at
 
@@ -141,7 +143,7 @@ No hourly crons (paid). Daily crons only (free). Currently using none.
 - Approved hours this month + total earnings grouped by currency (no cross-currency summing).
 - Recent timesheets (last 5) with status badges, linked to detail.
 - Line chart: approved hours per period (last 6 periods).
-- "Submit new timesheet" CTA.
+- "Log time" CTA → `/app/timesheets`.
 
 **Admin view:**
 - Pending approvals count with badge + quick-link to submitted filter.
@@ -554,7 +556,7 @@ Run migration `20260613000000_phase6_notifications_org_logos.sql` against Supaba
 - Installed `zod` (available for future schema migration; validation helpers used in this pass).
 
 #### Dependency audit
-- `npm audit`: remaining highs are **Next.js** (fix requires major upgrade to v16 — deferred) and **xlsx** (no upstream fix; required for spreadsheet import — mitigated by server-side MIME/size validation).
+- `npm audit`: remaining highs are **Next.js** (fix requires major upgrade to v16 — deferred).
 - Updated `@supabase/ssr`, `framer-motion`, Next 14 patch line (already latest 14.2.x).
 
 #### Manual step required
@@ -633,6 +635,63 @@ Run migration `20260614000000_security_rls_storage.sql` against Supabase before 
 - **Pipeline:** Both methods → `detectHeaderOffset` → `tableFromGrid` → `autoMatch` → mapping (always) → preview → submit.
 - **Mapping step:** Always shown after parse; all column dropdowns pre-filled with auto-detected matches for review/adjustment. Required fields (Date + Hours or Start + End time) block continue if unset.
 - **HeaderMapping:** URL-like column headers excluded from dropdown options (`isUrlLikeCell`).
+
+### Phase 7 ✅ — In-app time tracking
+
+#### Database
+- Migration: `supabase/migrations/20260616000000_phase7_time_tracking.sql`
+- **`projects`** — org-wide (admin-managed) or personal (employee-owned); soft-delete via `is_active = false`
+- **`time_entries`** — linked to `timesheets` via `timesheet_id`; `total_hours` stored (not generated) to support overnight shifts via `is_overnight`; overlap guard server-side
+- RLS: org members read projects; employees manage personal projects; admin/superadmin manage org-wide; time entries scoped to employee (admin/superadmin read org)
+
+#### Removed (upload flow)
+- `/app/timesheets/new` upload wizard (file, paste, mapping, preview)
+- `/api/google-sheet` route
+- `src/lib/timesheets/{parse,map,columns,types,validation}.ts`
+- Dependencies: `papaparse`, `xlsx`, `@types/papaparse` uninstalled
+- **`timesheets` + `timesheet_rows` retained** for period container, approval flow, and legacy uploaded data
+
+#### Time entry UI (`/app/timesheets` — employees)
+- **Left panel (60%):** period selector (back/forward), week day rows (Mon–Sun within period), inline entry rows (start/end, live hours, project, description, billable, delete)
+- **Right panel (40%):** period summary — total hours (GSAP CountUp), project breakdown, billable split, estimated earnings (hourly only), days logged, submit for approval
+- Auto-save on blur with ✓ Saved indicator (Framer Motion, 1s fade)
+- Overnight shift: user must confirm when end < start (`is_overnight = true`)
+- Server overlap validation on insert/update
+- Auto-creates draft `timesheets` row for period on first visit (`ensureTimesheetForPeriod`)
+- Submit sets status `submitted`; entries read-only while submitted/approved; rejected → editable again
+
+#### Admin live visibility
+- Admin timesheet list shows all employees including **draft** timesheets
+- Draft badge shows **Live** (in-progress entries)
+- Admin detail view read-only for others' drafts; approve/reject only when `submitted`
+
+#### Projects (`/app/projects`)
+- Nav item for all roles (FolderOpen icon)
+- Employees: read org-wide projects; create/edit/archive personal projects (name + preset colors)
+- Admin/superadmin: manage all org-wide + view personal projects in org
+
+#### Trends (`/app/trends`)
+- Nav item for all roles (TrendingUp icon)
+- Employee: line chart (hours per period), bar charts (project, day-of-week avg over 8 weeks), 12-month heatmap, summary stats
+- Admin: org aggregate charts + stacked bar (hours by employee, last 8 periods) + employee breakdown table
+- Superadmin: org selector → admin trends for selected org
+- Range selector: weekly / fortnightly / monthly / 6-month / yearly
+
+#### Notifications
+- **`time_log_reminder`** — in-app only on page load if no entries in last 3 days within active period (`checkTimeLogReminder`)
+- Existing: timesheet submitted (admin), approved/rejected (employee)
+
+#### Key files
+- `src/lib/time/periods.ts` — pay period + week navigation
+- `src/lib/time/validation.ts` — time parsing, overlap, overnight
+- `src/lib/time/trends.ts` — trend queries
+- `src/app/app/timesheets/time-actions.ts` — CRUD + submit + reminder
+- `src/app/app/timesheets/TimeTrackingView.tsx` — main employee UI
+- `src/app/app/projects/` — projects management
+- `src/app/app/trends/` — trends charts
+
+#### Manual step required
+Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before deploying.
 
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)

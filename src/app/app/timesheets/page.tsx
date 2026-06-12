@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import {
@@ -9,20 +8,21 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { Organization, Profile, Timesheet, TimesheetStatus } from "@/types/db";
+import { periodForDate, toIsoDate } from "@/lib/time/periods";
+import type { Organization, PeriodCadence, Profile, Timesheet, TimesheetStatus } from "@/types/db";
 import { TimesheetFilters } from "./controls";
 import { TimesheetListTable, type TimesheetListRow } from "./TimesheetListTable";
 import { ExportButton } from "./ExportButton";
+import { TimeTrackingView } from "./TimeTrackingView";
+import { TimeLogReminder } from "./TimeLogReminder";
 
 export const metadata: Metadata = { title: "Timesheets" };
 
 type Row = Timesheet & { rows: { count: number }[] };
-
 type SortKey = "period" | "total" | "submitted";
 
 export default async function TimesheetsPage({
@@ -41,6 +41,28 @@ export default async function TimesheetsPage({
   const profile = await requireActiveProfile();
   const isManager = profile.role === "admin" || profile.role === "superadmin";
   const isSuperadmin = profile.role === "superadmin";
+
+  if (!isManager && profile.org_id) {
+    const db = createAdminClient();
+    const { data: org } = await db
+      .from("organizations")
+      .select("default_cadence")
+      .eq("id", profile.org_id)
+      .single();
+    const cadence = (org?.default_cadence as PeriodCadence) ?? "monthly";
+    const period = periodForDate(toIsoDate(new Date()), cadence);
+
+    return (
+      <div>
+        <TimeLogReminder />
+        <PageHeader
+          title="Timesheets"
+          description="Log your hours day by day, then submit the period for approval."
+        />
+        <TimeTrackingView initialPeriod={period} cadence={cadence} />
+      </div>
+    );
+  }
 
   const statusFilter = (searchParams.status ?? "") as TimesheetStatus | "";
   const employeeFilter = searchParams.employee ?? "";
@@ -76,6 +98,21 @@ export default async function TimesheetsPage({
 
   const { data } = await query;
   const timesheets = (data ?? []) as Row[];
+
+  const entryCounts = new Map<string, number>();
+  if (timesheets.length > 0) {
+    const ids = timesheets.map((t) => t.id);
+    const { data: entryRows } = await db
+      .from("time_entries")
+      .select("timesheet_id")
+      .in("timesheet_id", ids);
+    for (const e of entryRows ?? []) {
+      entryCounts.set(
+        e.timesheet_id as string,
+        (entryCounts.get(e.timesheet_id as string) ?? 0) + 1,
+      );
+    }
+  }
 
   const nameById = new Map<string, string>();
   let employeeOptions: { id: string; name: string }[] = [];
@@ -116,7 +153,7 @@ export default async function TimesheetsPage({
     orgName: orgNameById.get(t.org_id),
     period_start: t.period_start,
     period_end: t.period_end,
-    rowCount: t.rows?.[0]?.count ?? 0,
+    rowCount: entryCounts.get(t.id) ?? t.rows?.[0]?.count ?? 0,
     status: t.status as TimesheetStatus,
     created_at: t.created_at,
     calculated_total: t.calculated_total,
@@ -128,19 +165,8 @@ export default async function TimesheetsPage({
     <div>
       <PageHeader
         title="Timesheets"
-        description={
-          isManager
-            ? "Review submitted timesheets and approve or reject them."
-            : "Your submitted and draft timesheets."
-        }
-        action={
-          <div className="flex flex-wrap gap-2">
-            {isManager && <ExportButton />}
-            <Link href="/app/timesheets/new">
-              <Button size="sm">New timesheet</Button>
-            </Link>
-          </div>
-        }
+        description="Review employee timesheets — including live drafts in progress."
+        action={isManager ? <ExportButton /> : undefined}
       />
 
       {isManager && (
@@ -173,18 +199,7 @@ export default async function TimesheetsPage({
             <div className="px-6 py-10">
               <EmptyState
                 title="No timesheets yet"
-                description={
-                  isManager
-                    ? "Submitted timesheets will appear here for review."
-                    : "Create your first timesheet to get started."
-                }
-                action={
-                  !isManager ? (
-                    <Link href="/app/timesheets/new">
-                      <Button size="sm">New timesheet</Button>
-                    </Link>
-                  ) : undefined
-                }
+                description="Submitted and draft timesheets will appear here."
               />
             </div>
           ) : (

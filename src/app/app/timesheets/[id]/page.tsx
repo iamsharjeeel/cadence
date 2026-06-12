@@ -25,6 +25,7 @@ import type {
   TimesheetRow,
   TimesheetStatus,
 } from "@/types/db";
+import type { TimeEntryWithProject } from "@/types/time-tracking";
 
 export const metadata: Metadata = { title: "Timesheet" };
 
@@ -51,7 +52,13 @@ export default async function TimesheetDetailPage({
     (profile.role === "admin" && timesheet.org_id === profile.org_id);
   if (!allowed) notFound();
 
-  const [{ data: rowData }, { data: people }] = await Promise.all([
+  const [{ data: entryData }, { data: rowData }, { data: people }] = await Promise.all([
+    db
+      .from("time_entries")
+      .select("*")
+      .eq("timesheet_id", timesheet.id)
+      .order("entry_date", { ascending: true })
+      .order("start_time", { ascending: true }),
     db
       .from("timesheet_rows")
       .select("*")
@@ -68,6 +75,20 @@ export default async function TimesheetDetailPage({
       ),
   ]);
 
+  const rawEntries = entryData ?? [];
+  const projectIds = [
+    ...new Set(rawEntries.map((e) => e.project_id).filter(Boolean)),
+  ] as string[];
+  const { data: projectData } = projectIds.length
+    ? await db.from("projects").select("id, name, color").in("id", projectIds)
+    : { data: [] };
+  const projectMap = new Map(
+    (projectData ?? []).map((p) => [p.id, { id: p.id, name: p.name, color: p.color }]),
+  );
+  const entries: TimeEntryWithProject[] = rawEntries.map((e) => ({
+    ...e,
+    project: e.project_id ? projectMap.get(e.project_id) ?? null : null,
+  }));
   const rows = (rowData ?? []) as TimesheetRow[];
   const nameById = new Map<string, string>();
   for (const p of (people ?? []) as Pick<
@@ -77,14 +98,19 @@ export default async function TimesheetDetailPage({
     nameById.set(p.id, p.full_name?.trim() || p.email);
   }
 
-  const totalHours = rows.reduce((sum, r) => sum + Number(r.hours), 0);
+  const status = timesheet.status as TimesheetStatus;
+  const canApprove = hasRole(profile, ["admin", "superadmin"]);
+  const totalHours =
+    entries.length > 0
+      ? entries.reduce((sum, r) => sum + Number(r.total_hours), 0)
+      : rows.reduce((sum, r) => sum + Number(r.hours), 0);
+  const isReadOnlyAdmin =
+    canApprove && timesheet.employee_id !== profile.id;
   const approvedLeaveDays = await getApprovedLeaveInPeriod(
     timesheet.employee_id,
     timesheet.period_start,
     timesheet.period_end,
   );
-  const status = timesheet.status as TimesheetStatus;
-  const canApprove = hasRole(profile, ["admin", "superadmin"]);
   const canGenerateDoc =
     status === "approved" &&
     (timesheet.employee_id === profile.id || canApprove);
@@ -147,7 +173,10 @@ export default async function TimesheetDetailPage({
             <span className="text-xs uppercase tracking-wide text-muted">
               Status
             </span>
-            <TimesheetStatusPill status={status} />
+            <TimesheetStatusPill
+              status={status}
+              live={canApprove && status === "draft"}
+            />
           </CardContent>
         </Card>
         <Card>
@@ -220,9 +249,11 @@ export default async function TimesheetDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Rows</CardTitle>
+          <CardTitle>Time entries</CardTitle>
           <CardDescription>
-            {rows.length} {rows.length === 1 ? "entry" : "entries"}
+            {entries.length || rows.length}{" "}
+            {(entries.length || rows.length) === 1 ? "entry" : "entries"}
+            {isReadOnlyAdmin && status === "draft" && " · Live view (read-only)"}
             {rawUrl && (
               <>
                 {" · "}
@@ -232,41 +263,78 @@ export default async function TimesheetDetailPage({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Download raw file
+                  Download legacy raw file
                 </a>
               </>
             )}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <THead>
-              <TR>
-                <TH>Date</TH>
-                <TH>Hours</TH>
-                <TH>Project</TH>
-                <TH>Description</TH>
-                <TH>Billable</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {rows.map((r) => (
-                <TR key={r.id}>
-                  <TD className="tnum text-sm">{formatDate(r.row_date)}</TD>
-                  <TD className="tnum text-sm">{r.hours}</TD>
-                  <TD className="text-sm">{r.project ?? "—"}</TD>
-                  <TD className="text-sm text-muted">{r.description ?? "—"}</TD>
-                  <TD>
-                    {r.billable ? (
-                      <Badge tone="accent">Billable</Badge>
-                    ) : (
-                      <Badge tone="muted">Non-billable</Badge>
-                    )}
-                  </TD>
+          {entries.length > 0 ? (
+            <Table>
+              <THead>
+                <TR>
+                  <TH>Date</TH>
+                  <TH>Start</TH>
+                  <TH>End</TH>
+                  <TH>Hours</TH>
+                  <TH>Project</TH>
+                  <TH>Description</TH>
+                  <TH>Billable</TH>
                 </TR>
-              ))}
-            </TBody>
-          </Table>
+              </THead>
+              <TBody>
+                {entries.map((r) => (
+                  <TR key={r.id}>
+                    <TD className="tnum text-sm">{formatDate(r.entry_date)}</TD>
+                    <TD className="tnum text-sm">{String(r.start_time).slice(0, 5)}</TD>
+                    <TD className="tnum text-sm">{String(r.end_time).slice(0, 5)}</TD>
+                    <TD className="tnum text-sm">{r.total_hours}</TD>
+                    <TD className="text-sm">
+                      {r.project?.name ?? "—"}
+                    </TD>
+                    <TD className="text-sm text-muted">{r.description ?? "—"}</TD>
+                    <TD>
+                      {r.billable ? (
+                        <Badge tone="accent">Billable</Badge>
+                      ) : (
+                        <Badge tone="muted">Non-billable</Badge>
+                      )}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          ) : (
+            <Table>
+              <THead>
+                <TR>
+                  <TH>Date</TH>
+                  <TH>Hours</TH>
+                  <TH>Project</TH>
+                  <TH>Description</TH>
+                  <TH>Billable</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {rows.map((r) => (
+                  <TR key={r.id}>
+                    <TD className="tnum text-sm">{formatDate(r.row_date)}</TD>
+                    <TD className="tnum text-sm">{r.hours}</TD>
+                    <TD className="text-sm">{r.project ?? "—"}</TD>
+                    <TD className="text-sm text-muted">{r.description ?? "—"}</TD>
+                    <TD>
+                      {r.billable ? (
+                        <Badge tone="accent">Billable</Badge>
+                      ) : (
+                        <Badge tone="muted">Non-billable</Badge>
+                      )}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
