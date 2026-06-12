@@ -33,6 +33,15 @@ export function summarizePayload(
   if (action === "leave_approved" || action === "leave_rejected") {
     return p.note ? String(p.note).slice(0, 80) : "Leave request updated";
   }
+  if (action === "member_invited" && p.email) {
+    return `Invited ${String(p.email)} as ${p.role ?? "employee"}`;
+  }
+  if (action === "member_removed" && p.email) {
+    return `Removed ${String(p.email)} from org`;
+  }
+  if (action === "member_invite_cancelled" && p.email) {
+    return `Cancelled invite to ${String(p.email)}`;
+  }
   if (action === "org_settings_updated" && p.section) {
     return `Updated ${p.section}`;
   }

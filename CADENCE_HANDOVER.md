@@ -896,7 +896,41 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 #### Manual step required
 Run migration `20260619000000_org_invites_owner_role.sql` in Supabase SQL editor before testing invites in production.
 
+### Session — Unstick test account, remove from org, list refresh, decimal hours ✅
+
+**Branch:** `cursor/unstick-test-account-edab` (continues open PR #8 `cursor/teal-to-gold-accent-f09b`, not yet merged to `main`).
+
+#### Item 1 — Unstick owner test account
+- **SQL script:** `supabase/scripts/unstick_owner_test_account.sql` — preview SELECTs then DELETE pending `org_invites` + UPDATE `profiles` (`org_id = null`, keep account).
+- **Node runner:** `scripts/unstick-test-account.mjs` — same cleanup via service-role (`node scripts/unstick-test-account.mjs <email>`).
+- **Default target email:** `iamsharjeeel@gmail.com` (replace in script if a `+alias` test address was used).
+- **Agent note:** Cadence Supabase project (`irybkcryeywmwpcmhlaa`) was not reachable via MCP in this environment — owner should run the script/SQL in Supabase SQL editor or locally with Vercel env vars. No `auth.users` deletion required for typical stuck-invite cases.
+
+#### Item 2 — Remove from org (membership only)
+- `removeMemberFromOrg` + `cancelOrgInvite` in `src/app/app/employees/remove-actions.ts`.
+- `RemoveMemberModal.tsx` / `CancelInviteButton.tsx` — gold-accent `MotionModal` confirmations.
+- Clears `profiles.org_id` and deletes pending `org_invites` for that email in the org. **Does not** delete `profiles` or `auth.users`. Full account deletion remains deferred (GDPR).
+- Hierarchy: owners remove managers + employees; managers remove employees only; cannot remove self, owners (as manager), or superadmins.
+- Audit: `member_removed`, `member_invite_cancelled`.
+
+#### Item 3 — Employees list refresh after mutations
+- **Root cause (invites):** sent invites lived only in `org_invites`, not `profiles` — list had no pending-invites section.
+- **Fix:** Pending invites table on `/app/employees`; `revalidatePath('/app/employees')` in server actions + `router.refresh()` in client modals after invite send / removal / cancel.
+- **Signup completion:** `EmployeesListRefresh.tsx` polls `router.refresh()` every 30s while pending invites exist (no Realtime subscription).
+
+#### Item 4 — Decimal hours entry mode
+- Migration: `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` — `entry_mode` (`time_range` | `decimal_hours`) + nullable `decimal_hours`.
+- `src/lib/time/decimal-hours.ts` — synthetic times: `start_time = 00:00`, `end_time = 00:00 + N hours`.
+- **Generated `total_hours` validation:** live column is `GENERATED ALWAYS` from `(end_time - start_time)` in hours; `00:00` → `07:30` yields exactly `7.5`. Overlap check skipped for decimal mode (synthetic times are not real clock ranges).
+- `TimeEntryRow.tsx` mode toggle; `time-entry-client.ts` writes `entry_mode` + `decimal_hours`; existing rows default to `time_range`.
+
+#### Manual steps required
+1. Run `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` before decimal-hours testing.
+2. Run Item 1 cleanup SQL/script for stuck test email if not already done.
+
 ## Deferred (do not build yet)
+- Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
+- Asana OAuth integration (dedicated future session)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)
 - DOCX → PDF server-side conversion on Vercel (DOCX shows download + acknowledge flow)

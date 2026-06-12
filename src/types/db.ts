@@ -733,6 +733,8 @@ export type Database = {
           entry_date: string
           start_time: string
           end_time: string
+          entry_mode: string
+          decimal_hours: number | null
           is_overnight: boolean
           total_hours: number
           description: string | null
@@ -749,6 +751,8 @@ export type Database = {
           entry_date: string
           start_time: string
           end_time: string
+          entry_mode?: string
+          decimal_hours?: number | null
           is_overnight?: boolean
           /** Generated column — omit on insert. */
           total_hours?: number
@@ -766,6 +770,8 @@ export type Database = {
           entry_date?: string
           start_time?: string
           end_time?: string
+          entry_mode?: string
+          decimal_hours?: number | null
           is_overnight?: boolean
           total_hours?: number
           description?: string | null

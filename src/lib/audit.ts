@@ -9,6 +9,8 @@ export type AuditAction =
   | "profile.rate_change"
   | "profile.status_change"
   | "member_invited"
+  | "member_removed"
+  | "member_invite_cancelled"
   | "org.create"
   | "org.update"
   | "org_settings_updated"

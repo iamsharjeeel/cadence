@@ -17,6 +17,10 @@ import { useToast } from "@/components/ui/Toast";
 import { CountUp } from "@/components/motion/CountUp";
 import { isOvernightShift } from "@/lib/time/validation";
 import {
+  canPersistDecimalEntry,
+  type EntryMode,
+} from "@/lib/time/decimal-hours";
+import {
   canPersistTimeEntry,
   deleteTimeEntryClient,
   saveTimeEntryClient,
@@ -60,8 +64,10 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
   return {
     clientId: crypto.randomUUID(),
     entry_date: date,
+    entry_mode: "time_range",
     start_time: lastEnd ?? "09:00",
     end_time: lastEnd ? "" : "17:00",
+    decimal_hours: "",
     project_id: null,
     description: "",
     billable: true,
@@ -70,19 +76,26 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
 }
 
 function entryToDraft(e: TimeEntryWithProject): DraftEntry {
+  const mode = (e.entry_mode ?? "time_range") as EntryMode;
   const start = formatTime(e.start_time);
   const end = formatTime(e.end_time);
   return {
     clientId: e.id,
     id: e.id,
     entry_date: e.entry_date,
+    entry_mode: mode,
     start_time: start,
     end_time: end,
+    decimal_hours:
+      mode === "decimal_hours" && e.decimal_hours != null
+        ? String(e.decimal_hours)
+        : "",
     project_id: e.project_id,
     description: e.description ?? "",
     billable: e.billable,
     total_hours: Number(e.total_hours),
-    overnightConfirmed: isOvernightShift(start, end),
+    overnightConfirmed:
+      mode === "time_range" ? isOvernightShift(start, end) : false,
     saveState: "saved",
   };
 }
@@ -289,11 +302,17 @@ export function TimeTrackingView({
           return;
         }
 
-        if (!canPersistTimeEntry(entry.start_time, entry.end_time)) {
+        const isDecimal = entry.entry_mode === "decimal_hours";
+        if (
+          isDecimal
+            ? !canPersistDecimalEntry(entry.decimal_hours)
+            : !canPersistTimeEntry(entry.start_time, entry.end_time)
+        ) {
           return;
         }
 
-        const overnight = isOvernightShift(entry.start_time, entry.end_time);
+        const overnight =
+          !isDecimal && isOvernightShift(entry.start_time, entry.end_time);
         if (overnight && !entry.overnightConfirmed) {
           updateEntry(date, clientId, {
             saveState: "error",
@@ -310,8 +329,10 @@ export function TimeTrackingView({
           employeeId: empId,
           timesheetId: tsId,
           entryDate: entry.entry_date,
+          entryMode: entry.entry_mode,
           startTime: entry.start_time,
           endTime: entry.end_time,
+          decimalHours: entry.decimal_hours,
           projectId: entry.project_id,
           description: entry.description,
           billable: entry.billable,
@@ -357,7 +378,11 @@ export function TimeTrackingView({
       const entry = getEntry(date, clientId);
       if (!entry) return;
       const merged = { ...entry, ...overrides };
-      if (!canPersistTimeEntry(merged.start_time, merged.end_time)) return;
+      const persistable =
+        merged.entry_mode === "decimal_hours"
+          ? canPersistDecimalEntry(merged.decimal_hours)
+          : canPersistTimeEntry(merged.start_time, merged.end_time);
+      if (!persistable) return;
 
       const key = clientId;
       const existing = debounceTimers.current.get(key);

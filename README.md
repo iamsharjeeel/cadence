@@ -66,8 +66,14 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 ### Phase 8 — Invites, roles & onboarding
 - **Owner** role (`owner | admin | employee | superadmin`); UI labels `admin` as “Manager”
 - **Invite flow:** owners/managers send email invites from `/app/employees`; Resend delivery; invite redeemed on Google OAuth sign-in
+- **Pending invites panel** on Employees — sent invites appear immediately; 30s poll while invites are pending
+- **Remove from org:** owners/managers remove membership (clears `profiles.org_id` + pending invites; does not delete accounts)
 - **No pending gate:** new sign-ups land **active** immediately (invite redemption or domain match); onboarding wizard when incomplete
 - **Suspended-only block:** middleware and auth redirect suspended users to login with an error banner
+
+### Phase 8b — Decimal hours & test-account tooling
+- **Decimal hours entry:** per-row toggle (Time range vs Total hours) on weekly log grid; synthetic `00:00` + offset times feed generated `total_hours`
+- **Test-account cleanup:** `supabase/scripts/unstick_owner_test_account.sql` and `scripts/unstick-test-account.mjs`
 
 ## Getting started
 
@@ -104,6 +110,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 6. `supabase/migrations/20260616000000_phase7_time_tracking.sql`
 7. `supabase/migrations/20260617000000_time_entries_perf_index.sql` (optional perf index)
 8. `supabase/migrations/20260619000000_org_invites_owner_role.sql` — **required for invite flow**
+9. `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` — **required for decimal-hours entry mode**
 
 ## License
 

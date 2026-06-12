@@ -27,6 +27,10 @@ import {
 } from "./controls";
 import { OnboardingCell } from "./OnboardingCell";
 import { InviteMemberModal } from "./InviteMemberModal";
+import { CancelInviteButton } from "./CancelInviteButton";
+import { EmployeesListRefresh } from "./EmployeesListRefresh";
+import { RemoveMemberModal } from "./RemoveMemberModal";
+import type { OrgInvite } from "@/lib/invites";
 
 export const metadata: Metadata = { title: "Employees" };
 
@@ -36,6 +40,7 @@ export default async function EmployeesPage() {
   const canInvite = Boolean(actor.org_id) && actor.role !== "superadmin";
 
   let members: Profile[] = [];
+  let pendingInvites: OrgInvite[] = [];
   const orgNames = new Map<string, string>();
   let orgName = "";
 
@@ -51,7 +56,8 @@ export default async function EmployeesPage() {
     }
   } else {
     const supabase = createClient();
-    const [{ data }, { data: org }] = await Promise.all([
+    const db = createAdminClient();
+    const [{ data }, { data: org }, { data: invites }] = await Promise.all([
       supabase
         .from("profiles")
         .select("*")
@@ -62,8 +68,16 @@ export default async function EmployeesPage() {
         .select("name")
         .eq("id", actor.org_id!)
         .single(),
+      db
+        .from("org_invites")
+        .select("*")
+        .eq("org_id", actor.org_id!)
+        .is("accepted_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false }),
     ]);
     members = (data ?? []) as Profile[];
+    pendingInvites = (invites ?? []) as OrgInvite[];
     orgName = org?.name ?? "Organization";
   }
 
@@ -84,8 +98,13 @@ export default async function EmployeesPage() {
   const orgLabel = (orgId: string | null) =>
     orgId ? orgNames.get(orgId) ?? "—" : "Unassigned";
 
+  const canManageMembers = !isSuperadmin && (actor.role === "owner" || actor.role === "admin");
+
   return (
     <div>
+      {!isSuperadmin && (
+        <EmployeesListRefresh hasPendingInvites={pendingInvites.length > 0} />
+      )}
       <PageHeader
         title="Employees"
         description={
@@ -107,6 +126,45 @@ export default async function EmployeesPage() {
           </div>
         }
       />
+
+      {!isSuperadmin && pendingInvites.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Pending invites</CardTitle>
+            <CardDescription>
+              Invited members appear here until they sign in with Google.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <THead>
+                <TR>
+                  <TH>Email</TH>
+                  <TH>Role</TH>
+                  <TH>Sent</TH>
+                  {canManageMembers && <TH className="text-right">Actions</TH>}
+                </TR>
+              </THead>
+              <TBody>
+                {pendingInvites.map((inv) => (
+                  <TR key={inv.id}>
+                    <TD className="text-sm text-ink">{inv.email}</TD>
+                    <TD className="text-sm text-muted">{roleLabel(inv.role)}</TD>
+                    <TD className="tnum text-sm text-muted">
+                      {new Date(inv.created_at).toLocaleDateString()}
+                    </TD>
+                    {canManageMembers && (
+                      <TD className="text-right">
+                        <CancelInviteButton inviteId={inv.id} email={inv.email} />
+                      </TD>
+                    )}
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -138,6 +196,7 @@ export default async function EmployeesPage() {
                   <TH>Rate</TH>
                   <TH>Onboarding</TH>
                   <TH>Banking</TH>
+                  {canManageMembers && <TH className="text-right">Actions</TH>}
                 </TR>
               </THead>
               <TBody>
@@ -148,6 +207,10 @@ export default async function EmployeesPage() {
                   const actorIsManager = actor.role === "admin";
                   const targetIsOwner = m.role === "owner";
                   const roleLocked = locked || (actorIsManager && targetIsOwner);
+                  const canRemove =
+                    canManageMembers &&
+                    !locked &&
+                    !(actorIsManager && (targetIsOwner || m.role === "admin"));
 
                   return (
                     <TR key={m.id}>
@@ -229,6 +292,19 @@ export default async function EmployeesPage() {
                           />
                         )}
                       </TD>
+                      {canManageMembers && (
+                        <TD className="text-right">
+                          {canRemove ? (
+                            <RemoveMemberModal
+                              memberId={m.id}
+                              memberName={m.full_name?.trim() || m.email}
+                              memberEmail={m.email}
+                            />
+                          ) : (
+                            <span className="text-sm text-muted">—</span>
+                          )}
+                        </TD>
+                      )}
                     </TR>
                   );
                 })}

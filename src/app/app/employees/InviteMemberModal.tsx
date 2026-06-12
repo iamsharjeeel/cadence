@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -24,6 +25,7 @@ export function InviteMemberModal({
   orgName: string;
 }) {
   const { toast } = useToast();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InviteRoleOption>("employee");
@@ -44,6 +46,7 @@ export function InviteMemberModal({
       setEmail("");
       setRole("employee");
       setOpen(false);
+      router.refresh();
     }
   }
 
