@@ -630,8 +630,8 @@ Run migration `20260614000000_security_rls_storage.sql` against Supabase before 
 - **Layout:** Single card, two sections stacked with “or” dividers; Framer Motion stagger (40ms, 160ms fade, once).
 - **Section 1 — Upload:** Teal drag-over dropzone (`.csv`/`.xlsx`, 10MB); teal sample-template banner with client-side CSV download (DATE, DAY, START TIME, END TIME, TOTAL HOURS, PROJECT, DESCRIPTION, BILLABLE + 5 example rows).
 - **Section 2 — Paste:** Explicit textarea; parse only on paste into the box (not page-level). Helper text for Google Sheets copy flow.
-- **Pipeline:** Both methods → `detectHeaderOffset` → `tableFromGrid` → `autoMatch` → preview or mapping.
-- **Auto-skip mapping:** `canAutoSkipMapping()` skips mapping UI when Date + Hours (or Start + End time) are confidently matched; shows “Auto-mapped successfully” toast.
+- **Pipeline:** Both methods → `detectHeaderOffset` → `tableFromGrid` → `autoMatch` → mapping (always) → preview → submit.
+- **Mapping step:** Always shown after parse; all column dropdowns pre-filled with auto-detected matches for review/adjustment. Required fields (Date + Hours or Start + End time) block continue if unset.
 - **HeaderMapping:** URL-like column headers excluded from dropdown options (`isUrlLikeCell`).
 
 ## Deferred (do not build yet)

@@ -133,18 +133,3 @@ export function autoMatch(table: RawTable): {
 
   return { mapping, matched };
 }
-
-/** True when date and hours (or start+end times) are confidently auto-matched. */
-export function canAutoSkipMapping(
-  mapping: ColumnMapping,
-  matched: Set<CanonicalField>,
-): boolean {
-  const hasDate = mapping.date !== null && matched.has("date");
-  const hasHours = mapping.hours !== null && matched.has("hours");
-  const hasTimePair =
-    mapping.start_time !== null &&
-    matched.has("start_time") &&
-    mapping.end_time !== null &&
-    matched.has("end_time");
-  return hasDate && (hasHours || hasTimePair);
-}

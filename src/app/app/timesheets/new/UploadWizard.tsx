@@ -24,7 +24,7 @@ import {
   sampleCsv,
   tableFromGrid,
 } from "@/lib/timesheets/parse";
-import { autoMatch, canAutoSkipMapping } from "@/lib/timesheets/columns";
+import { autoMatch } from "@/lib/timesheets/columns";
 import {
   buildValidatedRows,
   loadMapping,
@@ -32,9 +32,7 @@ import {
   saveMapping,
 } from "@/lib/timesheets/map";
 import {
-  CANONICAL_FIELDS,
   type BuildOptions,
-  type CanonicalField,
   type ColumnMapping,
   type Grid,
   type RawTable,
@@ -83,7 +81,6 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
   const [detectedSkip, setDetectedSkip] = useState(0);
   const [table, setTable] = useState<RawTable | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping>(EMPTY_MAPPING);
-  const [autoMatched, setAutoMatched] = useState<Set<CanonicalField>>(new Set());
   const [rows, setRows] = useState<ValidatedRow[]>([]);
   const [options, setOptions] = useState<BuildOptions>({ skipZeroHours: false });
   const [periodStart, setPeriodStart] = useState("");
@@ -108,24 +105,10 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     const stored = reconcileStoredMapping(loadMapping(orgSlug), tbl);
     if (stored) {
       setMapping(stored);
-      setAutoMatched(new Set(CANONICAL_FIELDS.filter((f) => stored[f] !== null)));
-      setRows(buildValidatedRows(tbl, stored, options));
-      setStep("preview");
-      return;
+    } else {
+      const { mapping: auto } = autoMatch(tbl);
+      setMapping(auto);
     }
-
-    const { mapping: auto, matched } = autoMatch(tbl);
-    setMapping(auto);
-    setAutoMatched(matched);
-
-    if (canAutoSkipMapping(auto, matched)) {
-      saveMapping(orgSlug, auto);
-      setRows(buildValidatedRows(tbl, auto, options));
-      toast("Auto-mapped successfully.", "success");
-      setStep("preview");
-      return;
-    }
-
     setStep("map");
   }
 
@@ -135,9 +118,8 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     setSkipRows(clamped);
     const tbl = tableFromGrid(grid, clamped);
     setTable(tbl);
-    const { mapping: auto, matched } = autoMatch(tbl);
+    const { mapping: auto } = autoMatch(tbl);
     setMapping(auto);
-    setAutoMatched(matched);
   }
 
   function toggleSkipZero(checked: boolean) {
@@ -235,7 +217,6 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     setSkipRows(0);
     setDetectedSkip(0);
     setMapping(EMPTY_MAPPING);
-    setAutoMatched(new Set());
     setRows([]);
     setPasteText("");
   }
@@ -349,15 +330,14 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
         <CardHeader>
           <CardTitle>Map your columns</CardTitle>
           <CardDescription>
-            Skip any metadata rows, then confirm the column mapping. Date and
-            Hours (or Start + End time) are required; everything else is optional.
+            Review your column mapping below. Date and Hours (or Start + End time)
+            are required; everything else is optional.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <HeaderMapping
             table={table}
             mapping={mapping}
-            autoMatched={autoMatched}
             onChange={(field, index) =>
               setMapping((m) => ({ ...m, [field]: index }))
             }

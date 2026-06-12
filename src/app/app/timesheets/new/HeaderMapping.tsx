@@ -1,7 +1,6 @@
 "use client";
 
 import { Select } from "@/components/ui/Select";
-import { titleCase } from "@/lib/utils";
 import { isUrlLikeCell } from "@/lib/timesheets/parse";
 import {
   CANONICAL_FIELDS,
@@ -10,15 +9,15 @@ import {
   type ColumnMapping,
   type RawTable,
 } from "@/lib/timesheets/types";
+import { titleCase } from "@/lib/utils";
 
 /**
- * Lets the user map canonical fields to spreadsheet columns. Only fields that
- * couldn't be confidently auto-matched are surfaced; the rest are summarized.
+ * Lets the user review and adjust column mapping. All fields are shown as
+ * dropdowns, pre-filled with auto-detected matches where available.
  */
 export function HeaderMapping({
   table,
   mapping,
-  autoMatched,
   onChange,
   skipRows,
   maxSkip,
@@ -27,15 +26,12 @@ export function HeaderMapping({
 }: {
   table: RawTable;
   mapping: ColumnMapping;
-  autoMatched: Set<CanonicalField>;
   onChange: (field: CanonicalField, index: number | null) => void;
   skipRows: number;
   maxSkip: number;
   detectedSkip: number;
   onSkipChange: (value: number) => void;
 }) {
-  const needsMapping = CANONICAL_FIELDS.filter((f) => !autoMatched.has(f));
-
   const headerOptions = (Array.isArray(table.headers) ? table.headers : [])
     .map((h, i) => ({ label: h, index: i }))
     .filter(({ label }) => label.trim() !== "" && !isUrlLikeCell(label));
@@ -89,40 +85,21 @@ export function HeaderMapping({
         </p>
       </div>
 
-      {autoMatched.size > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {[...autoMatched].map((f) => (
-            <span
-              key={f}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent-strong)]"
-            >
-              ✓ {titleCase(f)} → {table.headers[mapping[f]!] || "column"}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {needsMapping.length === 0 ? (
-        <p className="text-sm text-muted">
-          Every column was matched automatically.
-        </p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {needsMapping.map((field) => (
-            <Select
-              key={field}
-              label={`${titleCase(field)}${
-                REQUIRED_FIELDS.includes(field) ? " *" : ""
-              }`}
-              value={mapping[field] === null ? "" : String(mapping[field])}
-              options={options(field)}
-              onChange={(e) =>
-                onChange(field, e.target.value === "" ? null : Number(e.target.value))
-              }
-            />
-          ))}
-        </div>
-      )}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {CANONICAL_FIELDS.map((field) => (
+          <Select
+            key={field}
+            label={`${titleCase(field)}${
+              REQUIRED_FIELDS.includes(field) ? " *" : ""
+            }`}
+            value={mapping[field] === null ? "" : String(mapping[field])}
+            options={options(field)}
+            onChange={(e) =>
+              onChange(field, e.target.value === "" ? null : Number(e.target.value))
+            }
+          />
+        ))}
+      </div>
     </div>
   );
 }
