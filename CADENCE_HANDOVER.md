@@ -807,6 +807,33 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 #### Entry row rebuild
 - `TimeEntryRow.tsx`: stacked layout — times + duration chip (separate, never overlapping inputs), project dot inline, description, billable toggle, save state, delete. Framer Motion 160ms.
 
+### Phase 7 — Week-load performance (round-trip reduction) ✅
+
+#### Diagnosis (measured, not assumed)
+- `EXPLAIN ANALYZE` on every query in the week-load path (entries select, `computeWeekStats` select, timesheet ensure-select, profile select, orphan-link update) showed **0.07–0.8ms execution time** on the live `time_entries` table (6 rows) — DB/index cost is negligible. The `time_entries_employee_date_idx` index from the prior phase is correct but was never the bottleneck.
+- The real cost was **round trips**, not query plans:
+  - `requireActiveProfile()` (`auth.getUser()` GoTrue round trip + profile select — 2 sequential calls) ran **up to 3×** per page load: once in `page.tsx`/`log/page.tsx` SSR, once for the `getTimeTrackingData` action invoked from the client on mount, and once more inside that action's nested `ensureTimesheetForWeek` call.
+  - `computeWeekStats(timesheetId)` re-queried `time_entries` for rows already fetched via `select("*")` in the same `Promise.all` stage — a fully redundant round trip.
+  - The entire initial-load client→server-action call was unnecessary: the page already authenticates via SSR and can fetch the same data directly.
+
+#### Fix
+- New `server-only` module `src/lib/time/get-time-tracking-data.ts` — profile-accepting (not a Server Action, so it can't be RPC-called with a forged profile): `ensureTimesheetForWeekForProfile`, `getTimeTrackingDataForProfile`, `linkOrphanEntriesToTimesheet`.
+- `weekStatsFromEntries()` (pure, in `week-stats.ts`) derives `WeekStats` from entries already in hand; `computeWeekStats` now fetches once and delegates — removes 1 round trip per load.
+- `time-actions.ts`'s `ensureTimesheetForWeek` / `getTimeTrackingData` are now thin wrappers: `requireActiveProfile()` once, then delegate to the shared module. Internal round trips per action call: 6 → 4.
+- `page.tsx` (employee branch) and `log/page.tsx` now call `getTimeTrackingDataForProfile(profile, weekMonday)` during SSR and pass the result as `initialData` to `TimeTrackingView`, which hydrates from it on first paint — **eliminates the entire initial client→action round trip**. Week navigation (Prev/Next/This week) still uses the action as before.
+- Added `logTiming()` (Date.now() deltas via `console.log`, concurrency-safe under warm serverless reuse — `console.time`/`console.timeEnd` labels can collide) around the `ensureTimesheet + projects` and `linkOrphans + entries` stages. Check Vercel function logs post-deploy to confirm real-world timings.
+- Removed the two `revalidatePath` calls that previously fired only on first-ever timesheet creation for a given week — both routes are already fully dynamic (no static/ISR cache to bust), and `revalidatePath` cannot run during SSR render (required for the new `page.tsx`/`log/page.tsx` prefetch).
+
+#### No further index/SQL changes needed
+- All queries are sub-millisecond at current scale (6 rows). `time_entries_employee_date_idx` stays in place and harmless; revisit only if per-employee entry counts grow into the thousands.
+
+#### Key files
+- `src/lib/time/get-time-tracking-data.ts` — new shared, profile-accepting week-load logic (`server-only`, not `"use server"`)
+- `src/lib/time/week-stats.ts` — `weekStatsFromEntries()` pure helper
+- `src/app/app/timesheets/time-actions.ts` — `ensureTimesheetForWeek` / `getTimeTrackingData` now thin wrappers
+- `src/app/app/timesheets/page.tsx`, `log/page.tsx` — SSR prefetch via `getTimeTrackingDataForProfile`, pass `initialData`
+- `src/app/app/timesheets/TimeTrackingView.tsx` — `applyData()` extracted from `load()`; hydration effect consumes `initialData` on first paint
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

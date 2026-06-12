@@ -60,6 +60,7 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - Seven-day view (weekends optional); submit gate: 5 days logged or 40 hours; overtime flagged for manager review
 - Draft rows persist only with valid start/end; overlap guard excludes self and invalid DB rows
 - Projects, trends, admin live draft visibility, time-log reminders
+- Week data SSR-prefetched and passed as `initialData` — no extra client round trip on first paint; shared profile-scoped query module cuts redundant auth/Supabase calls on week navigation
 
 ## Getting started
 

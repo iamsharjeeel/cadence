@@ -38,6 +38,7 @@ import {
   SUBMIT_MIN_HOURS,
   type WeekStats,
 } from "@/lib/time/week-constants";
+import type { TimeTrackingData } from "@/lib/time/get-time-tracking-data";
 import type { TimesheetStatus } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
 import {
@@ -88,8 +89,10 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
 
 export function TimeTrackingView({
   initialWeekMonday,
+  initialData,
 }: {
   initialWeekMonday?: string;
+  initialData?: TimeTrackingData | null;
 }) {
   const { toast } = useToast();
   const [weekMonday, setWeekMonday] = useState(
@@ -108,7 +111,7 @@ export function TimeTrackingView({
   const [rateType, setRateType] = useState("hourly");
   const [currency, setCurrency] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
 
   const entriesByDayRef = useRef(entriesByDay);
   const timesheetIdRef = useRef(timesheetId);
@@ -119,6 +122,7 @@ export function TimeTrackingView({
     new Map(),
   );
   const inFlightSaves = useRef<Map<string, Promise<void>>>(new Map());
+  const hydratedRef = useRef(false);
 
   entriesByDayRef.current = entriesByDay;
   timesheetIdRef.current = timesheetId;
@@ -155,14 +159,7 @@ export function TimeTrackingView({
   const showEarnings = rateType === "hourly" && rate != null;
   const showOvertimeNotice = totalHours > OVERTIME_HOURS_THRESHOLD;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await getTimeTrackingData(weekMonday);
-    setLoading(false);
-    if (!res.ok || !("entries" in res)) {
-      toast(res.message || "Couldn't load time entries.", "error");
-      return;
-    }
+  const applyData = useCallback((res: TimeTrackingData) => {
     setTimesheetId(res.timesheetId);
     setOrgId(res.orgId);
     setEmployeeId(res.employeeId);
@@ -179,11 +176,29 @@ export function TimeTrackingView({
       grouped[e.entry_date]!.push(entryToDraft(e));
     }
     setEntriesByDay(grouped);
-  }, [weekMonday, toast]);
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await getTimeTrackingData(weekMonday);
+    setLoading(false);
+    if (!res.ok || !("entries" in res)) {
+      toast(res.message || "Couldn't load time entries.", "error");
+      return;
+    }
+    applyData(res);
+  }, [weekMonday, toast, applyData]);
 
   useEffect(() => {
+    if (!hydratedRef.current && initialData) {
+      hydratedRef.current = true;
+      applyData(initialData);
+      setLoading(false);
+      return;
+    }
+    hydratedRef.current = true;
     load();
-  }, [load]);
+  }, [load, initialData, applyData]);
 
   useEffect(() => {
     const timers = debounceTimers.current;
