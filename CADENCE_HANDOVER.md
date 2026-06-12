@@ -721,6 +721,23 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 - Superadmin self-service: rate/banking editable on own row in Employees table
 - Time log reminder applies to any user with `org_id`, not employees only
 
+### Log time fixes ✅
+
+#### Project selection persistence
+- `saveEntry()` reads latest row state via refs (fixes stale closure on blur)
+- Project `onChange` awaits `saveEntry()` with explicit `project_id`
+- `upsertTimeEntry` logs `project_id` server-side; explicit null/UUID handling
+- Removed full `load()` after every save — local state updated with returned `id` + `project_id`
+
+#### Submit for approval
+- Orphan `time_entries` (null `timesheet_id`) auto-linked to period timesheet on load and submit
+- Entry queries use `entry_date` within period (not only `timesheet_id` filter)
+- Submit counts entries via linked timesheet + period fallback
+
+#### UI
+- Days logged counts distinct dates with saved entries or complete start/end times
+- Page title: `Log time · Cadence` on `/app/timesheets/log` and employee `/app/timesheets`
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

@@ -9,7 +9,7 @@ import {
   CardDescription,
 } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { requireActiveProfile } from "@/lib/auth";
+import { getProfile, requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { periodForDate, toIsoDate } from "@/lib/time/periods";
@@ -20,7 +20,13 @@ import { TimeTrackingView } from "./TimeTrackingView";
 import { TimeLogReminder } from "./TimeLogReminder";
 import { TimesheetPageActions } from "./TimesheetPageActions";
 
-export const metadata: Metadata = { title: "Timesheets" };
+export async function generateMetadata(): Promise<Metadata> {
+  const profile = await getProfile();
+  if (profile?.role === "employee" && profile.org_id) {
+    return { title: { absolute: "Log time · Cadence" } };
+  }
+  return { title: "Timesheets" };
+}
 
 type Row = Timesheet & { rows: { count: number }[] };
 type SortKey = "period" | "total" | "submitted";

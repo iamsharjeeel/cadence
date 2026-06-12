@@ -11,7 +11,9 @@ import type { PeriodCadence } from "@/types/db";
 import { TimeTrackingView } from "../TimeTrackingView";
 import { TimeLogReminder } from "../TimeLogReminder";
 
-export const metadata: Metadata = { title: "Log time" };
+export const metadata: Metadata = {
+  title: { absolute: "Log time · Cadence" },
+};
 
 export default async function LogTimePage() {
   const profile = await requireActiveProfile();

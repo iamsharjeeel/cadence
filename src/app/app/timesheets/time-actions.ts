@@ -26,6 +26,46 @@ function editableStatus(status: TimesheetStatus): boolean {
   return status === "draft" || status === "rejected";
 }
 
+async function linkOrphanEntriesToTimesheet(
+  timesheetId: string,
+  employeeId: string,
+  periodStart: string,
+  periodEnd: string,
+) {
+  const db = createAdminClient();
+  await db
+    .from("time_entries")
+    .update({ timesheet_id: timesheetId })
+    .eq("employee_id", employeeId)
+    .is("timesheet_id", null)
+    .gte("entry_date", periodStart)
+    .lte("entry_date", periodEnd);
+}
+
+async function countEntriesForTimesheet(
+  timesheetId: string,
+  employeeId: string,
+  periodStart: string,
+  periodEnd: string,
+): Promise<number> {
+  const db = createAdminClient();
+  const { count: linked } = await db
+    .from("time_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("timesheet_id", timesheetId);
+
+  if (linked && linked > 0) return linked;
+
+  const { count: inPeriod } = await db
+    .from("time_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("employee_id", employeeId)
+    .gte("entry_date", periodStart)
+    .lte("entry_date", periodEnd);
+
+  return inPeriod ?? 0;
+}
+
 async function getOrgCadence(orgId: string): Promise<PeriodCadence> {
   const db = createAdminClient();
   const { data } = await db
@@ -109,11 +149,20 @@ export async function getTimeTrackingData(
   if (!("timesheetId" in ensured)) return ensured;
 
   const db = createAdminClient();
+  await linkOrphanEntriesToTimesheet(
+    ensured.timesheetId,
+    profile.id,
+    periodStart,
+    periodEnd,
+  );
+
   const [entriesRes, projects, cadence] = await Promise.all([
     db
       .from("time_entries")
       .select("*")
-      .eq("timesheet_id", ensured.timesheetId)
+      .eq("employee_id", profile.id)
+      .gte("entry_date", periodStart)
+      .lte("entry_date", periodEnd)
       .order("entry_date")
       .order("start_time"),
     fetchProjectsForTimeEntry(profile.org_id, profile.id),
@@ -234,6 +283,15 @@ export async function upsertTimeEntry(
 ): Promise<ActionResult> {
   const profile = await requireActiveProfile();
   if (!profile.org_id) return { ok: false, message: "Your account has no organization." };
+  if (!payload.timesheetId) {
+    return { ok: false, message: "Timesheet not ready — refresh and try again." };
+  }
+
+  console.info("[upsertTimeEntry] project_id:", payload.projectId ?? null, {
+    timesheetId: payload.timesheetId,
+    entryDate: payload.entryDate,
+    entryId: payload.id ?? null,
+  });
 
   const validated = validateEntryPayload(payload);
   if (!validated.ok || !("start" in validated)) return validated;
@@ -252,11 +310,16 @@ export async function upsertTimeEntry(
   if (overlap) return { ok: false, message: overlap };
 
   const db = createAdminClient();
+  const projectId =
+    payload.projectId && payload.projectId.trim() !== ""
+      ? payload.projectId
+      : null;
+
   const row = {
     org_id: profile.org_id,
     employee_id: profile.id,
     timesheet_id: payload.timesheetId,
-    project_id: payload.projectId || null,
+    project_id: projectId,
     entry_date: payload.entryDate,
     start_time: validated.start,
     end_time: validated.end,
@@ -274,6 +337,7 @@ export async function upsertTimeEntry(
       .eq("employee_id", profile.id);
     if (error) return { ok: false, message: "Couldn't save entry." };
     revalidatePath("/app/timesheets");
+    revalidatePath("/app/timesheets/log");
     return { ok: true, message: "Saved.", id: payload.id };
   }
 
@@ -284,6 +348,7 @@ export async function upsertTimeEntry(
     .single();
   if (error || !data) return { ok: false, message: "Couldn't create entry." };
   revalidatePath("/app/timesheets");
+  revalidatePath("/app/timesheets/log");
   return { ok: true, message: "Saved.", id: data.id };
 }
 
@@ -326,15 +391,26 @@ export async function submitTimesheetForApproval(
     return { ok: false, message: "This timesheet can't be submitted." };
   }
 
-  const { count } = await db
-    .from("time_entries")
-    .select("id", { count: "exact", head: true })
-    .eq("timesheet_id", timesheetId);
-  if (!count) return { ok: false, message: "Add at least one time entry first." };
+  await linkOrphanEntriesToTimesheet(
+    timesheetId,
+    profile.id,
+    ts.period_start,
+    ts.period_end,
+  );
+
+  const entryCount = await countEntriesForTimesheet(
+    timesheetId,
+    profile.id,
+    ts.period_start,
+    ts.period_end,
+  );
+  if (!entryCount) {
+    return { ok: false, message: "Add at least one time entry first." };
+  }
 
   const { error } = await db
     .from("timesheets")
-    .update({ status: "submitted" })
+    .update({ status: "submitted", updated_at: new Date().toISOString() })
     .eq("id", timesheetId);
   if (error) return { ok: false, message: "Couldn't submit timesheet." };
 
@@ -362,6 +438,7 @@ export async function submitTimesheetForApproval(
   });
 
   revalidatePath("/app/timesheets");
+  revalidatePath("/app/timesheets/log");
   revalidatePath("/app/dashboard");
   return { ok: true, message: "Timesheet submitted for approval." };
 }

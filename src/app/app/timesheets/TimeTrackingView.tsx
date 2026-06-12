@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
@@ -100,6 +107,13 @@ export function TimeTrackingView({
   const [savedFlash, setSavedFlash] = useState(false);
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
+  const entriesByDayRef = useRef(entriesByDay);
+  const timesheetIdRef = useRef(timesheetId);
+  const editableRef = useRef(status === "draft" || status === "rejected");
+
+  entriesByDayRef.current = entriesByDay;
+  timesheetIdRef.current = timesheetId;
+  editableRef.current = status === "draft" || status === "rejected";
 
   const editable = status === "draft" || status === "rejected";
   const weekDays = useMemo(
@@ -149,55 +163,74 @@ export function TimeTrackingView({
   }
 
   function updateEntry(date: string, clientId: string, patch: Partial<DraftEntry>) {
-    setEntriesByDay({
-      ...entriesByDay,
-      [date]: (entriesByDay[date] ?? []).map((e) =>
+    setEntriesByDay((prev) => ({
+      ...prev,
+      [date]: (prev[date] ?? []).map((e) =>
         e.clientId === clientId ? { ...e, ...patch, error: undefined } : e,
       ),
-    });
+    }));
   }
 
-  async function saveEntry(entry: DraftEntry) {
-    if (!editable || !timesheetId) return;
-    if (!entry.start_time || !entry.end_time) return;
+  function getEntry(date: string, clientId: string): DraftEntry | undefined {
+    return entriesByDayRef.current[date]?.find((e) => e.clientId === clientId);
+  }
 
-    const overnight = isOvernightShift(entry.start_time, entry.end_time);
-    if (overnight && !entry.overnightConfirmed) {
-      updateEntry(entry.entry_date, entry.clientId, {
-        error: "Overnight shift — confirm to save.",
+  const saveEntry = useCallback(
+    async (date: string, clientId: string, overrides?: Partial<DraftEntry>) => {
+      const base = getEntry(date, clientId);
+      if (!base) return;
+
+      const entry = { ...base, ...overrides };
+      const tsId = timesheetIdRef.current;
+
+      if (!editableRef.current) return;
+      if (!tsId) {
+        toast("Still loading your timesheet — try again in a moment.", "error");
+        return;
+      }
+      if (!entry.start_time || !entry.end_time) return;
+
+      const overnight = isOvernightShift(entry.start_time, entry.end_time);
+      if (overnight && !entry.overnightConfirmed) {
+        updateEntry(date, clientId, {
+          error: "Overnight shift — confirm to save.",
+        });
+        return;
+      }
+
+      updateEntry(date, clientId, { saving: true, error: undefined });
+      const res = await upsertTimeEntry({
+        id: entry.id,
+        timesheetId: tsId,
+        entryDate: entry.entry_date,
+        startTime: entry.start_time,
+        endTime: entry.end_time,
+        overnight: overnight || entry.overnightConfirmed,
+        projectId: entry.project_id,
+        description: entry.description,
+        billable: entry.billable,
       });
-      return;
-    }
 
-    updateEntry(entry.entry_date, entry.clientId, { saving: true, error: undefined });
-    const res = await upsertTimeEntry({
-      id: entry.id,
-      timesheetId,
-      entryDate: entry.entry_date,
-      startTime: entry.start_time,
-      endTime: entry.end_time,
-      overnight: overnight || entry.overnightConfirmed,
-      projectId: entry.project_id,
-      description: entry.description,
-      billable: entry.billable,
-    });
+      if (!res.ok) {
+        updateEntry(date, clientId, {
+          saving: false,
+          error: res.message,
+        });
+        return;
+      }
 
-    if (!res.ok) {
-      updateEntry(entry.entry_date, entry.clientId, {
+      updateEntry(date, clientId, {
         saving: false,
-        error: res.message,
+        id: res.id ?? entry.id,
+        project_id: entry.project_id,
+        description: entry.description,
+        billable: entry.billable,
+        overnightConfirmed: overnight || entry.overnightConfirmed,
       });
-      return;
-    }
-
-    updateEntry(entry.entry_date, entry.clientId, {
-      saving: false,
-      id: res.id ?? entry.id,
-      overnightConfirmed: overnight || entry.overnightConfirmed,
-    });
-    flashSaved();
-    await load();
-  }
+      flashSaved();
+    },
+    [toast],
+  );
 
   async function removeEntry(entry: DraftEntry) {
     if (!editable) return;
@@ -279,8 +312,16 @@ export function TimeTrackingView({
     return [...map.values()].sort((a, b) => b.hours - a.hours);
   }, [allEntries, projects]);
 
+  const savedEntries = useMemo(
+    () => allEntries.filter((e) => e.id),
+    [allEntries],
+  );
+
   const daysLogged = useMemo(() => {
-    return new Set(allEntries.filter((e) => e.id).map((e) => e.entry_date)).size;
+    const logged = allEntries.filter(
+      (e) => e.id || (e.start_time && e.end_time),
+    );
+    return new Set(logged.map((e) => e.entry_date)).size;
   }, [allEntries]);
 
   const workingDays = countWorkingDays(period.start, period.end);
@@ -408,7 +449,11 @@ export function TimeTrackingView({
                               start_time: e.target.value,
                             })
                           }
-                          onBlur={() => saveEntry(entry)}
+                          onBlur={(e) =>
+                            saveEntry(day.date, entry.clientId, {
+                              start_time: e.target.value,
+                            })
+                          }
                           className="h-9 rounded border bg-surface px-2 text-sm tnum"
                         />
                         <span className="text-muted">–</span>
@@ -419,7 +464,11 @@ export function TimeTrackingView({
                           onChange={(e) =>
                             updateEntry(day.date, entry.clientId, { end_time: e.target.value })
                           }
-                          onBlur={() => saveEntry(entry)}
+                          onBlur={(e) =>
+                            saveEntry(day.date, entry.clientId, {
+                              end_time: e.target.value,
+                            })
+                          }
                           className="h-9 rounded border bg-surface px-2 text-sm tnum"
                         />
                         <span className="tnum text-sm font-medium text-[var(--accent-strong)]">
@@ -443,22 +492,24 @@ export function TimeTrackingView({
                           value={entry.project_id ?? ""}
                           disabled={!editable}
                           onChange={async (e) => {
+                            const projectId =
+                              e.target.value === "" ? null : e.target.value;
                             if (e.target.value === "__new__") {
                               const name = window.prompt("Project name");
                               if (!name) return;
                               const id = await handleCreateProject(name);
                               if (id) {
-                                const next = { ...entry, project_id: id };
                                 updateEntry(day.date, entry.clientId, { project_id: id });
-                                saveEntry(next);
+                                await saveEntry(day.date, entry.clientId, {
+                                  project_id: id,
+                                });
                               }
                               return;
                             }
-                            const next = { ...entry, project_id: e.target.value || null };
-                            updateEntry(day.date, entry.clientId, {
-                              project_id: e.target.value || null,
+                            updateEntry(day.date, entry.clientId, { project_id: projectId });
+                            await saveEntry(day.date, entry.clientId, {
+                              project_id: projectId,
                             });
-                            saveEntry(next);
                           }}
                           className="h-9 min-w-0 flex-1 rounded border bg-surface px-2 text-sm"
                         >
@@ -483,7 +534,11 @@ export function TimeTrackingView({
                             description: e.target.value,
                           })
                         }
-                        onBlur={() => saveEntry(entry)}
+                        onBlur={(e) =>
+                          saveEntry(day.date, entry.clientId, {
+                            description: e.target.value,
+                          })
+                        }
                         className="h-9 rounded border bg-surface px-2 text-sm"
                       />
 
@@ -494,11 +549,12 @@ export function TimeTrackingView({
                             checked={entry.billable}
                             disabled={!editable}
                             onChange={(e) => {
-                              const next = { ...entry, billable: e.target.checked };
                               updateEntry(day.date, entry.clientId, {
                                 billable: e.target.checked,
                               });
-                              saveEntry(next);
+                              void saveEntry(day.date, entry.clientId, {
+                                billable: e.target.checked,
+                              });
                             }}
                           />
                           Billable
@@ -522,11 +578,12 @@ export function TimeTrackingView({
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              const next = { ...entry, overnightConfirmed: true };
                               updateEntry(day.date, entry.clientId, {
                                 overnightConfirmed: true,
                               });
-                              saveEntry(next);
+                              void saveEntry(day.date, entry.clientId, {
+                                overnightConfirmed: true,
+                              });
                             }}
                           >
                             Confirm overnight shift (+24h)
@@ -618,19 +675,24 @@ export function TimeTrackingView({
         {editable && (
           <Button
             className="mt-2"
-            disabled={pending || allEntries.filter((e) => e.id).length === 0}
+            disabled={pending || !timesheetId || savedEntries.length === 0}
             title={
-              allEntries.filter((e) => e.id).length === 0
+              savedEntries.length === 0
                 ? "Add at least one saved entry"
                 : undefined
             }
-            onClick={() =>
+            onClick={() => {
+              const tsId = timesheetIdRef.current;
+              if (!tsId) {
+                toast("Still loading your timesheet — try again in a moment.", "error");
+                return;
+              }
               startTransition(async () => {
-                const res = await submitTimesheetForApproval(timesheetId);
+                const res = await submitTimesheetForApproval(tsId);
                 toast(res.message, res.ok ? "success" : "error");
                 if (res.ok) await load();
-              })
-            }
+              });
+            }}
           >
             Submit for approval
           </Button>
