@@ -38,7 +38,7 @@ export async function upsertLeaveType(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin", "superadmin"]);
+  const admin = await requireRole(["admin", "owner", "superadmin"]);
   const orgId = resolveOrgId(admin, formData);
   if (!orgId) return { ok: false, message: "Select an organization." };
 
@@ -102,7 +102,7 @@ export async function applyDefaultsToAll(
   year: number,
   orgId?: string,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin", "superadmin"]);
+  const admin = await requireRole(["admin", "owner", "superadmin"]);
   const yearV = validateYear(year);
   if (!yearV.ok) return { ok: false, message: yearV.error };
   const targetOrgId =

@@ -21,7 +21,7 @@ export async function updateDocumentStatus(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "") as DocumentStatus;
 
@@ -36,7 +36,7 @@ export async function updateDocumentStatus(
     .eq("id", id)
     .single();
   if (!doc) return { ok: false, message: "Document not found." };
-  if (actor.role === "admin" && doc.org_id !== actor.org_id) {
+  if ((actor.role === "admin" || actor.role === "owner") && doc.org_id !== actor.org_id) {
     return { ok: false, message: "That document isn't in your organization." };
   }
 
@@ -78,11 +78,11 @@ export async function resendDocumentEmail(
     .single();
   if (!doc) return { ok: false, message: "Document not found." };
 
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isManager = profile.role === "admin" || profile.role === "owner" || profile.role === "superadmin";
   if (!isManager && doc.employee_id !== profile.id) {
     return { ok: false, message: "Forbidden." };
   }
-  if (profile.role === "admin" && doc.org_id !== profile.org_id) {
+  if ((profile.role === "admin" || profile.role === "owner") && doc.org_id !== profile.org_id) {
     return { ok: false, message: "Forbidden." };
   }
   if (!doc.file_path) {

@@ -29,7 +29,7 @@ async function SettingsBody({
 }: {
   filters: SettingsFilters;
 }) {
-  const admin = await requireRole(["admin", "superadmin"]);
+  const admin = await requireRole(["admin", "owner", "superadmin"]);
   const isSuperadmin = admin.role === "superadmin";
   const tab = filters.tab;
 

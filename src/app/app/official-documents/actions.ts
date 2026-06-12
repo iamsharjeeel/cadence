@@ -37,9 +37,9 @@ export async function uploadOfficialDocument(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const actor = await requireRole(["admin", "owner", "superadmin"]);
   const orgId =
-    actor.role === "admin" ? actor.org_id : String(formData.get("org_id") ?? "");
+    (actor.role === "admin" || actor.role === "owner") ? actor.org_id : String(formData.get("org_id") ?? "");
   if (!orgId) return { ok: false, message: "Organization required." };
 
   const nameV = validateMaxLength(String(formData.get("name") ?? ""), 120, "Name");
@@ -182,11 +182,11 @@ export async function getOfficialDocumentUrl(
     .single();
   if (!doc) return { ok: false, message: "Document not found." };
 
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isManager = profile.role === "admin" || profile.role === "owner" || profile.role === "superadmin";
   if (!isManager && doc.employee_id !== profile.id) {
     return { ok: false, message: "Forbidden." };
   }
-  if (profile.role === "admin" && doc.org_id !== profile.org_id) {
+  if ((profile.role === "admin" || profile.role === "owner") && doc.org_id !== profile.org_id) {
     return { ok: false, message: "Forbidden." };
   }
 

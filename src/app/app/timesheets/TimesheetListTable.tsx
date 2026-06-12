@@ -50,7 +50,7 @@ function canDeleteRow(
   userOrgId: string | null,
 ): boolean {
   if (row.employee_id === userId) return true;
-  if (role === "admin" && userOrgId && row.org_id === userOrgId) return true;
+  if ((role === "admin" || role === "owner") && userOrgId && row.org_id === userOrgId) return true;
   if (role === "superadmin") return true;
   return false;
 }

@@ -68,7 +68,7 @@ export async function createProject(payload: {
   isOrgWide?: boolean;
   orgId?: string;
 }): Promise<ActionResult> {
-  const profile = await requireRole(["admin", "superadmin", "employee"]);
+  const profile = await requireRole(["admin", "owner", "superadmin", "employee"]);
   if (!profile.org_id && profile.role !== "superadmin") {
     return { ok: false, message: "Your account has no organization." };
   }
@@ -81,7 +81,7 @@ export async function createProject(payload: {
   const color = payload.color?.trim() || PROJECT_PRESET_COLORS[0];
   if (!HEX.test(color)) return { ok: false, message: "Invalid color." };
 
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isManager = profile.role === "admin" || profile.role === "owner" || profile.role === "superadmin";
   const isOrgWide = isManager ? Boolean(payload.isOrgWide) : false;
   const orgId =
     profile.role === "superadmin"
@@ -126,7 +126,7 @@ export async function archiveProject(id: string): Promise<ActionResult> {
 
   const isManager =
     profile.role === "superadmin" ||
-    (profile.role === "admin" && project.org_id === profile.org_id);
+    ((profile.role === "admin" || profile.role === "owner") && project.org_id === profile.org_id);
   const isOwner = project.owner_id === profile.id;
 
   if (!isManager && !isOwner) {
@@ -163,7 +163,7 @@ export async function updateProject(payload: {
 
   const isManager =
     profile.role === "superadmin" ||
-    (profile.role === "admin" && project.org_id === profile.org_id);
+    ((profile.role === "admin" || profile.role === "owner") && project.org_id === profile.org_id);
   const isOwner = project.owner_id === profile.id;
   if (!isManager && !isOwner) return { ok: false, message: "Not authorized." };
   if (!isManager && project.is_org_wide) {

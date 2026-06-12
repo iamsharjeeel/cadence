@@ -31,7 +31,7 @@ export default async function LogTimePage() {
     );
   }
 
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isManager = profile.role === "admin" || profile.role === "owner" || profile.role === "superadmin";
 
   return (
     <div>

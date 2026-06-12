@@ -49,7 +49,7 @@ async function AuditLogContent({
     page?: string;
   };
 }) {
-  const profile = await requireRole(["admin", "superadmin"]);
+  const profile = await requireRole(["admin", "owner", "superadmin"]);
   const isSuperadmin = profile.role === "superadmin";
   const { filters, page } = parseFilters(searchParams);
 

@@ -51,7 +51,7 @@ export default async function TimesheetDetailPage({
   const allowed =
     profile.role === "superadmin" ||
     timesheet.employee_id === profile.id ||
-    (profile.role === "admin" && timesheet.org_id === profile.org_id);
+    ((profile.role === "admin" || profile.role === "owner") && timesheet.org_id === profile.org_id);
   if (!allowed) notFound();
 
   const [{ data: entryData }, { data: rowData }, { data: people }, { data: docRows }] = await Promise.all([
@@ -125,7 +125,7 @@ export default async function TimesheetDetailPage({
   const isOwner = timesheet.employee_id === profile.id;
   const canDelete =
     isOwner ||
-    (profile.role === "admin" && timesheet.org_id === profile.org_id) ||
+    ((profile.role === "admin" || profile.role === "owner") && timesheet.org_id === profile.org_id) ||
     profile.role === "superadmin";
 
   // Signed URL for the raw artifact (1-hour expiry) — never a public URL.

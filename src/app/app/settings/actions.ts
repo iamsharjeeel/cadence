@@ -21,7 +21,7 @@ async function resolveOrgId(
   admin: Awaited<ReturnType<typeof requireRole>>,
   formOrgId?: string,
 ): Promise<{ orgId: string | null; error?: string }> {
-  if (admin.role === "admin") {
+  if (admin.role === "admin" || admin.role === "owner") {
     if (!admin.org_id) return { orgId: null, error: "Your account has no organization." };
     return { orgId: admin.org_id };
   }
@@ -34,7 +34,7 @@ export async function updateOrgDetails(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin", "superadmin"]);
+  const admin = await requireRole(["admin", "owner", "superadmin"]);
   const { orgId, error: orgErr } = await resolveOrgId(
     admin,
     String(formData.get("org_id") ?? ""),
@@ -80,7 +80,7 @@ export async function updateOrgDomains(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin", "superadmin"]);
+  const admin = await requireRole(["admin", "owner", "superadmin"]);
   const { orgId, error: orgErr } = await resolveOrgId(
     admin,
     String(formData.get("org_id") ?? ""),
@@ -143,7 +143,7 @@ export async function uploadOrgLogo(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin", "superadmin"]);
+  const admin = await requireRole(["admin", "owner", "superadmin"]);
   const { orgId, error: orgErr } = await resolveOrgId(
     admin,
     String(formData.get("org_id") ?? ""),
@@ -245,7 +245,7 @@ export async function suspendAllEmployees(
   _prev: ActionResult | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  const admin = await requireRole(["admin"]);
+  const admin = await requireRole(["admin", "owner"]);
   if (!admin.org_id) return { ok: false, message: "Your account has no organization." };
 
   const confirmed = formData.get("confirm") === "yes";

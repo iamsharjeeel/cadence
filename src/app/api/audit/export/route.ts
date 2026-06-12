@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       { status: 401, headers: { "Content-Type": "application/json" } },
     );
   }
-  if (profile.role !== "admin" && profile.role !== "superadmin") {
+  if (profile.role !== "admin" && profile.role !== "owner" && profile.role !== "superadmin") {
     return NextResponse.json(
       { error: "Forbidden" },
       { status: 403, headers: { "Content-Type": "application/json" } },
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       ? sp.get("org") || null
       : profile.org_id;
 
-  if (profile.role === "admin" && !orgId) {
+  if ((profile.role === "admin" || profile.role === "owner") && !orgId) {
     return NextResponse.json(
       { error: "Forbidden" },
       { status: 403, headers: { "Content-Type": "application/json" } },

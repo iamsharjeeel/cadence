@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       { status: 401, headers: { "Content-Type": "application/json" } },
     );
   }
-  if (profile.role !== "admin" && profile.role !== "superadmin") {
+  if (profile.role !== "admin" && profile.role !== "owner" && profile.role !== "superadmin") {
     return NextResponse.json(
       { error: "Forbidden" },
       { status: 403, headers: { "Content-Type": "application/json" } },
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     .lte("period_end", to)
     .order("period_start", { ascending: true });
 
-  if (profile.role === "admin") {
+  if (profile.role === "admin" || profile.role === "owner") {
     query = query.eq("org_id", profile.org_id!);
   }
 

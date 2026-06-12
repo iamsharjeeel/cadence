@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { OrgLogo } from "@/components/brand/OrgLogo";
 import { NavLink } from "@/components/app/NavLink";
-import { titleCase } from "@/lib/utils";
+import { roleLabel } from "@/lib/utils";
 import type { UserRole } from "@/types/db";
 import { navForRole } from "./nav";
 import { NavIcon } from "./NavIcon";
@@ -62,7 +62,7 @@ export function Sidebar({
             <p className="truncate text-sm font-medium text-ink">
               {orgName ?? "—"}
             </p>
-            <p className="text-xs text-muted">{titleCase(role)}</p>
+            <p className="text-xs text-muted">{roleLabel(role)}</p>
           </div>
         </div>
       </div>

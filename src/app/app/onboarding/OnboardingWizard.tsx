@@ -180,7 +180,7 @@ export function OnboardingWizard({
               />
               {profile.start_date && (
                 <p className="text-xs text-muted">
-                  Start date was set by your admin — confirm only.
+                  Start date was set by your manager — confirm only.
                 </p>
               )}
               <NavButtons step={step} setStep={setStep} pending={pending} />
