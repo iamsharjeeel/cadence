@@ -12,13 +12,10 @@ import {
   validateOrgName,
 } from "@/lib/validation";
 import { normalizeAllowedDomains } from "@/lib/org-utils";
-import { COMMON_CURRENCIES } from "@/lib/constants";
 import type { PeriodCadence } from "@/types/db";
 import { PERIOD_CADENCES } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string; logoUrl?: string };
-
-export { COMMON_CURRENCIES };
 
 async function resolveOrgId(
   admin: Awaited<ReturnType<typeof requireRole>>,

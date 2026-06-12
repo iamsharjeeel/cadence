@@ -105,7 +105,7 @@ function nonEmptyCount(row: string[]): number {
 
 const URL_LIKE = /^https?:\/\//i;
 
-function isUrlLikeCell(value: string): boolean {
+export function isUrlLikeCell(value: string): boolean {
   const v = value.trim();
   return URL_LIKE.test(v) || v.includes("docs.google.com/spreadsheets");
 }
@@ -240,10 +240,66 @@ export function tableFromGrid(grid: Grid, skip: number): RawTable {
 /** Generates a sample CSV template (client-side download, no server needed). */
 export function sampleCsv(): string {
   const rows = [
-    ["Date", "Hours", "Project", "Description", "Billable"],
-    ["2026-06-01", "8", "Acme Website", "Homepage build", "true"],
-    ["2026-06-02", "6.5", "Acme Website", "Design review", "true"],
-    ["2026-06-03", "4", "Internal", "Team sync", "false"],
+    [
+      "DATE",
+      "DAY",
+      "START TIME",
+      "END TIME",
+      "TOTAL HOURS",
+      "PROJECT",
+      "DESCRIPTION",
+      "BILLABLE",
+    ],
+    [
+      "2026-06-01",
+      "Monday",
+      "09:00",
+      "17:30",
+      "8.5",
+      "Website Redesign",
+      "Homepage layout and hero section",
+      "Yes",
+    ],
+    [
+      "2026-06-02",
+      "Tuesday",
+      "09:00",
+      "13:00",
+      "4",
+      "Website Redesign",
+      "Mobile responsiveness fixes",
+      "Yes",
+    ],
+    [
+      "2026-06-02",
+      "Tuesday",
+      "14:00",
+      "18:00",
+      "4",
+      "Internal",
+      "Team meeting and planning",
+      "No",
+    ],
+    [
+      "2026-06-03",
+      "Wednesday",
+      "08:30",
+      "17:00",
+      "8.5",
+      "Client Portal",
+      "API integration and testing",
+      "Yes",
+    ],
+    [
+      "2026-06-04",
+      "Thursday",
+      "09:00",
+      "12:30",
+      "3.5",
+      "Client Portal",
+      "Bug fixes from QA review",
+      "Yes",
+    ],
   ];
   return rows.map((r) => r.join(",")).join("\n");
 }

@@ -613,6 +613,27 @@ Run migration `20260614000000_security_rls_storage.sql` against Supabase before 
   - `fetchGoogleSheet()` validates `json.csv` with `csvLooksLikeUrlLeak()` before parsing.
 - **Verified:** Public sheet `1CTgM1g_aYoWFFpHU6A_qyqWGH0ulCFhs67uAcRVf1Rw` exports CSV with real column headers (`last_name`, `first_name`, …) and 537 data rows.
 
+### Settings superadmin crash + upload wizard overhaul ✅
+
+#### Settings — Server Component render error (superadmin)
+- **Root cause:** Superadmin org scope used `filters.org || admin.org_id`, and org fetch used `.single()` without guarding errors. Superadmin has no fixed `org_id`; loading without an `?org=` param could hit bad scope or throw on fetch errors.
+- **Fix (`SettingsContent.tsx`):**
+  - Superadmin org scope uses **only** the `org` search param — never `profile.org_id`.
+  - No org param → org selector + empty state (no org fetch).
+  - Admin uses session client + their `org_id` only; superadmin uses admin client.
+  - `.maybeSingle()` + explicit error logging; try/catch logs full error to Vercel before rethrow.
+  - `SettingsTabs` / `SuperadminOrgSelect` wrapped in `Suspense` (they use `useSearchParams`).
+  - Removed stale `export { COMMON_CURRENCIES }` from `"use server"` `actions.ts`.
+
+#### Upload wizard — two-method UI (file + paste)
+- **Removed:** Google Sheets URL import UI and global `window` paste listener. `/api/google-sheet` route remains in codebase but has no UI entry point.
+- **Layout:** Single card, two sections stacked with “or” dividers; Framer Motion stagger (40ms, 160ms fade, once).
+- **Section 1 — Upload:** Teal drag-over dropzone (`.csv`/`.xlsx`, 10MB); teal sample-template banner with client-side CSV download (DATE, DAY, START TIME, END TIME, TOTAL HOURS, PROJECT, DESCRIPTION, BILLABLE + 5 example rows).
+- **Section 2 — Paste:** Explicit textarea; parse only on paste into the box (not page-level). Helper text for Google Sheets copy flow.
+- **Pipeline:** Both methods → `detectHeaderOffset` → `tableFromGrid` → `autoMatch` → preview or mapping.
+- **Auto-skip mapping:** `canAutoSkipMapping()` skips mapping UI when Date + Hours (or Start + End time) are confidently matched; shows “Auto-mapped successfully” toast.
+- **HeaderMapping:** URL-like column headers excluded from dropdown options (`isUrlLikeCell`).
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

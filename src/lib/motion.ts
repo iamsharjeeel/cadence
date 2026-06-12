@@ -58,6 +58,23 @@ export const STAT_STAGGER_ITEM = {
   },
 };
 
+/** Upload wizard sections — 40ms stagger, 160ms fade. */
+export const UPLOAD_SECTION_STAGGER = {
+  hidden: {},
+  show: {
+    transition: { staggerChildren: 0.04 },
+  },
+};
+
+export const UPLOAD_SECTION_ITEM = {
+  hidden: { opacity: 0, y: 8 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.16, ease: "easeOut" as const },
+  },
+};
+
 /** Table rows fade in together (no stagger). */
 export const TABLE_ROW_ENTRANCE = {
   initial: { opacity: 0, y: 8 },

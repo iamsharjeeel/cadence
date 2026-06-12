@@ -2,6 +2,7 @@
 
 import { Select } from "@/components/ui/Select";
 import { titleCase } from "@/lib/utils";
+import { isUrlLikeCell } from "@/lib/timesheets/parse";
 import {
   CANONICAL_FIELDS,
   REQUIRED_FIELDS,
@@ -35,14 +36,18 @@ export function HeaderMapping({
 }) {
   const needsMapping = CANONICAL_FIELDS.filter((f) => !autoMatched.has(f));
 
+  const headerOptions = (Array.isArray(table.headers) ? table.headers : [])
+    .map((h, i) => ({ label: h, index: i }))
+    .filter(({ label }) => label.trim() !== "" && !isUrlLikeCell(label));
+
   const options = (field: CanonicalField) => [
     {
       label: REQUIRED_FIELDS.includes(field) ? "Select a column…" : "Not mapped",
       value: "",
     },
-    ...(Array.isArray(table.headers) ? table.headers : []).map((h, i) => ({
-      label: h || `Column ${i + 1}`,
-      value: String(i),
+    ...headerOptions.map(({ label, index }) => ({
+      label: label || `Column ${index + 1}`,
+      value: String(index),
     })),
   ];
 

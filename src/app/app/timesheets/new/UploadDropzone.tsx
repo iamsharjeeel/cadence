@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import {
-  ACCEPTED_EXTENSIONS,
   checkFile,
   parseFile,
 } from "@/lib/timesheets/parse";
@@ -69,15 +68,17 @@ export function UploadDropzone({
         </svg>
       </div>
       <div>
-        <p className="font-display text-base font-semibold tracking-tightest">
-          Drag &amp; drop your timesheet
+        <p className="font-display text-base font-medium tracking-tightest">
+          Drop your CSV or Excel file here
         </p>
         <p className="mt-1 text-sm text-muted">
-          {ACCEPTED_EXTENSIONS.join(" or ")} · up to 10MB
+          .csv or .xlsx only · up to 10MB
         </p>
       </div>
-      <label className="cursor-pointer text-sm font-medium text-[var(--accent-strong)] hover:underline">
-        or browse files
+      <label className="cursor-pointer">
+        <span className="inline-flex h-9 items-center rounded-[var(--radius)] border bg-surface px-4 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-[var(--accent-strong)]">
+          Choose file
+        </span>
         <input
           type="file"
           accept=".csv,.xlsx"

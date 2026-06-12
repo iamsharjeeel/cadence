@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Download } from "lucide-react";
 
 import {
   Card,
@@ -14,17 +16,15 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { UPLOAD_SECTION_ITEM, UPLOAD_SECTION_STAGGER } from "@/lib/motion";
 import {
   detectHeaderOffset,
-  csvLooksLikeUrlLeak,
   isSpreadsheetUrlOnly,
-  parseCsvText,
   parsePastedText,
-  prepareGoogleSheetTable,
   sampleCsv,
   tableFromGrid,
 } from "@/lib/timesheets/parse";
-import { autoMatch } from "@/lib/timesheets/columns";
+import { autoMatch, canAutoSkipMapping } from "@/lib/timesheets/columns";
 import {
   buildValidatedRows,
   loadMapping,
@@ -57,6 +57,21 @@ const EMPTY_MAPPING: ColumnMapping = {
   billable: null,
 };
 
+function OrDivider() {
+  return (
+    <div className="relative py-1">
+      <div className="absolute inset-0 flex items-center" aria-hidden>
+        <div className="w-full border-t border-line" />
+      </div>
+      <div className="relative flex justify-center">
+        <span className="bg-surface px-3 text-xs font-medium uppercase tracking-wide text-muted">
+          or
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function UploadWizard({ orgSlug }: { orgSlug: string }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -73,42 +88,12 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
   const [options, setOptions] = useState<BuildOptions>({ skipZeroHours: false });
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
-  const [googleUrl, setGoogleUrl] = useState("");
+  const [pasteText, setPasteText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [googleSheetImport, setGoogleSheetImport] = useState(false);
 
   const maxSkip = grid ? Math.max(0, grid.rows.length - 1) : 0;
 
-  // Clipboard paste (Method 2) — only while on the input step.
-  useEffect(() => {
-    if (step !== "input") return;
-    function onPaste(e: ClipboardEvent) {
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target instanceof HTMLInputElement ||
-          target instanceof HTMLTextAreaElement ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-      const text = e.clipboardData?.getData("text/plain");
-      if (!text || !text.trim()) return;
-      if (isSpreadsheetUrlOnly(text)) return;
-      const parsed = parsePastedText(text);
-      if (parsed.rows.length === 0) return;
-      e.preventDefault();
-      toast("Paste detected — mapping your columns.", "success");
-      applyGrid(parsed, null);
-    }
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
-
-  /** File upload + clipboard paste — original pipeline (no URL sanitization). */
-  function applyGrid(g: Grid, rawFile: File | null) {
-    setGoogleSheetImport(false);
+  function applyParsedGrid(g: Grid, rawFile: File | null) {
     const detected = detectHeaderOffset(g);
     setGrid(g);
     setFile(rawFile);
@@ -129,44 +114,26 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
       return;
     }
 
-    // First upload (no reusable mapping): always show the mapping step so the
-    // user can confirm skip-rows and map any optional columns.
     const { mapping: auto, matched } = autoMatch(tbl);
     setMapping(auto);
     setAutoMatched(matched);
-    setStep("map");
-  }
 
-  /** Google Sheets — sanitize single-cell URL rows, then same header detection. */
-  function applyGoogleSheetGrid(g: Grid) {
-    const { grid: cleaned, skip: detected, table: tbl } =
-      prepareGoogleSheetTable(g);
-
-    if (cleaned.rows.length === 0) {
-      toast(
-        "Couldn't parse sheet columns. Make sure the sheet has a header row with column names.",
-        "error",
-      );
+    if (canAutoSkipMapping(auto, matched)) {
+      saveMapping(orgSlug, auto);
+      setRows(buildValidatedRows(tbl, auto, options));
+      toast("Auto-mapped successfully.", "success");
+      setStep("preview");
       return;
     }
 
-    setGoogleSheetImport(true);
-    setGrid(cleaned);
-    setFile(null);
-    setDetectedSkip(detected);
-    setSkipRows(detected);
-    setTable(tbl);
-    continueAfterTable(tbl);
+    setStep("map");
   }
 
-  /** Re-derive the header/table when the skip-rows offset changes. */
   function changeSkip(value: number) {
     if (!grid) return;
     const clamped = Math.max(0, Math.min(maxSkip, Math.floor(value)));
     setSkipRows(clamped);
-    const tbl = googleSheetImport
-      ? prepareGoogleSheetTable(grid, clamped).table
-      : tableFromGrid(grid, clamped);
+    const tbl = tableFromGrid(grid, clamped);
     setTable(tbl);
     const { mapping: auto, matched } = autoMatch(tbl);
     setMapping(auto);
@@ -179,9 +146,15 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     if (table) setRows(buildValidatedRows(table, mapping, next));
   }
 
+  function mappingHasRequiredFields(m: ColumnMapping): boolean {
+    if (m.date === null) return false;
+    if (m.hours !== null) return true;
+    return m.start_time !== null && m.end_time !== null;
+  }
+
   function confirmMapping() {
-    if (mapping.date === null || mapping.hours === null) {
-      toast("Map both Date and Hours to continue.", "error");
+    if (!mappingHasRequiredFields(mapping)) {
+      toast("Map Date and Hours (or Start + End time) to continue.", "error");
       return;
     }
     if (table) {
@@ -191,48 +164,20 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     }
   }
 
-  async function fetchGoogleSheet() {
-    if (!googleUrl.trim()) return;
-    setBusy(true);
-    try {
-      const res = await fetch(
-        `/api/google-sheet?url=${encodeURIComponent(googleUrl)}`,
-      );
-      const json = (await res.json()) as { csv?: string; error?: string };
-      if (!res.ok) {
-        toast(
-          json.error ??
-            "Couldn't fetch sheet. Make sure it's published: File → Share → Publish to web → CSV.",
-          "error",
-        );
-        return;
-      }
-      if (typeof json.csv !== "string" || !json.csv.trim()) {
-        toast("That sheet came back empty.", "error");
-        return;
-      }
-      if (csvLooksLikeUrlLeak(json.csv)) {
-        toast(
-          "Got a link instead of sheet data. Publish the sheet: File → Share → Publish to web → CSV.",
-          "error",
-        );
-        return;
-      }
-      const parsed = parseCsvText(json.csv);
-      if (parsed.rows.length === 0) {
-        toast("That sheet came back empty.", "error");
-        return;
-      }
-      toast("Sheet imported.", "success");
-      applyGoogleSheetGrid(parsed);
-    } catch {
-      toast(
-        "Couldn't fetch sheet. Make sure it's published: File → Share → Publish to web → CSV.",
-        "error",
-      );
-    } finally {
-      setBusy(false);
+  function handlePasteData(text: string) {
+    setPasteText(text);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (isSpreadsheetUrlOnly(trimmed)) {
+      toast("Paste table data, not a link. Copy cells from your sheet first.", "error");
+      return;
     }
+    const parsed = parsePastedText(trimmed);
+    if (parsed.rows.length === 0) {
+      toast("Couldn't parse that data. Copy cells from Excel or Google Sheets.", "error");
+      return;
+    }
+    applyParsedGrid(parsed, null);
   }
 
   function downloadSample() {
@@ -292,11 +237,9 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     setMapping(EMPTY_MAPPING);
     setAutoMatched(new Set());
     setRows([]);
-    setGoogleUrl("");
-    setGoogleSheetImport(false);
+    setPasteText("");
   }
 
-  // ---- render ----
   if (step === "done") {
     return (
       <Card>
@@ -323,66 +266,80 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
 
   if (step === "input") {
     return (
-      <div className="flex flex-col gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload a file</CardTitle>
-            <CardDescription>
-              Drag &amp; drop or browse. CSV and Excel (.xlsx) supported.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <UploadDropzone
-              onParsed={(g, f) => applyGrid(g, f)}
-              onError={(m) => toast(m, "error")}
-            />
-            <button
-              type="button"
-              onClick={downloadSample}
-              className="mt-4 text-sm font-medium text-[var(--accent-strong)] hover:underline"
-            >
-              Download sample CSV template
-            </button>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Paste from Excel or Sheets</CardTitle>
-              <CardDescription>
-                Copy your rows, then press ⌘/Ctrl + V anywhere on this page.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-[var(--radius)] border border-dashed px-4 py-6 text-center text-sm text-muted">
-                Waiting for paste…
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Import a Google Sheet</CardTitle>
-              <CardDescription>
-                Publish your sheet to the web, then paste its link.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <Input
-                placeholder="https://docs.google.com/spreadsheets/…"
-                value={googleUrl}
-                onChange={(e) => setGoogleUrl(e.target.value)}
+      <Card>
+        <CardHeader>
+          <CardTitle>Add your timesheet</CardTitle>
+          <CardDescription>
+            Upload a file or paste spreadsheet data — both paths use the same
+            mapping and preview flow.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <motion.div
+            className="flex flex-col gap-6"
+            variants={UPLOAD_SECTION_STAGGER}
+            initial="hidden"
+            animate="show"
+          >
+            <motion.section variants={UPLOAD_SECTION_ITEM} className="flex flex-col gap-3">
+              <h3 className="font-display text-base font-medium tracking-tightest text-ink">
+                Upload a file
+              </h3>
+              <UploadDropzone
+                onParsed={(g, f) => applyParsedGrid(g, f)}
+                onError={(m) => toast(m, "error")}
               />
-              <div>
-                <Button size="sm" onClick={fetchGoogleSheet} disabled={busy}>
-                  {busy ? "Importing…" : "Import sheet"}
+              <div className="flex flex-col gap-3 rounded-[var(--radius)] border-l-4 border-[var(--accent)] bg-[rgba(31,138,138,0.08)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-ink">
+                  For best results, use our sample template
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={downloadSample}
+                  className="shrink-0 border border-[var(--accent)]/30 bg-surface/80 text-[var(--accent-strong)] hover:bg-surface"
+                >
+                  <Download className="mr-2 h-4 w-4" aria-hidden />
+                  Download sample CSV
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </motion.section>
+
+            <motion.div variants={UPLOAD_SECTION_ITEM}>
+              <OrDivider />
+            </motion.div>
+
+            <motion.section variants={UPLOAD_SECTION_ITEM} className="flex flex-col gap-3">
+              <h3 className="font-display text-base font-medium tracking-tightest text-ink">
+                Paste from Excel or Google Sheets
+              </h3>
+              <label htmlFor="paste-data" className="text-sm font-medium text-ink">
+                Paste your data here
+              </label>
+              <textarea
+                id="paste-data"
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                onPaste={(e) => {
+                  const text = e.clipboardData.getData("text/plain");
+                  if (text) {
+                    e.preventDefault();
+                    handlePasteData(text);
+                  }
+                }}
+                placeholder="Copy cells from Excel or Google Sheets (Ctrl+C), then paste here (Ctrl+V)"
+                rows={8}
+                className="w-full resize-y rounded-[var(--radius)] border bg-surface px-3 py-2.5 font-mono text-sm text-ink placeholder:text-muted focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)]"
+              />
+              <p className="text-xs text-muted">
+                In Google Sheets: select your data range → Ctrl+C → click above and
+                Ctrl+V.
+              </p>
+            </motion.section>
+          </motion.div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -393,7 +350,7 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
           <CardTitle>Map your columns</CardTitle>
           <CardDescription>
             Skip any metadata rows, then confirm the column mapping. Date and
-            Hours are required; everything else is optional.
+            Hours (or Start + End time) are required; everything else is optional.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
@@ -420,7 +377,6 @@ export function UploadWizard({ orgSlug }: { orgSlug: string }) {
     );
   }
 
-  // preview
   return (
     <div className="flex flex-col gap-4">
       <Card>

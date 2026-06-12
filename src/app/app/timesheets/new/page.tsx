@@ -51,7 +51,7 @@ export default async function NewTimesheetPage() {
     <div>
       <PageHeader
         title="New timesheet"
-        description="Upload a file, paste from a spreadsheet, or import a Google Sheet."
+        description="Upload a file or paste spreadsheet data from Excel or Google Sheets."
         action={
           <Link href="/app/timesheets">
             <Button variant="ghost" size="sm">
