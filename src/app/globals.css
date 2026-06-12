@@ -14,6 +14,7 @@
   --line: rgba(20, 21, 26, 0.08);
 
   --accent: #b8862f; /* Warm Gold */
+  --accent-rgb: 184, 134, 47;
   --accent-soft: rgba(184, 134, 47, 0.12);
   --accent-strong: #a0751f;
 
@@ -31,6 +32,7 @@
   --line: rgba(237, 237, 234, 0.08);
 
   --accent: #c9973f; /* Warm Gold — dark mode */
+  --accent-rgb: 201, 151, 63;
   --accent-soft: rgba(201, 151, 63, 0.16);
   --accent-strong: #b8862f;
 

@@ -24,7 +24,7 @@ export function Topbar({ profile }: { profile: Profile }) {
   const linkClass =
     "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium min-h-11";
   const activeClass =
-    "bg-[var(--accent-soft)] text-[var(--accent-strong)]";
+    "bg-[var(--accent-soft)] text-[var(--accent)]";
   const inactiveClass = "text-muted hover:bg-[var(--line)] hover:text-ink";
 
   return (

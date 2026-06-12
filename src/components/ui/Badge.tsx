@@ -49,7 +49,7 @@ export function RolePill({ role }: { role: UserRole }) {
   return <Badge tone="muted">{titleCase(role)}</Badge>;
 }
 
-// draft (grey), submitted (blue), approved (teal), rejected (red), live (teal pulse for draft)
+// draft (grey), submitted (blue), approved (gold), rejected (red), live (gold pulse for draft)
 export function TimesheetStatusPill({
   status,
   live,

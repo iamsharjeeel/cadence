@@ -21,7 +21,7 @@ export function MeshBackground() {
         style={{
           animationDelay: "-9s",
           background:
-            "radial-gradient(circle at center, rgba(31,138,138,0.18), transparent 70%)",
+            "radial-gradient(circle at center, var(--accent-soft), transparent 70%)",
         }}
       />
     </div>
