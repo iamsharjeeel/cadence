@@ -21,6 +21,15 @@ export function summarizePayload(
   if (action === "timesheet_rejected" && p.note) {
     return `Rejected · ${String(p.note).slice(0, 80)}`;
   }
+  if (
+    (action === "timesheet_recalled" || action === "timesheet_returned_to_draft") &&
+    p.period_start &&
+    p.period_end
+  ) {
+    const verb =
+      action === "timesheet_recalled" ? "Recalled" : "Returned to draft";
+    return `${verb} · ${String(p.period_start)} → ${String(p.period_end)}`;
+  }
   if (action === "leave_approved" || action === "leave_rejected") {
     return p.note ? String(p.note).slice(0, 80) : "Leave request updated";
   }

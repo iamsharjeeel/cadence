@@ -373,7 +373,7 @@ export type Database = {
           status_changed_at?: string | null
           status_changed_by?: string | null
           subtotal?: number
-          timesheet_id?: string
+          timesheet_id?: string | null
           total?: number
           type?: string
           updated_at?: string
