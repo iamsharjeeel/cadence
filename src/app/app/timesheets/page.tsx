@@ -16,9 +16,9 @@ import { periodForDate, toIsoDate } from "@/lib/time/periods";
 import type { Organization, PeriodCadence, Profile, Timesheet, TimesheetStatus } from "@/types/db";
 import { TimesheetFilters } from "./controls";
 import { TimesheetListTable, type TimesheetListRow } from "./TimesheetListTable";
-import { ExportButton } from "./ExportButton";
 import { TimeTrackingView } from "./TimeTrackingView";
 import { TimeLogReminder } from "./TimeLogReminder";
+import { TimesheetPageActions } from "./TimesheetPageActions";
 
 export const metadata: Metadata = { title: "Timesheets" };
 
@@ -148,6 +148,7 @@ export default async function TimesheetsPage({
 
   const listRows: TimesheetListRow[] = timesheets.map((t) => ({
     id: t.id,
+    org_id: t.org_id,
     employee_id: t.employee_id,
     employeeName: nameById.get(t.employee_id) ?? "—",
     orgName: orgNameById.get(t.org_id),
@@ -166,7 +167,12 @@ export default async function TimesheetsPage({
       <PageHeader
         title="Timesheets"
         description="Review employee timesheets — including live drafts in progress."
-        action={isManager ? <ExportButton /> : undefined}
+        action={
+          <TimesheetPageActions
+            showExport={isManager}
+            showLogTime={Boolean(profile.org_id)}
+          />
+        }
       />
 
       {isManager && (
@@ -207,6 +213,9 @@ export default async function TimesheetsPage({
               timesheets={listRows}
               isManager={isManager}
               isSuperadmin={isSuperadmin}
+              currentUserId={profile.id}
+              currentUserRole={profile.role}
+              currentUserOrgId={profile.org_id}
               sort={sort}
               dir={dir}
             />

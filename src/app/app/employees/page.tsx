@@ -216,7 +216,7 @@ export default async function EmployeesPage() {
                               · {titleCase(m.rate_type)}
                             </span>
                           </span>
-                          {!isSuper && (
+                          {(!isSuper || isSelf) && (
                             <RateEditor
                               id={m.id}
                               rate={m.rate}
@@ -227,7 +227,9 @@ export default async function EmployeesPage() {
                         </div>
                       </TD>
                       <TD>
-                        {m.role === "employee" ? (
+                        {onboardingByEmployee.get(m.id)?.label === "Complete" ? (
+                          <span className="text-sm text-muted">Complete</span>
+                        ) : (
                           <OnboardingCell
                             label={
                               onboardingByEmployee.get(m.id)?.label ?? "—"
@@ -236,12 +238,10 @@ export default async function EmployeesPage() {
                               onboardingByEmployee.get(m.id)?.steps ?? []
                             }
                           />
-                        ) : (
-                          <span className="text-sm text-muted">—</span>
                         )}
                       </TD>
                       <TD>
-                        {!isSuper && (
+                        {(!isSuper || isSelf) && (
                           <BankingEditor
                             id={m.id}
                             defaults={{

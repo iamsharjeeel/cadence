@@ -14,6 +14,7 @@ export type AuditAction =
   | "timesheet_submitted"
   | "timesheet_approved"
   | "timesheet_rejected"
+  | "timesheet_deleted"
   | "document_generated"
   | "document_emailed"
   | "document_status_changed"

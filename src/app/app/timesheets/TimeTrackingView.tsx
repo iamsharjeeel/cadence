@@ -427,38 +427,51 @@ export function TimeTrackingView({
                         </span>
                       </div>
 
-                      <select
-                        value={entry.project_id ?? ""}
-                        disabled={!editable}
-                        onChange={async (e) => {
-                          if (e.target.value === "__new__") {
-                            const name = window.prompt("Project name");
-                            if (!name) return;
-                            const id = await handleCreateProject(name);
-                            if (id) {
-                              const next = { ...entry, project_id: id };
-                              updateEntry(day.date, entry.clientId, { project_id: id });
-                              saveEntry(next);
+                      <div className="flex min-w-0 items-center gap-2">
+                        {entry.project_id && (
+                          <span
+                            className="inline-block h-2 w-2 shrink-0 rounded-full"
+                            style={{
+                              backgroundColor:
+                                projects.find((p) => p.id === entry.project_id)?.color ??
+                                "#6B6F76",
+                            }}
+                            aria-hidden
+                          />
+                        )}
+                        <select
+                          value={entry.project_id ?? ""}
+                          disabled={!editable}
+                          onChange={async (e) => {
+                            if (e.target.value === "__new__") {
+                              const name = window.prompt("Project name");
+                              if (!name) return;
+                              const id = await handleCreateProject(name);
+                              if (id) {
+                                const next = { ...entry, project_id: id };
+                                updateEntry(day.date, entry.clientId, { project_id: id });
+                                saveEntry(next);
+                              }
+                              return;
                             }
-                            return;
-                          }
-                          const next = { ...entry, project_id: e.target.value || null };
-                          updateEntry(day.date, entry.clientId, {
-                            project_id: e.target.value || null,
-                          });
-                          saveEntry(next);
-                        }}
-                        className="h-9 rounded border bg-surface px-2 text-sm"
-                      >
-                        <option value="">No project</option>
-                        {projects.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.is_org_wide ? "◆ " : ""}
-                            {p.name}
-                          </option>
-                        ))}
-                        {editable && <option value="__new__">+ New project</option>}
-                      </select>
+                            const next = { ...entry, project_id: e.target.value || null };
+                            updateEntry(day.date, entry.clientId, {
+                              project_id: e.target.value || null,
+                            });
+                            saveEntry(next);
+                          }}
+                          className="h-9 min-w-0 flex-1 rounded border bg-surface px-2 text-sm"
+                        >
+                          <option value="">No project</option>
+                          {projects.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.is_org_wide ? "[Org] " : ""}
+                              {p.name}
+                            </option>
+                          ))}
+                          {editable && <option value="__new__">+ New project</option>}
+                        </select>
+                      </div>
 
                       <input
                         type="text"

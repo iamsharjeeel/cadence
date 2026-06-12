@@ -11,6 +11,36 @@ export type ActionResult = { ok: boolean; message: string; id?: string };
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 
+/** Org-wide projects + the current user's personal projects (for time entry dropdown). */
+export async function fetchProjectsForTimeEntry(
+  orgId: string,
+  userId: string,
+): Promise<Project[]> {
+  const db = createAdminClient();
+  const [{ data: orgWide }, { data: personal }] = await Promise.all([
+    db
+      .from("projects")
+      .select("*")
+      .eq("org_id", orgId)
+      .eq("is_active", true)
+      .eq("is_org_wide", true)
+      .order("name"),
+    db
+      .from("projects")
+      .select("*")
+      .eq("org_id", orgId)
+      .eq("is_active", true)
+      .eq("owner_id", userId)
+      .order("name"),
+  ]);
+
+  const byId = new Map<string, Project>();
+  for (const p of [...(orgWide ?? []), ...(personal ?? [])] as Project[]) {
+    byId.set(p.id, p);
+  }
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function listProjects(orgId?: string): Promise<Project[]> {
   const profile = await requireActiveProfile();
   const db = createAdminClient();
@@ -58,7 +88,9 @@ export async function createProject(payload: {
       ? payload.orgId?.trim() || profile.org_id
       : profile.org_id;
 
-  if (!orgId) return { ok: false, message: "Select an organization." };
+  if (!orgId) {
+    return { ok: false, message: "Please select an organisation first." };
+  }
   if (!isManager && isOrgWide) {
     return { ok: false, message: "Only admins can create org-wide projects." };
   }

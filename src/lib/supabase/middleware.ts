@@ -59,9 +59,7 @@ export async function updateSession(request: NextRequest) {
       const blocked = status === "pending" || status === "suspended";
       const role = profile?.role ?? "employee";
       const needsOnboarding =
-        role === "employee" &&
-        status === "active" &&
-        !profile?.onboarding_complete;
+        status === "active" && !profile?.onboarding_complete;
 
       if (isApp && blocked) {
         const url = request.nextUrl.clone();
@@ -75,10 +73,7 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
 
-      if (
-        isOnboarding &&
-        (role !== "employee" || profile?.onboarding_complete || blocked)
-      ) {
+      if (isOnboarding && (profile?.onboarding_complete || blocked)) {
         const url = request.nextUrl.clone();
         url.pathname = "/app/dashboard";
         return NextResponse.redirect(url);

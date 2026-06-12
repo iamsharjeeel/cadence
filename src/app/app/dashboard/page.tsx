@@ -4,28 +4,13 @@ import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import { OrgLogo } from "@/components/brand/OrgLogo";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { TimesheetStatusPill } from "@/components/ui/Badge";
 import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  getAdminDashboard,
-  getEmployeeDashboard,
-  getSuperadminOrgSummaries,
-} from "@/lib/dashboard/queries";
-import { formatDate } from "@/lib/utils";
-import type { TimesheetStatus } from "@/types/db";
-import { StatCard } from "./StatCard";
-import { CurrencyTotalsDisplay } from "./CurrencyTotals";
-import { HoursLineChart } from "./DashboardCharts";
+import { getAdminDashboard, getSuperadminOrgSummaries } from "@/lib/dashboard/queries";
 import { AdminDashboardView } from "./AdminDashboardView";
+import { EmployeeDashboardContent } from "./EmployeeDashboardContent";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -50,84 +35,81 @@ export default async function DashboardPage({
     }
   }
 
-  if (profile.role === "employee") {
-    const data = await getEmployeeDashboard(profile);
+  if (profile.role === "employee" && profile.org_id) {
     return (
       <div>
-        <PageHeader
-          title={`Good to see you, ${firstName}.`}
-          description="Your approved hours and earnings this month."
-          action={
-            <Link href="/app/timesheets">
-              <Button size="sm">Log time</Button>
-            </Link>
-          }
-        />
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <StatCard
-            label="Approved hours this month"
-            value={data.approvedHoursMonth}
-            decimals={1}
-          />
-          <Card>
-            <CardContent className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-wide text-muted">
-                Total earnings this month
-              </span>
-              <CurrencyTotalsDisplay totals={data.earningsByCurrency} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <Card>
-              <CardHeader>
-                <CardTitle>My hours by period</CardTitle>
-                <CardDescription>Last 6 approved pay periods.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <HoursLineChart data={data.hoursByPeriod} xKey="label" />
-              </CardContent>
-            </Card>
-
-          <Card>
-              <CardHeader>
-                <CardTitle>Recent timesheets</CardTitle>
-                <CardDescription>Your last 5 submissions.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                {data.recentTimesheets.length === 0 ? (
-                  <p className="px-6 py-8 text-sm text-muted">No timesheets yet.</p>
-                ) : (
-                  <ul className="divide-y">
-                    {data.recentTimesheets.map((t) => (
-                      <li key={t.id}>
-                        <Link
-                          href={`/app/timesheets/${t.id}`}
-                          className="flex items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-[var(--accent-soft)]/30"
-                        >
-                          <span className="tnum text-sm text-ink">
-                            {formatDate(t.period_start)} –{" "}
-                            {formatDate(t.period_end)}
-                          </span>
-                          <TimesheetStatusPill
-                            status={t.status as TimesheetStatus}
-                          />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-        </div>
+        <EmployeeDashboardContent profile={profile} firstName={firstName} />
       </div>
     );
   }
 
   if (profile.role === "superadmin") {
     const orgs = await getSuperadminOrgSummaries();
+
+    if (profile.org_id) {
+      return (
+        <div className="flex flex-col gap-10">
+          <EmployeeDashboardContent
+            profile={profile}
+            firstName={firstName}
+            extraAction={
+              <Link href="/app/organizations">
+                <Button variant="ghost" size="sm">
+                  Platform overview
+                </Button>
+              </Link>
+            }
+          />
+          <section>
+            <h2 className="mb-4 font-display text-lg font-semibold tracking-tightest">
+              Organizations
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {orgs.map((org) => (
+                <Link
+                  key={org.id}
+                  href={`/app/orgs/${org.slug}/dashboard`}
+                  className="block h-full"
+                >
+                  <Card className="h-full transition-[box-shadow] duration-150 ease-out hover:shadow-lg">
+                    <CardContent className="flex flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                        <OrgLogo name={org.name} logoUrl={org.logoUrl} size="md" />
+                        <div className="min-w-0">
+                          <p className="font-display text-lg font-semibold tracking-tightest">
+                            {org.name}
+                          </p>
+                          <p className="text-xs text-muted">{org.slug}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-xs uppercase tracking-wide text-muted">
+                            Employees
+                          </span>
+                          <p className="tnum font-semibold text-ink">
+                            {org.employeeCount}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs uppercase tracking-wide text-muted">
+                            Pending
+                          </span>
+                          <p className="tnum font-semibold text-ink">
+                            {org.pendingCount}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </div>
+      );
+    }
+
     return (
       <div>
         <PageHeader

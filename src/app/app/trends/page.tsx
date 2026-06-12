@@ -44,10 +44,9 @@ export default async function TrendsPage({
     orgs = ensureArray(data);
   }
 
-  const employeeData =
-    profile.role === "employee" && profile.org_id
-      ? await getEmployeeTrends(profile, range)
-      : null;
+  const personalTrends = profile.org_id
+    ? await getEmployeeTrends(profile, range)
+    : null;
 
   const orgAggregateData =
     isManager && (orgId || profile.org_id)
@@ -90,12 +89,20 @@ export default async function TrendsPage({
         </div>
       )}
 
-      {employeeData && profile.role === "employee" && (
-        <EmployeeTrendsView data={employeeData} />
+      {personalTrends && !isManager && (
+        <EmployeeTrendsView data={personalTrends} />
       )}
 
       {isManager && orgAggregateData && adminData && (
         <>
+          {personalTrends && (
+            <section className="mb-8">
+              <h2 className="mb-4 font-display text-lg font-semibold tracking-tightest">
+                Your trends
+              </h2>
+              <EmployeeTrendsView data={personalTrends} />
+            </section>
+          )}
           <AdminTrendsView orgData={orgAggregateData} adminData={adminData} />
           <Card className="mt-6">
             <CardContent className="p-0">

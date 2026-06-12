@@ -20,7 +20,7 @@ export async function getOnboardingProgress(
     .eq("id", employeeId)
     .single();
 
-  if (profile?.onboarding_complete || profile?.role !== "employee") {
+  if (profile?.onboarding_complete) {
     return { completed: TRACKED_STEPS.length, total: TRACKED_STEPS.length, label: "Complete" };
   }
 

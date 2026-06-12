@@ -9,11 +9,7 @@ import { OnboardingWizard } from "./OnboardingWizard";
 export default async function OnboardingPage() {
   const profile = await requireActiveProfile();
 
-  if (
-    profile.role !== "employee" ||
-    profile.onboarding_complete ||
-    profile.status !== "active"
-  ) {
+  if (profile.onboarding_complete || profile.status !== "active") {
     redirect("/app/dashboard");
   }
 

@@ -15,6 +15,7 @@ import {
   toRange,
 } from "@/lib/time/validation";
 import type { PeriodCadence, TimesheetStatus } from "@/types/db";
+import { fetchProjectsForTimeEntry } from "@/app/app/projects/actions";
 import type { Project, TimeEntry, TimeEntryWithProject } from "@/types/time-tracking";
 
 export type ActionResult = { ok: boolean; message: string; id?: string };
@@ -108,26 +109,18 @@ export async function getTimeTrackingData(
   if (!("timesheetId" in ensured)) return ensured;
 
   const db = createAdminClient();
-  const [entriesRes, projectsRes, cadence] = await Promise.all([
+  const [entriesRes, projects, cadence] = await Promise.all([
     db
       .from("time_entries")
       .select("*")
       .eq("timesheet_id", ensured.timesheetId)
       .order("entry_date")
       .order("start_time"),
-    db
-      .from("projects")
-      .select("*")
-      .eq("org_id", profile.org_id)
-      .eq("is_active", true)
-      .or(`is_org_wide.eq.true,owner_id.eq.${profile.id}`)
-      .order("name"),
+    fetchProjectsForTimeEntry(profile.org_id, profile.id),
     getOrgCadence(profile.org_id),
   ]);
 
-  const projectMap = new Map(
-    ((projectsRes.data ?? []) as Project[]).map((p) => [p.id, p]),
-  );
+  const projectMap = new Map(projects.map((p) => [p.id, p]));
   const entries: TimeEntryWithProject[] = ((entriesRes.data ?? []) as TimeEntry[]).map(
     (e) => ({
       ...e,
@@ -140,7 +133,7 @@ export async function getTimeTrackingData(
     timesheetId: ensured.timesheetId,
     status: ensured.status,
     entries,
-    projects: (projectsRes.data ?? []) as Project[],
+    projects,
     cadence,
     rate: profile.rate,
     rateType: profile.rate_type,
@@ -375,7 +368,7 @@ export async function submitTimesheetForApproval(
 
 export async function checkTimeLogReminder(): Promise<ActionResult> {
   const profile = await requireActiveProfile();
-  if (!profile.org_id || profile.role !== "employee") {
+  if (!profile.org_id) {
     return { ok: true, message: "" };
   }
 

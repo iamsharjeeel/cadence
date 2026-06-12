@@ -693,6 +693,34 @@ Run migration `20260614000000_security_rls_storage.sql` against Supabase before 
 #### Manual step required
 Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before deploying.
 
+### Phase 7 fixes ✅
+
+#### Admin/superadmin time entry
+- **`/app/timesheets/log`** — time entry UI for any role with `profiles.org_id` (not employee-only)
+- **"Log my time"** button on timesheet list page (next to Export CSV) when user has an org
+- Managers keep list view for team oversight; personal logging uses `/app/timesheets/log`
+
+#### Delete timesheets
+- Row **⋮ menu → Delete** on timesheet list (draft/rejected only)
+- Confirm modal; server deletes `time_entries` then `timesheets` row
+- Role rules: owner, org admin (same org), or superadmin
+- Audit: `timesheet_deleted`
+
+#### Projects
+- Superadmin must select org before creating projects — validation: "Please select an organisation first."
+- Time entry dropdown loads via `fetchProjectsForTimeEntry()` — org-wide + own personal only (separate queries, not `.or()` join)
+- Org-wide projects show org name column for superadmin on Projects page
+- Managers can archive org-wide projects from Projects page
+
+#### Superadmin as a regular user
+- Personal features scoped to `profiles.org_id` (time entry, submit, leave, trends, onboarding, documents)
+- Superadmin with `org_id`: personal dashboard + org cards on `/app/dashboard`
+- Admin/superadmin with `org_id`: personal leave view above team admin view
+- Admin/superadmin with `org_id`: "Your trends" section on `/app/trends`
+- Onboarding no longer restricted to `employee` role (middleware + page)
+- Superadmin self-service: rate/banking editable on own row in Employees table
+- Time log reminder applies to any user with `org_id`, not employees only
+
 ## Deferred (do not build yet)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)

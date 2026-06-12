@@ -16,11 +16,14 @@ import {
   ApproveTimesheetButton,
   RejectTimesheetControl,
 } from "./controls";
+import { DeleteTimesheetControl } from "./DeleteTimesheetControl";
 import { bulkApproveTimesheets } from "./actions";
 import { currentSearchParams } from "@/lib/search-params";
+import type { UserRole } from "@/types/db";
 
 export type TimesheetListRow = {
   id: string;
+  org_id: string;
   employee_id: string;
   employeeName: string;
   orgName?: string;
@@ -36,16 +39,35 @@ export type TimesheetListRow = {
 
 type SortKey = "period" | "total" | "submitted";
 
+function canDeleteRow(
+  row: TimesheetListRow,
+  userId: string,
+  role: UserRole,
+  userOrgId: string | null,
+): boolean {
+  if (row.status !== "draft" && row.status !== "rejected") return false;
+  if (row.employee_id === userId) return true;
+  if (role === "admin" && userOrgId && row.org_id === userOrgId) return true;
+  if (role === "superadmin") return true;
+  return false;
+}
+
 export function TimesheetListTable({
   timesheets,
   isManager,
   isSuperadmin,
+  currentUserId,
+  currentUserRole,
+  currentUserOrgId,
   sort,
   dir,
 }: {
   timesheets: TimesheetListRow[];
   isManager: boolean;
   isSuperadmin: boolean;
+  currentUserId: string;
+  currentUserRole: UserRole;
+  currentUserOrgId: string | null;
   sort: SortKey;
   dir: "asc" | "desc";
 }) {
@@ -280,6 +302,16 @@ export function TimesheetListTable({
                       View
                     </Button>
                   </Link>
+                  <DeleteTimesheetControl
+                    id={t.id}
+                    status={t.status}
+                    canDelete={canDeleteRow(
+                      t,
+                      currentUserId,
+                      currentUserRole,
+                      currentUserOrgId,
+                    )}
+                  />
                 </div>
               </TD>
             </TR>

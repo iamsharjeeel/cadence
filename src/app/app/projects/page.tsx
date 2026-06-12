@@ -31,6 +31,7 @@ export default async function ProjectsPage({
   }
 
   const projects = await listProjects(orgId);
+  const orgNameById = Object.fromEntries(orgs.map((o) => [o.id, o.name]));
 
   return (
     <div>
@@ -49,7 +50,13 @@ export default async function ProjectsPage({
           </Suspense>
         </div>
       )}
-      <ProjectsManager projects={projects} isManager={isManager} orgId={orgId} />
+      <ProjectsManager
+        projects={projects}
+        isManager={isManager}
+        orgId={orgId}
+        orgNameById={isSuperadmin ? orgNameById : undefined}
+        requiresOrgSelection={isSuperadmin}
+      />
     </div>
   );
 }
