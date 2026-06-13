@@ -9,7 +9,7 @@ export interface InputProps
 }
 
 const fieldBase =
-  "h-11 w-full rounded-[var(--radius)] border bg-surface px-3.5 text-sm text-ink placeholder:text-muted transition-colors focus-visible:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)] disabled:opacity-60";
+  "h-11 w-full rounded-[var(--radius-input)] border border-[var(--line)] bg-surface px-3.5 text-sm text-ink placeholder:text-ink-muted transition-all focus-visible:outline-none focus-visible:border-transparent focus-visible:shadow-[0_0_0_2px_var(--accent-soft),0_0_0_1px_var(--accent)] disabled:opacity-60";
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, hint, id, ...props }, ref) => {

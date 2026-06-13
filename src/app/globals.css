@@ -3,38 +3,52 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Cadence design tokens — "Quiet luxury for data".
+   Cadence design tokens v2 — "Quiet luxury for data".
    Light is the default; `.dark` (next-themes class strategy) inverts to ink.
 --------------------------------------------------------------------------- */
 :root {
-  --bg: #fbfbf9;
+  --background: #fbfaf7;
   --surface: #ffffff;
-  --ink: #14151a;
-  --muted: #6b6f76;
-  --line: rgba(20, 21, 26, 0.08);
+  --surface-low: #f5f3f0;
+  --surface-container: #efedea;
+  --ink: #1a1917;
+  --ink-muted: #6b6560;
+  --line: rgba(26, 25, 23, 0.08);
 
-  --accent: #b8862f; /* Warm Gold */
-  --accent-rgb: 184, 134, 47;
-  --accent-soft: rgba(184, 134, 47, 0.12);
-  --accent-strong: #a0751f;
+  --accent: #7f560c;
+  --accent-soft: rgba(127, 86, 12, 0.1);
+  --accent-mid: #c9974a;
+  --accent-strong: #624000;
+  --accent-rgb: 127, 86, 12;
+
+  --shadow-card: 0px 4px 20px rgba(45, 40, 30, 0.06);
+  --shadow-float: 0px 12px 32px rgba(45, 40, 30, 0.12);
+
+  --radius-card: 12px;
+  --radius-input: 8px;
+  --radius-chip: 9999px;
 
   --danger: #b3261e;
   --danger-soft: rgba(179, 38, 30, 0.1);
-
-  --radius: 16px;
 }
 
 .dark {
-  --bg: #000000;
-  --surface: #0d0d0d;
-  --ink: #ededea;
-  --muted: #6b6f76;
-  --line: rgba(237, 237, 234, 0.08);
+  --background: #000000;
+  --surface: #0d0d0b;
+  --surface-low: #141410;
+  --surface-container: #1c1c18;
+  --ink: #edede8;
+  --ink-muted: #6b6f76;
+  --line: rgba(237, 237, 232, 0.08);
 
-  --accent: #c9973f; /* Warm Gold — dark mode */
-  --accent-rgb: 201, 151, 63;
-  --accent-soft: rgba(201, 151, 63, 0.16);
-  --accent-strong: #b8862f;
+  --accent: #c9974a;
+  --accent-soft: rgba(201, 151, 74, 0.14);
+  --accent-mid: #c9974a;
+  --accent-strong: #f4bd6c;
+  --accent-rgb: 201, 151, 74;
+
+  --shadow-card: 0px 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-float: 0px 12px 32px rgba(0, 0, 0, 0.6);
 
   --danger: #f2655c;
   --danger-soft: rgba(242, 101, 92, 0.14);
@@ -50,11 +64,10 @@
   }
 
   body {
-    background-color: var(--bg);
+    background-color: var(--background);
     color: var(--ink);
-    font-family: var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-inter);
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
   }
 
   h1,
@@ -63,13 +76,13 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-space-grotesk), var(--font-inter), sans-serif;
+    font-family: var(--font-space);
+    font-weight: 600;
     letter-spacing: -0.02em;
   }
 
-  /* Tabular figures for every numeric/financial value. */
-  .tnum,
-  .font-display {
+  .tabular {
+    font-feature-settings: "tnum";
     font-variant-numeric: tabular-nums;
   }
 
@@ -80,12 +93,10 @@
 }
 
 @layer utilities {
-  /* Hairline divider helper. */
   .hairline {
     border-color: var(--line);
   }
 
-  /* Subtle grain overlay — used on auth screens only. */
   .grain::before {
     content: "";
     position: absolute;
@@ -116,7 +127,6 @@
   animation: fadeUp 0.3s cubic-bezier(0.33, 1, 0.68, 1) forwards;
 }
 
-/* Respect reduced-motion globally: kill transitions & animations. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

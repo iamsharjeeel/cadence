@@ -35,7 +35,7 @@ export function TableRowsSkeleton({ rows = 6 }: { rows?: number }) {
 /** Card skeleton with pulsing grey bars. */
 export function CardSkeleton({ bars = 3 }: { bars?: number }) {
   return (
-    <div className="rounded-[var(--radius)] border bg-surface p-6 shadow-card">
+    <div className="rounded-[var(--radius-card)] border bg-surface p-6 shadow-card">
       <div className="mb-4 h-3 w-24 animate-pulse rounded bg-[var(--line)]" />
       {Array.from({ length: bars }).map((_, i) => (
         <div

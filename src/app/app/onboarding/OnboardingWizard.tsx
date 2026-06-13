@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/utils";
 import type { OfficialDocument, Profile } from "@/types/db";
 import {
   completeOnboarding,
@@ -107,7 +108,7 @@ export function OnboardingWizard({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="rounded-[var(--radius)] border bg-[var(--accent-soft)]/40 px-8 py-16 text-center"
+        className="rounded-[var(--radius-card)] bg-surface px-8 py-16 text-center shadow-card"
       >
         <h1 className="font-display text-2xl font-semibold tracking-tightest">
           You&apos;re all set.
@@ -119,20 +120,38 @@ export function OnboardingWizard({
 
   return (
     <div>
-      <div className="mb-8">
-        <div className="mb-2 flex justify-between text-xs text-muted">
-          <span>
-            Step {step + 1} of {STEP_LABELS.length}
-          </span>
-          <span>{STEP_LABELS[step]}</span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-[var(--line)]">
-          <div
-            className="h-full bg-accent transition-all duration-300"
-            style={{ width: `${((step + 1) / STEP_LABELS.length) * 100}%` }}
-          />
-        </div>
+      <div className="mb-8 flex items-center justify-center gap-2">
+        {STEP_LABELS.map((label, i) => {
+          const completed = completedSteps.includes(
+            ["personal", "employment", "banking", "emergency", "documents"][i]!,
+          ) || i < step;
+          const active = i === step;
+          return (
+            <div key={label} className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "flex h-2.5 w-2.5 items-center justify-center rounded-[var(--radius-chip)] transition-colors",
+                  active && "bg-[var(--accent-mid)]",
+                  completed && !active && "bg-[var(--accent-soft)]",
+                  !active && !completed && "bg-[var(--line)]",
+                )}
+                title={label}
+                aria-hidden
+              >
+                {completed && !active && (
+                  <span className="text-[6px] text-[var(--accent)]">✓</span>
+                )}
+              </span>
+              {i < STEP_LABELS.length - 1 && (
+                <span className="h-px w-6 bg-[var(--line)]" aria-hidden />
+              )}
+            </div>
+          );
+        })}
       </div>
+      <p className="mb-6 text-center text-xs text-muted">
+        Step {step + 1} of {STEP_LABELS.length} — {STEP_LABELS[step]}
+      </p>
 
       <Card>
         <CardHeader>
@@ -237,7 +256,7 @@ export function OnboardingWizard({
                   No documents to sign right now.
                 </p>
               ) : (
-                <ul className="divide-y rounded-[var(--radius)] border">
+                <ul className="divide-y divide-[var(--line)] rounded-[var(--radius-card)] bg-surface-low">
                   {pendingDocs.map((d) => (
                     <li
                       key={d.id}

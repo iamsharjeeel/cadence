@@ -38,7 +38,7 @@ function NavigationProgressBar({
     <AnimatePresence>
       {active && (
         <motion.div
-          className="fixed left-0 right-0 top-0 z-[9999] h-0.5 origin-left bg-[var(--accent)]"
+          className="fixed left-0 right-0 top-0 z-[9999] h-0.5 origin-left bg-[var(--accent-mid)]"
           initial={{ scaleX: 0 }}
           animate={{ scaleX: 1 }}
           exit={{ opacity: 0 }}

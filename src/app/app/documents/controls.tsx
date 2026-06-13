@@ -58,7 +58,7 @@ export function DocumentStatusSelect({
         name="status"
         defaultValue={current}
         onChange={() => formRef.current?.requestSubmit()}
-        className="h-9 rounded-[var(--radius)] border bg-surface px-2 text-sm"
+        className="h-9 rounded-[var(--radius-card)] border bg-surface px-2 text-sm"
       >
         {DOCUMENT_STATUSES.map((s) => (
           <option key={s} value={s}>

@@ -4,15 +4,15 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-[var(--radius)] font-medium transition-[color,background-color,border-color,box-shadow,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-input)] font-display font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)] focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-accent text-white shadow-card hover:bg-[var(--accent-strong)]",
+    "bg-[var(--accent-mid)] text-white hover:bg-[var(--accent-strong)]",
   secondary:
-    "border bg-surface text-ink hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)]",
+    "border border-[var(--line)] bg-transparent text-ink hover:bg-[var(--accent-soft)]",
   ghost:
-    "border bg-transparent text-ink hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)]",
+    "bg-transparent text-ink hover:bg-[var(--accent-soft)]",
   danger:
     "bg-[var(--danger-soft)] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white",
 };

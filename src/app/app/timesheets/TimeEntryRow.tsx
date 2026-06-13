@@ -67,7 +67,7 @@ function BillableToggle({
         "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)]",
         checked
-          ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+          ? "bg-[var(--accent-soft)] text-[var(--accent)]"
           : "bg-[var(--line)] text-muted",
         disabled && "cursor-not-allowed opacity-60",
       )}
@@ -157,7 +157,7 @@ function CreateProjectModal({
 
   return (
     <MotionModal open={open} onClose={onClose}>
-      <div className="w-full max-w-sm rounded-[var(--radius)] border bg-surface p-6 shadow-card">
+      <div className="w-full max-w-sm rounded-[var(--radius-card)] border bg-surface p-6 shadow-card">
         <h3 className="font-display text-base font-semibold tracking-tightest text-ink">
           New project
         </h3>
@@ -308,12 +308,12 @@ export function TimeEntryRow({
           onClick={onExpand}
           disabled={!editable}
           className={cn(
-            "flex w-full items-center gap-3 rounded-[calc(var(--radius)-4px)] border border-[var(--line)] bg-[var(--bg)]/50 px-3 py-2.5 text-left transition-colors",
+            "flex w-full items-center gap-3 rounded-[var(--radius-input)] bg-surface-low px-3 py-2.5 text-left transition-colors",
             editable && "hover:bg-[var(--accent-soft)]/40",
             !editable && "cursor-default",
           )}
         >
-          <span className="tnum shrink-0 text-sm font-medium text-ink">
+          <span className="tabular shrink-0 text-sm font-medium text-ink">
             {timeSummary}
           </span>
           <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />
@@ -321,7 +321,7 @@ export function TimeEntryRow({
             {hasCadenceProject ? (
               <>
                 <span
-                  className="h-2 w-2 shrink-0 rounded-full"
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: selectedProject!.color }}
                   aria-hidden
                 />
@@ -353,7 +353,7 @@ export function TimeEntryRow({
             className={cn(
               "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
               entry.billable
-                ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                 : "bg-[var(--line)] text-muted",
             )}
           >
@@ -388,7 +388,7 @@ export function TimeEntryRow({
     <motion.div layout {...ROW_MOTION} className="overflow-hidden">
       <div
         className={cn(
-          "rounded-[calc(var(--radius)-4px)] border border-[var(--line)] bg-[var(--bg)]/50 p-3",
+          "rounded-[var(--radius-input)] bg-surface-low p-3",
           "flex flex-col gap-3",
         )}
       >
@@ -413,7 +413,7 @@ export function TimeEntryRow({
                 className={cn(
                   "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
                   entry.entry_mode === mode
-                    ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                    ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                     : "text-muted hover:text-ink",
                   !editable && "cursor-not-allowed opacity-60",
                 )}
@@ -446,8 +446,8 @@ export function TimeEntryRow({
             </div>
             <span
               className={cn(
-                "tnum mt-5 inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-medium",
-                "bg-[var(--line)] text-muted",
+                "tabular mt-5 inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                "bg-[var(--accent-soft)] text-[var(--accent)]",
               )}
             >
               {displayHours != null ? `${displayHours.toFixed(1)}h` : "—"}
@@ -478,8 +478,8 @@ export function TimeEntryRow({
             />
             <span
               className={cn(
-                "tnum inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-medium",
-                "bg-[var(--line)] text-muted",
+                "tabular inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                "bg-[var(--accent-soft)] text-[var(--accent)]",
               )}
             >
               {displayHours != null ? `${displayHours.toFixed(1)}h` : "—"}
@@ -507,7 +507,7 @@ export function TimeEntryRow({
               <span className={PROJECT_LEADING_SLOT}>
                 {selectedProject ? (
                   <span
-                    className="h-2 w-2 rounded-full"
+                    className="h-2.5 w-2.5 rounded-full"
                     style={{ backgroundColor: selectedProject.color }}
                     aria-hidden
                   />

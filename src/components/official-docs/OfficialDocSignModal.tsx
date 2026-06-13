@@ -58,9 +58,9 @@ export function OfficialDocSignModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-bg">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <div className="flex items-center justify-between border-b px-6 py-4">
-        <h2 className="text-lg font-semibold">{document.name}</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">{document.name}</h2>
         <Button variant="ghost" size="sm" onClick={onClose}>
           Close
         </Button>
@@ -70,7 +70,7 @@ export function OfficialDocSignModal({
           <iframe
             src={url}
             title={document.name}
-            className="h-full w-full rounded-[var(--radius)] border"
+            className="h-full w-full rounded-[var(--radius-card)] border"
           />
         ) : url ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
@@ -97,12 +97,12 @@ export function OfficialDocSignModal({
             I have read and understood this document.
           </label>
         ) : (
-          <div className="mb-4 rounded-[var(--radius)] border bg-surface p-2">
+          <div className="mb-4 rounded-[var(--radius-card)] border bg-surface p-2">
             <p className="mb-2 text-xs text-muted">Draw your signature</p>
             <SignatureCanvas
               ref={sigRef}
               canvasProps={{
-                className: "h-32 w-full rounded-[var(--radius)] bg-white",
+                className: "h-32 w-full rounded-[var(--radius-card)] bg-white",
               }}
             />
             <Button

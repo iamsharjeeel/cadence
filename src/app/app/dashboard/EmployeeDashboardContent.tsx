@@ -51,7 +51,7 @@ export async function EmployeeDashboardContent({
         />
         <Card>
           <CardContent className="flex flex-col gap-2">
-            <span className="text-xs uppercase tracking-wide text-muted">
+            <span className="text-sm text-muted font-body">
               Total earnings this month
             </span>
             <CurrencyTotalsDisplay totals={data.earningsByCurrency} />
@@ -79,14 +79,14 @@ export async function EmployeeDashboardContent({
             {data.recentTimesheets.length === 0 ? (
               <p className="px-6 py-8 text-sm text-muted">No timesheets yet.</p>
             ) : (
-              <ul className="divide-y">
+              <ul>
                 {data.recentTimesheets.map((t) => (
-                  <li key={t.id}>
+                  <li key={t.id} className="odd:bg-surface-low">
                     <Link
                       href={`/app/timesheets/${t.id}`}
                       className="flex items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-[var(--accent-soft)]/30"
                     >
-                      <span className="tnum text-sm text-ink">
+                      <span className="tabular text-sm text-ink">
                         {formatDate(t.period_start)} – {formatDate(t.period_end)}
                       </span>
                       <TimesheetStatusPill status={t.status as TimesheetStatus} />

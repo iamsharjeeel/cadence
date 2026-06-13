@@ -71,7 +71,7 @@ export function AdminDashboardView({
               <Button size="sm">
                 Pending approvals
                 {data.pendingCount > 0 && (
-                  <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/20 px-1.5 text-xs tnum">
+                  <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/20 px-1.5 text-xs tabular">
                     {data.pendingCount}
                   </span>
                 )}
@@ -95,7 +95,7 @@ export function AdminDashboardView({
         <StatCardItem>
           <Card>
             <CardContent className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-wide text-muted">
+              <span className="text-sm text-muted font-body">
                 Payroll estimate
               </span>
               <CurrencyTotalsDisplay totals={data.payrollByCurrency} />
@@ -153,20 +153,20 @@ export function AdminDashboardView({
               </THead>
               <TBody>
                 {data.employeeBreakdown.map((e) => (
-                  <TR key={e.id}>
+                  <TR key={e.id} className="border-0 odd:bg-surface-low">
                     <TD className="text-sm font-medium">{e.name}</TD>
                     <TD className="text-sm text-muted">{titleCase(e.role)}</TD>
-                    <TD className="tnum text-sm">
+                    <TD className="tabular text-sm">
                       {e.rate !== null
                         ? formatMoney(e.rate, e.currency)
                         : "—"}
                     </TD>
-                    <TD className="tnum text-sm">
+                    <TD className="tabular text-sm">
                       {e.approvedHours.toLocaleString(undefined, {
                         maximumFractionDigits: 1,
                       })}
                     </TD>
-                    <TD className="tnum text-sm">
+                    <TD className="tabular text-sm">
                       {e.estimatedTotal > 0
                         ? formatMoney(e.estimatedTotal, e.currency)
                         : "—"}

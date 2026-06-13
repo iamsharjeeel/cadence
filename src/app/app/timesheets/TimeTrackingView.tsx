@@ -506,12 +506,12 @@ export function TimeTrackingView({
             <p className="font-display text-lg font-medium tracking-tightest text-ink">
               {week?.label ?? "…"}
             </p>
-            <p className="tnum text-sm text-muted">{isoWeek}</p>
+            <p className="tabular text-sm text-muted">{isoWeek}</p>
             <div className="mt-1">
               <TimesheetStatusPill status={status} />
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-card)] bg-surface p-1.5 shadow-card">
             <Button
               type="button"
               variant="ghost"
@@ -546,10 +546,11 @@ export function TimeTrackingView({
             <div
               key={day.date}
               className={cn(
-                "rounded-[var(--radius)] border border-[var(--line)] bg-surface p-5 shadow-sm",
+                "rounded-[var(--radius-card)] bg-surface p-5 shadow-card",
                 day.isToday && "border-l-4 border-l-[var(--accent)]",
                 day.isFuture && !day.isWeekend && "opacity-80",
-                day.isWeekend && "border-dashed bg-[var(--bg)]/60",
+                day.isWeekend &&
+                  "border border-dashed border-[var(--line)] bg-surface-low",
               )}
             >
               <div className="mb-4 flex items-center justify-between gap-3">
@@ -562,7 +563,7 @@ export function TimeTrackingView({
                   >
                     {day.dayName}
                   </p>
-                  <p className="tnum text-sm text-muted">
+                  <p className="tabular text-sm text-muted">
                     {new Date(day.date).toLocaleDateString("en-AU", {
                       day: "numeric",
                       month: "short",
@@ -678,7 +679,7 @@ export function TimeTrackingView({
         )}
       </div>
 
-      <aside className="flex flex-col gap-5 rounded-[var(--radius)] border border-[var(--line)] bg-surface p-5 shadow-sm lg:sticky lg:top-6 lg:self-start">
+      <aside className="flex flex-col gap-5 rounded-[var(--radius-card)] bg-surface p-5 shadow-card lg:sticky lg:top-6 lg:self-start">
         {loading ? (
           <LogSummarySkeleton />
         ) : (
@@ -691,7 +692,7 @@ export function TimeTrackingView({
               <p className="text-xs font-medium uppercase tracking-wide text-muted">
                 Total hours
               </p>
-              <p className="tnum mt-1 text-3xl font-semibold text-ink">
+              <p className="tabular mt-1 text-3xl font-semibold text-ink">
                 <CountUp value={totalHours} decimals={1} />
               </p>
             </div>
@@ -711,12 +712,12 @@ export function TimeTrackingView({
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="flex min-w-0 items-center gap-2 text-ink">
                         <span
-                          className="inline-block h-2 w-2 shrink-0 rounded-full"
+                          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: p.color }}
                         />
                         <span className="truncate">{p.name}</span>
                       </span>
-                      <span className="tnum shrink-0 font-medium">
+                      <span className="tabular shrink-0 font-medium">
                         {p.hours.toFixed(1)}h
                       </span>
                     </div>
@@ -736,13 +737,13 @@ export function TimeTrackingView({
             <div className="grid grid-cols-2 gap-4 border-t border-[var(--line)] pt-4 text-sm">
               <div>
                 <p className="text-xs text-muted">Billable</p>
-                <p className="tnum mt-0.5 font-medium text-ink">
+                <p className="tabular mt-0.5 font-medium text-ink">
                   {billableHours.toFixed(1)}h
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted">Non-billable</p>
-                <p className="tnum mt-0.5 font-medium text-ink">
+                <p className="tabular mt-0.5 font-medium text-ink">
                   {(totalHours - billableHours).toFixed(1)}h
                 </p>
               </div>
@@ -751,7 +752,7 @@ export function TimeTrackingView({
             {showEarnings && (
               <div className="border-t border-[var(--line)] pt-4">
                 <p className="text-xs text-muted">Estimated earnings</p>
-                <p className="tnum mt-0.5 font-medium text-ink">
+                <p className="tabular mt-0.5 font-medium text-ink">
                   {currency ?? "USD"}{" "}
                   {(totalHours * (rate ?? 0)).toFixed(2)}
                 </p>
@@ -760,15 +761,15 @@ export function TimeTrackingView({
 
             <div className="border-t border-[var(--line)] pt-4">
               <p className="text-xs text-muted">Submit progress</p>
-              <p className="tnum mt-0.5 text-sm font-medium text-ink">
+              <p className="tabular mt-0.5 text-sm font-medium text-ink">
                 {weekStats.daysLogged} / {SUBMIT_MIN_DAYS} days ·{" "}
                 {weekStats.totalHours.toFixed(1)} / {SUBMIT_MIN_HOURS}.0h
               </p>
             </div>
 
             {showOvertimeNotice && editable && (
-              <p className="rounded-[var(--radius)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
-                <span className="tnum font-medium">
+              <p className="rounded-[var(--radius-card)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
+                <span className="tabular font-medium">
                   {(totalHours - OVERTIME_HOURS_THRESHOLD).toFixed(1)}h
                 </span>{" "}
                 overtime — your manager will approve the extra time.

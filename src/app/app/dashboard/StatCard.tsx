@@ -22,14 +22,14 @@ export function StatCard({
   return (
     <MotionCard>
       <CardContent className="flex flex-col gap-2">
-        <span className="text-xs uppercase tracking-wide text-muted">{label}</span>
+        <span className="text-sm text-muted font-body">{label}</span>
         {children ?? (
           <CountUp
             value={value ?? 0}
             decimals={decimals}
             prefix={prefix}
             suffix={suffix}
-            className="text-2xl font-semibold text-ink"
+            className="font-display font-bold tabular text-ink"
           />
         )}
       </CardContent>

@@ -22,20 +22,20 @@ export function Topbar({ profile }: { profile: Profile }) {
   const current = items.find((i) => i.href === currentPath);
 
   const linkClass =
-    "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium min-h-11";
+    "flex items-center gap-3 rounded-[var(--radius-input)] border-l-2 border-transparent px-3 py-2.5 font-display text-sm font-medium min-h-11";
   const activeClass =
-    "bg-[var(--accent-soft)] text-[var(--accent)]";
-  const inactiveClass = "text-muted hover:bg-[var(--line)] hover:text-ink";
+    "border-l-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]";
+  const inactiveClass = "text-muted hover:bg-[var(--accent-soft)]/50 hover:text-ink";
 
   return (
-    <header className="sticky top-0 z-20 border-b bg-bg/80 backdrop-blur-xl">
-      <div className="flex h-16 items-center gap-3 px-5 sm:px-8">
+    <header className="sticky top-0 z-20 h-14 border-b border-[var(--line)] bg-surface">
+      <div className="flex h-14 items-center gap-3 px-5 sm:px-8">
         <button
           type="button"
           aria-label="Toggle navigation"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius)] border text-muted hover:text-ink lg:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--line)] text-muted hover:text-ink lg:hidden"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -69,7 +69,7 @@ export function Topbar({ profile }: { profile: Profile }) {
       </div>
 
       {open && (
-        <nav className="flex flex-col gap-1 border-t px-3 py-3 lg:hidden">
+        <nav className="flex flex-col gap-1 border-t border-[var(--line)] px-3 py-3 lg:hidden">
           {items.map((item) => (
             <NavLink
               key={item.href}

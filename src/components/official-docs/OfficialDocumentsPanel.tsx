@@ -54,7 +54,7 @@ export function OfficialDocumentsPanel({
             <TD className={`text-sm capitalize ${statusClass(d.status)}`}>
               {d.status}
             </TD>
-            <TD className="tnum text-sm text-muted">
+            <TD className="tabular text-sm text-muted">
               {formatDate(d.created_at)}
             </TD>
             <TD>

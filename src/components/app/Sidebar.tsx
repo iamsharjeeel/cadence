@@ -22,14 +22,14 @@ export function Sidebar({
   const items = navForRole(role);
 
   const linkClass =
-    "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium transition-colors";
+    "flex items-center gap-3 rounded-[var(--radius-input)] border-l-2 border-transparent px-3 py-2.5 font-display text-sm font-medium transition-colors";
   const activeClass =
-    "bg-[var(--accent-soft)] text-[var(--accent)]";
-  const inactiveClass = "text-muted hover:bg-[var(--line)] hover:text-ink";
+    "border-l-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]";
+  const inactiveClass = "text-muted hover:bg-[var(--accent-soft)]/50 hover:text-ink";
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r bg-surface lg:flex">
-      <div className="flex h-16 items-center px-6">
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-[var(--line)] bg-surface lg:flex">
+      <div className="flex h-14 items-center px-6">
         <Link href="/app/dashboard">
           <Wordmark />
         </Link>
@@ -50,8 +50,8 @@ export function Sidebar({
         ))}
       </nav>
 
-      <div className="border-t px-6 py-4">
-        <div className="flex items-center gap-3">
+      <div className="border-t border-[var(--line)] px-4 py-4">
+        <div className="flex items-center gap-3 rounded-[12px] bg-surface-low p-3">
           <OrgLogo
             name={orgName ?? "Organization"}
             logoUrl={orgLogoUrl}

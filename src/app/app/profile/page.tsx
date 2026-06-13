@@ -57,7 +57,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card id="section-personal" className="scroll-mt-20">
           <CardHeader>
-            <CardTitle>Personal details</CardTitle>
+            <CardTitle className="text-base">Personal details</CardTitle>
             <CardDescription>Your display name and email.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -70,7 +70,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Employment</CardTitle>
+            <CardTitle className="text-base">Employment</CardTitle>
             <CardDescription>
               Role and status are managed by an admin. You can set your own rate.
             </CardDescription>
@@ -95,7 +95,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
       <Card id="section-employment" className="mt-4 scroll-mt-20">
         <CardHeader>
-          <CardTitle>Job details</CardTitle>
+          <CardTitle className="text-base">Job details</CardTitle>
           <CardDescription>Your role and start date.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,7 +108,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
       <Card id="section-banking" className="mt-4 scroll-mt-20">
         <CardHeader>
-          <CardTitle>Banking &amp; tax</CardTitle>
+          <CardTitle className="text-base">Banking &amp; tax</CardTitle>
           <CardDescription>
             Used on contractor invoices. Sensitive fields are encrypted.
           </CardDescription>
@@ -130,7 +130,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
       <Card id="section-connected" className="mt-4 scroll-mt-20">
         <CardHeader>
-          <CardTitle>Connected accounts</CardTitle>
+          <CardTitle className="text-base">Connected accounts</CardTitle>
           <CardDescription>
             Link personal integrations. Each user connects their own Asana account.
           </CardDescription>
@@ -148,7 +148,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
       <Card id="section-emergency" className="mt-4 scroll-mt-20">
         <CardHeader>
-          <CardTitle>Emergency contact</CardTitle>
+          <CardTitle className="text-base">Emergency contact</CardTitle>
           <CardDescription>Someone we can reach in an emergency.</CardDescription>
         </CardHeader>
         <CardContent>

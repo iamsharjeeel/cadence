@@ -20,8 +20,8 @@ function readCssVar(name: string): string {
 }
 
 function readChartColors(): ChartColors {
-  const primary = readCssVar("--accent");
-  const secondary = readCssVar("--muted");
+  const primary = readCssVar("--accent-mid");
+  const secondary = readCssVar("--ink-muted");
   const accentStrong = readCssVar("--accent-strong");
   const accentRgb = readCssVar("--accent-rgb");
   const isDark = document.documentElement.classList.contains("dark");
@@ -29,7 +29,7 @@ function readChartColors(): ChartColors {
   return {
     primary,
     secondary,
-    grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(20,21,26,0.06)",
+    grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(26,25,23,0.06)",
     tick: secondary,
     palette: accentRgb
       ? [

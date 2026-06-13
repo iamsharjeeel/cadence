@@ -46,7 +46,7 @@ export function ProfileRateForm({
   if (!editing) {
     return (
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <span className="tnum text-sm font-medium text-ink">
+        <span className="tabular text-sm font-medium text-ink">
           {rate != null ? (
             <>
               {formatMoney(rate, currency)}

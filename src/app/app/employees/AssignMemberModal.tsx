@@ -50,7 +50,7 @@ export function AssignMemberModal({
       <MotionModal
         open={open}
         onClose={() => !pending && setOpen(false)}
-        panelClassName="w-full max-w-md rounded-[18px] border border-line bg-surface p-6 shadow-xl"
+        panelClassName="max-w-md"
       >
         <h2 className="font-display text-lg font-semibold text-ink">
           Assign to organization

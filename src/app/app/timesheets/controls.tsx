@@ -31,10 +31,10 @@ function useResultToast(state: ActionResult | null) {
 
 function SubmitButton({
   children,
-  variant = "primary",
+  variant = "secondary",
 }: {
   children: React.ReactNode;
-  variant?: "primary" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
 }) {
   const { pending } = useFormStatus();
   return (

@@ -45,9 +45,9 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
 
       <TrendLineChart
         data={data.periodLine}
-        primary={colors.primary}
+        primary="var(--accent-mid)"
         grid={colors.grid}
-        tick={colors.tick}
+        tick="var(--ink-muted)"
         animate={!reducedMotion}
       />
       <div className="grid gap-4 lg:grid-cols-2">
@@ -56,9 +56,9 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
           data={data.projectBars}
           dataKey="hours"
           nameKey="name"
-          fill={colors.primary}
+          fill="var(--accent-mid)"
           grid={colors.grid}
-          tick={colors.tick}
+          tick="var(--ink-muted)"
           animate={!reducedMotion}
         />
         <TrendBarChart
@@ -66,9 +66,9 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
           data={data.dayOfWeek}
           dataKey="hours"
           nameKey="day"
-          fill={colors.primary}
+          fill="var(--accent-mid)"
           grid={colors.grid}
-          tick={colors.tick}
+          tick="var(--ink-muted)"
           animate={!reducedMotion}
         />
       </div>
@@ -109,16 +109,35 @@ export function AdminTrendsView({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={adminData.stackedBar}>
               <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: colors.tick }} />
-              <YAxis tick={{ fontSize: 11, fill: colors.tick }} />
+              <XAxis
+                dataKey="label"
+                tick={{
+                  fontSize: 12,
+                  fill: "var(--ink-muted)",
+                  fontFamily: "var(--font-inter)",
+                }}
+              />
+              <YAxis
+                tick={{
+                  fontSize: 12,
+                  fill: "var(--ink-muted)",
+                  fontFamily: "var(--font-inter)",
+                }}
+              />
               <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 12, fontFamily: "var(--font-inter)" }} />
               {adminData.stackedEmployees.map((name, i) => (
                 <Bar
                   key={name}
                   dataKey={name}
                   stackId="hours"
-                  fill={colors.palette[i % colors.palette.length]}
+                  fill={
+                    i === 0
+                      ? "var(--accent-mid)"
+                      : i === 1
+                        ? "var(--ink-muted)"
+                        : colors.palette[i % colors.palette.length]
+                  }
                   radius={i === adminData.stackedEmployees.length - 1 ? [4, 4, 0, 0] : undefined}
                   isAnimationActive={!reducedMotion}
                 />
@@ -133,7 +152,7 @@ export function AdminTrendsView({
           <CardTitle>Org total hours</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="tnum text-2xl font-semibold">
+          <p className="font-display font-bold tabular text-ink">
             <CountUp value={adminData.totalHours} decimals={1} />h
           </p>
           <p className="mt-1 text-sm text-muted">In selected range</p>
@@ -165,8 +184,21 @@ function TrendLineChart({
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke={grid} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: tick }} />
-            <YAxis tick={{ fontSize: 11, fill: tick }} />
+            <XAxis
+              dataKey="label"
+              tick={{
+                fontSize: 12,
+                fill: tick,
+                fontFamily: "var(--font-inter)",
+              }}
+            />
+            <YAxis
+              tick={{
+                fontSize: 12,
+                fill: tick,
+                fontFamily: "var(--font-inter)",
+              }}
+            />
             <Tooltip />
             <Line
               type="monotone"
@@ -211,8 +243,21 @@ function TrendBarChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke={grid} />
-            <XAxis dataKey={nameKey} tick={{ fontSize: 11, fill: tick }} />
-            <YAxis tick={{ fontSize: 11, fill: tick }} />
+            <XAxis
+              dataKey={nameKey}
+              tick={{
+                fontSize: 12,
+                fill: tick,
+                fontFamily: "var(--font-inter)",
+              }}
+            />
+            <YAxis
+              tick={{
+                fontSize: 12,
+                fill: tick,
+                fontFamily: "var(--font-inter)",
+              }}
+            />
             <Tooltip />
             <Bar
               dataKey={dataKey}
@@ -285,8 +330,8 @@ function Stat({
   return (
     <Card>
       <CardContent className="py-4">
-        <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
-        <p className="tnum mt-1 text-lg font-semibold">
+        <p className="text-sm text-muted font-body">{label}</p>
+        <p className="font-display font-bold tabular text-ink mt-1">
           {text ?? (
             <>
               <CountUp value={value} decimals={1} />

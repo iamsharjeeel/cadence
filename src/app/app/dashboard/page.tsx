@@ -49,7 +49,7 @@ export default async function DashboardPage({
 
   if (profile.role === "employee" && profile.org_id) {
     return (
-      <div>
+      <div className="bg-background">
         {dashboardPrompts}
         <EmployeeDashboardContent profile={profile} firstName={firstName} />
       </div>
@@ -61,7 +61,7 @@ export default async function DashboardPage({
 
     if (profile.org_id) {
       return (
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-10 bg-background">
           {dashboardPrompts}
           <EmployeeDashboardContent
             profile={profile}
@@ -98,18 +98,18 @@ export default async function DashboardPage({
                       </div>
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
-                          <span className="text-xs uppercase tracking-wide text-muted">
+                          <span className="text-sm text-muted font-body">
                             Employees
                           </span>
-                          <p className="tnum font-semibold text-ink">
+                          <p className="font-display font-bold tabular text-ink">
                             {org.employeeCount}
                           </p>
                         </div>
                         <div>
-                          <span className="text-xs uppercase tracking-wide text-muted">
+                          <span className="text-sm text-muted font-body">
                             Pending
                           </span>
-                          <p className="tnum font-semibold text-ink">
+                          <p className="font-display font-bold tabular text-ink">
                             {org.pendingCount}
                           </p>
                         </div>
@@ -125,7 +125,7 @@ export default async function DashboardPage({
     }
 
     return (
-      <div>
+      <div className="bg-background">
         {dashboardPrompts}
         <PageHeader
           title={`Good to see you, ${firstName}.`}
@@ -156,26 +156,26 @@ export default async function DashboardPage({
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <span className="text-xs uppercase tracking-wide text-muted">
+                        <span className="text-sm text-muted font-body">
                           Employees
                         </span>
-                        <p className="tnum font-semibold text-ink">
+                        <p className="font-display font-bold tabular text-ink">
                           {org.employeeCount}
                         </p>
                       </div>
                       <div>
-                        <span className="text-xs uppercase tracking-wide text-muted">
+                        <span className="text-sm text-muted font-body">
                           Pending
                         </span>
-                        <p className="tnum font-semibold text-ink">
+                        <p className="font-display font-bold tabular text-ink">
                           {org.pendingCount}
                         </p>
                       </div>
                       <div className="col-span-2">
-                        <span className="text-xs uppercase tracking-wide text-muted">
+                        <span className="text-sm text-muted font-body">
                           Approved hours (month)
                         </span>
-                        <p className="tnum font-semibold text-ink">
+                        <p className="font-display font-bold tabular text-ink">
                           {org.approvedHoursPeriod.toLocaleString(undefined, {
                             maximumFractionDigits: 1,
                           })}
@@ -200,7 +200,7 @@ export default async function DashboardPage({
     .single();
   const data = await getAdminDashboard(profile.org_id!);
   return (
-    <div>
+    <div className="bg-background">
       {dashboardPrompts}
       <AdminDashboardView
         data={data}

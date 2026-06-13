@@ -79,20 +79,23 @@ export function AuditLogViewer({
   return (
     <div className="flex flex-col gap-4">
       {isSuperadmin && (
-        <div className="max-w-md">
-          <Select
-            label="Organization"
-            value={filters.org}
-            onChange={(e) => updateFilter("org", e.target.value)}
-            options={[
-              { label: "All organizations", value: "" },
-              ...orgs.map((o) => ({ label: o.name, value: o.id })),
-            ]}
-          />
+        <div className="rounded-[var(--radius-card)] bg-surface p-4 shadow-card">
+          <div className="max-w-md">
+            <Select
+              label="Organization"
+              value={filters.org}
+              onChange={(e) => updateFilter("org", e.target.value)}
+              options={[
+                { label: "All organizations", value: "" },
+                ...orgs.map((o) => ({ label: o.name, value: o.id })),
+              ]}
+            />
+          </div>
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="rounded-[var(--radius-card)] bg-surface p-4 shadow-card">
+        <div className="flex flex-wrap items-end gap-3">
         <Select
           label="Actor"
           value={filters.actor}
@@ -148,11 +151,12 @@ export function AuditLogViewer({
         >
           Export as CSV
         </Button>
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-[var(--radius)] border bg-surface">
-        <Table>
-          <THead>
+      <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-card">
+        <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50">
+          <THead className="bg-surface-low">
             <TR>
               <TH>Timestamp</TH>
               <TH>Actor</TH>
@@ -171,7 +175,7 @@ export function AuditLogViewer({
             ) : (
               entries.map((entry) => (
                 <TR key={entry.id}>
-                  <TD className="tnum whitespace-nowrap text-sm">
+                  <TD className="tabular whitespace-nowrap text-sm">
                     {new Date(entry.created_at).toLocaleString()}
                   </TD>
                   <TD className="text-sm">

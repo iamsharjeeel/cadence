@@ -105,12 +105,12 @@ export function AsanaImportModal({
   const showReconnect = needsReconnect || actionNeedsReconnect;
 
   return (
-    <MotionModal open={open} onClose={onClose} panelClassName="w-full max-w-2xl rounded-[18px] border border-line bg-surface p-6 shadow-xl">
+    <MotionModal open={open} onClose={onClose} panelClassName="max-w-2xl">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <AsanaIcon size={28} className="mt-0.5 shrink-0" />
           <div>
-            <h2 className="font-display text-xl font-semibold text-ink">
+            <h2 className="font-display text-lg font-semibold text-ink">
               Import Asana projects
             </h2>
             <p className="mt-1 text-sm text-muted">

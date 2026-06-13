@@ -105,7 +105,7 @@ function AsanaProjectListbox({
             id={`${listboxId}-list`}
             role="listbox"
             aria-labelledby={listboxId}
-            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-[calc(var(--radius)-4px)] border border-[var(--line)] bg-surface py-1 shadow-card"
+            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-[calc(var(--radius-card)-4px)] border border-[var(--line)] bg-surface py-1 shadow-card"
             {...LISTBOX_MOTION}
           >
             <li role="presentation">

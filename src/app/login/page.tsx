@@ -29,7 +29,7 @@ export default function LoginPage({
       <MeshBackground />
 
       <div className="relative z-10 w-full max-w-sm">
-        <div className="rounded-[calc(var(--radius)+4px)] border bg-surface/80 p-8 shadow-card backdrop-blur-xl">
+        <div className="rounded-[var(--radius-card)] bg-surface/80 p-8 shadow-card backdrop-blur-xl">
           <div className="flex flex-col items-center gap-2 text-center">
             <Wordmark className="text-2xl" />
             <p className="text-sm text-muted">Time, tracked with rhythm.</p>
@@ -39,7 +39,7 @@ export default function LoginPage({
 
           {errorMessage ? (
             <p
-              className="mb-6 rounded-[var(--radius)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm leading-relaxed text-red-700 dark:text-red-300"
+              className="mb-6 rounded-[var(--radius-card)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm leading-relaxed text-red-700 dark:text-red-300"
               role="alert"
             >
               {errorMessage}

@@ -53,7 +53,7 @@ export function OfficialDocumentUploadModal({
     <MotionModal
       open
       onClose={onClose}
-      panelClassName="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius)] border bg-surface p-6 shadow-card"
+      panelClassName="max-h-[90vh] max-w-lg overflow-y-auto"
     >
         <h2
           id="upload-official-doc-title"
@@ -93,7 +93,7 @@ export function OfficialDocumentUploadModal({
             <span className="font-medium">Category</span>
             <select
               name="category"
-              className="h-10 rounded-[var(--radius)] border bg-surface px-3"
+              className="h-10 rounded-[var(--radius-card)] border bg-surface px-3"
             >
               <option value="contract">Contract</option>
               <option value="offer_letter">Offer letter</option>
@@ -107,7 +107,7 @@ export function OfficialDocumentUploadModal({
             <span className="font-medium">Signing type</span>
             <select
               name="signing_type"
-              className="h-10 rounded-[var(--radius)] border bg-surface px-3"
+              className="h-10 rounded-[var(--radius-card)] border bg-surface px-3"
             >
               <option value="e_signature">E-signature</option>
               <option value="acknowledgement">Acknowledgement</option>
@@ -118,7 +118,7 @@ export function OfficialDocumentUploadModal({
             <span className="font-medium">Assign to employee</span>
             <select
               name="employee_id"
-              className="h-10 rounded-[var(--radius)] border bg-surface px-3"
+              className="h-10 rounded-[var(--radius-card)] border bg-surface px-3"
             >
               <option value="">— Select employee —</option>
               {employees.map((e) => (

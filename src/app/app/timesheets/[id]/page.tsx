@@ -186,7 +186,7 @@ export default async function TimesheetDetailPage({
       {approvedLeaveDays > 0 && (
         <Card className="mb-4 border-[var(--accent)]">
           <CardContent className="py-4 text-sm text-ink">
-            <span className="tnum font-semibold">{approvedLeaveDays}</span>{" "}
+            <span className="tabular font-semibold">{approvedLeaveDays}</span>{" "}
             day{approvedLeaveDays === 1 ? "" : "s"} of approved leave in this
             period.
           </CardContent>
@@ -215,7 +215,7 @@ export default async function TimesheetDetailPage({
             <span className="text-xs uppercase tracking-wide text-muted">
               Total hours
             </span>
-            <span className="tnum text-lg font-semibold">
+            <span className="tabular text-lg font-semibold">
               {totalHours.toLocaleString(undefined, {
                 maximumFractionDigits: 2,
               })}
@@ -227,7 +227,7 @@ export default async function TimesheetDetailPage({
             <span className="text-xs uppercase tracking-wide text-muted">
               Calculated total
             </span>
-            <span className="tnum text-lg font-semibold">
+            <span className="tabular text-lg font-semibold">
               {status === "approved"
                 ? formatMoney(
                     timesheet.calculated_total,
@@ -274,7 +274,7 @@ export default async function TimesheetDetailPage({
               {formatDate(timesheet.approved_at)}
             </Detail>
             <Detail label="Rate snapshot">
-              <span className="tnum">
+              <span className="tabular">
                 {formatMoney(
                   timesheet.rate_snapshot,
                   timesheet.currency_snapshot ?? "USD",
@@ -329,10 +329,10 @@ export default async function TimesheetDetailPage({
               <TBody>
                 {entries.map((r) => (
                   <TR key={r.id}>
-                    <TD className="tnum text-sm">{formatDate(r.entry_date)}</TD>
-                    <TD className="tnum text-sm">{String(r.start_time).slice(0, 5)}</TD>
-                    <TD className="tnum text-sm">{String(r.end_time).slice(0, 5)}</TD>
-                    <TD className="tnum text-sm">{r.total_hours}</TD>
+                    <TD className="tabular text-sm">{formatDate(r.entry_date)}</TD>
+                    <TD className="tabular text-sm">{String(r.start_time).slice(0, 5)}</TD>
+                    <TD className="tabular text-sm">{String(r.end_time).slice(0, 5)}</TD>
+                    <TD className="tabular text-sm">{r.total_hours}</TD>
                     <TD className="text-sm">
                       {r.project?.name ?? "—"}
                     </TD>
@@ -362,8 +362,8 @@ export default async function TimesheetDetailPage({
               <TBody>
                 {rows.map((r) => (
                   <TR key={r.id}>
-                    <TD className="tnum text-sm">{formatDate(r.row_date)}</TD>
-                    <TD className="tnum text-sm">{r.hours}</TD>
+                    <TD className="tabular text-sm">{formatDate(r.row_date)}</TD>
+                    <TD className="tabular text-sm">{r.hours}</TD>
                     <TD className="text-sm">{r.project ?? "—"}</TD>
                     <TD className="text-sm text-muted">{r.description ?? "—"}</TD>
                     <TD>

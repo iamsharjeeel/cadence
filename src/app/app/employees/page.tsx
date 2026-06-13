@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/Card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Avatar } from "@/components/ui/Avatar";
-import { Badge, StatusPill } from "@/components/ui/Badge";
+import { Badge, RolePill, StatusPill } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -18,6 +18,9 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney, roleLabel } from "@/lib/utils";
 import type { Organization, Profile } from "@/types/db";
 import { maskSensitive } from "@/lib/bank-crypto";
+
+const TABLE_HEAD_CLASS =
+  "bg-surface-low [&_th]:font-display [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.06em]";
 import { getOnboardingProgress, getOnboardingStepsDetail } from "@/lib/onboarding/progress";
 import {
   BankingEditor,
@@ -138,9 +141,9 @@ export default async function EmployeesPage() {
               Invited members appear here until they sign in with Google.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <THead>
+          <CardContent className="overflow-hidden p-0">
+            <Table className="border-0">
+              <THead className={TABLE_HEAD_CLASS}>
                 <TR>
                   <TH>Email</TH>
                   <TH>Role</TH>
@@ -150,10 +153,12 @@ export default async function EmployeesPage() {
               </THead>
               <TBody>
                 {pendingInvites.map((inv) => (
-                  <TR key={inv.id}>
+                  <TR key={inv.id} className="odd:bg-surface-low">
                     <TD className="text-sm text-ink">{inv.email}</TD>
-                    <TD className="text-sm text-muted">{roleLabel(inv.role)}</TD>
-                    <TD className="tnum text-sm text-muted">
+                    <TD>
+                      <RolePill role={inv.role} />
+                    </TD>
+                    <TD className="tabular text-sm text-muted">
                       {new Date(inv.created_at).toLocaleDateString()}
                     </TD>
                     {canManageMembers && (
@@ -176,7 +181,7 @@ export default async function EmployeesPage() {
             Set role, status, and rate. Changes are recorded in the audit log.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="overflow-hidden p-0">
           {team.length === 0 ? (
             <div className="px-6 py-10">
               <EmptyState
@@ -189,8 +194,8 @@ export default async function EmployeesPage() {
               />
             </div>
           ) : (
-            <Table>
-              <THead>
+            <Table className="border-0">
+              <THead className={TABLE_HEAD_CLASS}>
                 <TR>
                   <TH>Member</TH>
                   {isSuperadmin && <TH>Organization</TH>}
@@ -220,7 +225,7 @@ export default async function EmployeesPage() {
                   const manageMemberFields = !isUnassigned;
 
                   return (
-                    <TR key={m.id}>
+                    <TR key={m.id} className="odd:bg-surface-low">
                       <TD>
                         <MemberCell member={m} />
                       </TD>
@@ -233,9 +238,7 @@ export default async function EmployeesPage() {
                         {!manageMemberFields ? (
                           <span className="text-sm text-muted">—</span>
                         ) : roleLocked ? (
-                          <span className="text-sm text-muted">
-                            {roleLabel(m.role)}
-                          </span>
+                          <RolePill role={m.role} />
                         ) : (
                           <RoleSelect
                             id={m.id}
@@ -258,7 +261,7 @@ export default async function EmployeesPage() {
                           <span className="text-sm text-muted">Not in an org</span>
                         ) : (
                           <div className="flex items-center gap-3">
-                            <span className="tnum text-sm text-ink">
+                            <span className="tabular text-sm text-ink">
                               {formatMoney(m.rate, m.currency)}
                               <span className="ml-1 text-muted">
                                 · {roleLabel(m.rate_type)}
@@ -353,7 +356,7 @@ export default async function EmployeesPage() {
 function MemberCell({ member }: { member: Profile }) {
   return (
     <div className="flex items-center gap-3">
-      <Avatar name={member.full_name} email={member.email} size={34} />
+      <Avatar name={member.full_name} email={member.email} size={36} />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-ink">
           {member.full_name ?? "—"}

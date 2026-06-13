@@ -127,8 +127,8 @@ export function LeaveAdminView({
           <CardTitle className="text-base">Team balances</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <THead>
+          <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50">
+            <THead className="bg-surface-low">
               <TR>
                 <TH>Employee</TH>
                 <TH>Type</TH>
@@ -143,10 +143,10 @@ export function LeaveAdminView({
                 <TR key={b.id}>
                   <TD className="text-sm">{b.employee_name}</TD>
                   <TD className="text-sm text-muted">{b.type_name}</TD>
-                  <TD className="tnum text-sm">{b.allocated_days}</TD>
-                  <TD className="tnum text-sm">{b.used_days}</TD>
-                  <TD className="tnum text-sm">{b.pending_days}</TD>
-                  <TD className="tnum text-sm">
+                  <TD className="tabular text-sm">{b.allocated_days}</TD>
+                  <TD className="tabular text-sm">{b.used_days}</TD>
+                  <TD className="tabular text-sm">{b.pending_days}</TD>
+                  <TD className="tabular text-sm">
                     {Number(b.allocated_days) -
                       Number(b.used_days) -
                       Number(b.pending_days)}

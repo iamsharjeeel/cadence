@@ -25,7 +25,7 @@ export function AppShell({
   if (isOnboarding) {
     return (
       <NavigationProvider>
-        <div className="min-h-screen bg-bg">
+        <div className="min-h-screen bg-background">
           <main className="w-full px-5 py-10 sm:px-8">
             <PageTransition>{children}</PageTransition>
           </main>
@@ -36,7 +36,7 @@ export function AppShell({
 
   return (
     <NavigationProvider>
-      <div className="flex min-h-screen bg-bg">
+      <div className="flex min-h-screen bg-background">
         <Sidebar
           role={profile.role}
           orgName={orgName}
@@ -44,7 +44,7 @@ export function AppShell({
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar profile={profile} />
-          <main className="flex-1 px-5 py-8 sm:px-8">
+          <main className="flex-1 bg-background px-5 py-8 sm:px-8">
             <PageTransition>{children}</PageTransition>
           </main>
         </div>

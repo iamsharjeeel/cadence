@@ -6,14 +6,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "var(--bg)",
-        surface: "var(--surface)",
-        ink: "var(--ink)",
-        muted: "var(--muted)",
+        background: "var(--background)",
+        surface: {
+          DEFAULT: "var(--surface)",
+          low: "var(--surface-low)",
+        },
+        container: "var(--surface-container)",
+        ink: {
+          DEFAULT: "var(--ink)",
+          muted: "var(--ink-muted)",
+        },
+        muted: "var(--ink-muted)",
         line: "var(--line)",
         accent: {
           DEFAULT: "var(--accent)",
           soft: "var(--accent-soft)",
+          mid: "var(--accent-mid)",
           strong: "var(--accent-strong)",
         },
         danger: {
@@ -23,23 +31,29 @@ const config: Config = {
       },
       borderColor: {
         DEFAULT: "var(--line)",
+        line: "var(--line)",
       },
       borderRadius: {
-        DEFAULT: "var(--radius)",
-        lg: "var(--radius)",
-        xl: "calc(var(--radius) + 2px)",
+        DEFAULT: "var(--radius-card)",
+        card: "var(--radius-card)",
+        input: "var(--radius-input)",
+        chip: "var(--radius-chip)",
+        lg: "var(--radius-card)",
+        xl: "calc(var(--radius-card) + 2px)",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        display: ["var(--font-space-grotesk)", "var(--font-inter)", "sans-serif"],
+        sans: ["var(--font-space)", "system-ui", "sans-serif"],
+        body: ["var(--font-inter)", "system-ui", "sans-serif"],
+        display: ["var(--font-space)", "var(--font-inter)", "sans-serif"],
+        playfair: ["var(--font-playfair)", "Georgia", "serif"],
       },
       letterSpacing: {
         tightest: "-0.02em",
       },
       boxShadow: {
-        // Soft diffuse shadow only — no harsh drop shadows.
-        card: "0 1px 2px rgba(20,21,26,0.04), 0 8px 24px -12px rgba(20,21,26,0.12)",
-        lift: "0 2px 4px rgba(20,21,26,0.05), 0 16px 40px -16px rgba(20,21,26,0.18)",
+        card: "var(--shadow-card)",
+        float: "var(--shadow-float)",
+        lift: "var(--shadow-float)",
       },
       keyframes: {
         "mesh-drift": {

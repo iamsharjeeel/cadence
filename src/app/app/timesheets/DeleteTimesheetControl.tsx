@@ -60,7 +60,7 @@ export function DeleteTimesheetControl({
       </button>
 
       <MotionModal open={open} onClose={() => !loading && setOpen(false)}>
-        <div className="w-full max-w-md rounded-[var(--radius)] border bg-surface p-6 shadow-card">
+        <div className="w-full max-w-md rounded-[var(--radius-card)] border bg-surface p-6 shadow-card">
           <h3 className="font-display text-lg font-semibold tracking-tightest text-ink">
             Delete this timesheet?
           </h3>
@@ -69,13 +69,13 @@ export function DeleteTimesheetControl({
             cannot be undone.
           </p>
           {isApproved && (
-            <div className="mt-3 rounded-[calc(var(--radius)-4px)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
+            <div className="mt-3 rounded-[calc(var(--radius-card)-4px)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
               This timesheet is approved. You are about to permanently delete an
               approved record.
             </div>
           )}
           {hasDocument && (
-            <div className="mt-3 rounded-[calc(var(--radius)-4px)] border border-[var(--line)] px-4 py-3 text-sm text-muted">
+            <div className="mt-3 rounded-[calc(var(--radius-card)-4px)] border border-[var(--line)] px-4 py-3 text-sm text-muted">
               A document has been generated for this timesheet. Deleting it will
               not delete the document.
             </div>

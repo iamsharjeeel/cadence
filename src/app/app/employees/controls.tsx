@@ -204,7 +204,7 @@ export function BankingEditor({
   }
 
   return (
-    <form action={action} className="flex min-w-[20rem] flex-col gap-2 rounded-[var(--radius)] border bg-surface p-3">
+    <form action={action} className="flex min-w-[20rem] flex-col gap-2 rounded-[var(--radius-card)] border bg-surface p-3">
       <input type="hidden" name="id" value={id} />
       <Input label="Bank name" name="bank_name" defaultValue={defaults.bank_name} className="h-9 text-sm" />
       <Input label="Account name" name="bank_account_name" defaultValue={defaults.bank_account_name} className="h-9 text-sm" />

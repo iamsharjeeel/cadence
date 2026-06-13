@@ -146,7 +146,7 @@ export function DatePicker({
           <motion.div
             role="dialog"
             aria-label="Choose date"
-            className="absolute left-0 top-full z-50 mt-1 w-[17.5rem] rounded-[var(--radius)] border bg-surface p-3 shadow-lift"
+            className="absolute left-0 top-full z-50 mt-1 w-[17.5rem] rounded-[var(--radius-card)] bg-surface p-3 shadow-float"
             {...PICKER_MOTION}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -192,11 +192,11 @@ export function DatePicker({
                     type="button"
                     onClick={() => pick(day)}
                     className={cn(
-                      "tnum flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors",
+                      "tabular flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors",
                       isSelected
-                        ? "bg-[var(--accent)] text-white"
+                        ? "bg-[var(--accent-mid)] text-white"
                         : "hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]",
-                      isToday && !isSelected && "ring-1 ring-[var(--accent)]/40",
+                      isToday && !isSelected && "ring-1 ring-[var(--accent)]",
                     )}
                   >
                     {day.getDate()}

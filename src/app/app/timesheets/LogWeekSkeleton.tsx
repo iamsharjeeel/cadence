@@ -5,8 +5,10 @@ import { Skeleton } from "@/components/ui/Skeleton";
 function DayCardSkeleton({ weekend }: { weekend?: boolean }) {
   return (
     <div
-      className={`rounded-[var(--radius)] border border-[var(--line)] bg-surface p-5 ${
-        weekend ? "opacity-80" : ""
+      className={`rounded-[var(--radius-card)] bg-surface p-5 shadow-card ${
+        weekend
+          ? "border border-dashed border-[var(--line)] bg-surface-low"
+          : ""
       }`}
     >
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -14,11 +16,11 @@ function DayCardSkeleton({ weekend }: { weekend?: boolean }) {
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-3 w-16" />
         </div>
-        <Skeleton className="h-8 w-20 rounded-[var(--radius)]" />
+        <Skeleton className="h-8 w-20 rounded-[var(--radius-input)]" />
       </div>
       <div className="flex flex-col gap-3">
-        <Skeleton className="h-[4.5rem] w-full rounded-[calc(var(--radius)-4px)]" />
-        <Skeleton className="h-[4.5rem] w-full rounded-[calc(var(--radius)-4px)]" />
+        <Skeleton className="h-[4.5rem] w-full rounded-[var(--radius-input)]" />
+        <Skeleton className="h-[4.5rem] w-full rounded-[var(--radius-input)]" />
       </div>
     </div>
   );
@@ -51,7 +53,7 @@ export function LogSummarySkeleton() {
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-10 w-full" />
       </div>
-      <Skeleton className="h-11 w-full rounded-[var(--radius)]" />
+      <Skeleton className="h-11 w-full rounded-[var(--radius-card)]" />
     </div>
   );
 }

@@ -72,7 +72,7 @@ export function GenerateDocumentModal({
     <MotionModal
       open
       onClose={onClose}
-      panelClassName="w-full max-w-md rounded-[var(--radius)] border bg-surface p-6 shadow-card"
+      panelClassName="max-w-md"
     >
       <h2 id="gen-doc-title" className="text-lg font-semibold tracking-tightest">
         Generate document
@@ -85,7 +85,7 @@ export function GenerateDocumentModal({
           <select
             value={type}
             onChange={(e) => setType(e.target.value as DocumentType)}
-            className="h-10 rounded-[var(--radius)] border bg-surface px-3 text-sm"
+            className="h-10 rounded-[var(--radius-card)] border bg-surface px-3 text-sm"
           >
             <option value="pay_advice">Pay Advice</option>
             <option value="invoice">Invoice</option>
@@ -111,24 +111,24 @@ export function GenerateDocumentModal({
           />
         )}
 
-        <div className="rounded-[var(--radius)] border bg-[var(--accent-soft)]/30 p-4 text-sm">
+        <div className="rounded-[var(--radius-card)] border bg-[var(--accent-soft)]/30 p-4 text-sm">
           <div className="flex justify-between">
             <span className="text-muted">Subtotal</span>
-            <span className="tnum font-medium">
+            <span className="tabular font-medium">
               {formatMoney(subtotal, currency)}
             </span>
           </div>
           {gstEnabled && (
             <div className="mt-2 flex justify-between">
               <span className="text-muted">GST</span>
-              <span className="tnum font-medium">
+              <span className="tabular font-medium">
                 {formatMoney(gst, currency)}
               </span>
             </div>
           )}
           <div className="mt-2 flex justify-between border-t pt-2">
             <span className="font-medium">Total</span>
-            <span className="tnum font-semibold">
+            <span className="tabular font-semibold">
               {formatMoney(total, currency)}
             </span>
           </div>

@@ -256,8 +256,8 @@ export default async function DocumentsPage({
               />
             </div>
           ) : (
-            <Table>
-              <THead>
+            <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50">
+              <THead className="bg-surface-low">
                 <TR>
                   <TH>Type</TH>
                   <TH>Number</TH>
@@ -275,7 +275,7 @@ export default async function DocumentsPage({
                     <TD>
                       <DocumentTypePill type={doc.type as DocumentType} />
                     </TD>
-                    <TD className="tnum text-sm font-medium">
+                    <TD className="tabular text-sm font-medium">
                       {doc.document_number}
                     </TD>
                     {isManager && (
@@ -283,12 +283,12 @@ export default async function DocumentsPage({
                         {nameById.get(doc.employee_id) ?? "—"}
                       </TD>
                     )}
-                    <TD className="tnum text-sm text-muted">
+                    <TD className="tabular text-sm text-muted">
                       {doc.timesheet
                         ? `${formatDate(doc.timesheet.period_start)} – ${formatDate(doc.timesheet.period_end)}`
                         : "—"}
                     </TD>
-                    <TD className="tnum text-sm">
+                    <TD className="tabular text-sm">
                       {formatMoney(doc.total, doc.currency)}
                     </TD>
                     <TD>
@@ -296,7 +296,7 @@ export default async function DocumentsPage({
                         status={doc.status as DocumentStatus}
                       />
                     </TD>
-                    <TD className="tnum text-sm text-muted">
+                    <TD className="tabular text-sm text-muted">
                       {formatDate(doc.created_at)}
                     </TD>
                     <TD>

@@ -70,19 +70,17 @@ export function RequestLeaveModal({
   }
 
   return (
-    <MotionModal
-      open
-      onClose={onClose}
-      panelClassName="w-full max-w-md rounded-[var(--radius)] border bg-surface p-6 shadow-card"
-    >
-      <h2 className="text-lg font-semibold tracking-tightest">Request leave</h2>
+    <MotionModal open onClose={onClose} panelClassName="max-w-md">
+      <h2 className="font-display text-lg font-semibold tracking-tightest">
+        Request leave
+      </h2>
       <div className="mt-5 flex flex-col gap-4">
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">Leave type</span>
           <select
             value={leaveTypeId}
             onChange={(e) => setLeaveTypeId(e.target.value)}
-            className="h-10 rounded-[var(--radius)] border bg-surface px-3"
+            className="h-10 rounded-[var(--radius-card)] border bg-surface px-3"
           >
             {leaveTypes.map((t) => (
               <option key={t.id} value={t.id}>
@@ -115,15 +113,15 @@ export function RequestLeaveModal({
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-        <div className="rounded-[var(--radius)] border bg-[var(--accent-soft)]/30 p-3 text-sm">
+        <div className="rounded-[var(--radius-card)] border border-[var(--line)] bg-[var(--accent-soft)] p-3 text-sm">
           <p>
             Days requested:{" "}
-            <span className="tnum font-semibold">{days || "—"}</span>
+            <span className="tabular font-semibold">{days || "—"}</span>
           </p>
           {selectedType?.category !== "unpaid" && (
             <p className="mt-1 text-muted">
               Remaining balance:{" "}
-              <span className="tnum font-medium">{remaining}</span>
+              <span className="tabular font-medium">{remaining}</span>
             </p>
           )}
         </div>

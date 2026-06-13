@@ -60,7 +60,7 @@ export function LandingCountUp({
   }, [value, duration, started]);
 
   return (
-    <span ref={ref} className={`tnum ${className ?? ""}`}>
+    <span ref={ref} className={`tabular ${className ?? ""}`}>
       {Math.round(display)}
       {suffix}
     </span>

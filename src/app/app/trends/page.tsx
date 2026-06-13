@@ -59,7 +59,7 @@ export default async function TrendsPage({
       : null;
 
   return (
-    <div>
+    <div className="bg-background">
       <PageHeader
         title="Trends"
         description="Hours, projects, and patterns over time."
@@ -118,12 +118,12 @@ export default async function TrendsPage({
                 </THead>
                 <TBody>
                   {adminData.employeeRows.map((e) => (
-                    <TR key={e.name}>
+                    <TR key={e.name} className="border-0 odd:bg-surface-low">
                       <TD>{e.name}</TD>
-                      <TD className="tnum">{e.hours.toFixed(1)}</TD>
-                      <TD className="tnum">{e.billablePct}%</TD>
+                      <TD className="tabular">{e.hours.toFixed(1)}</TD>
+                      <TD className="tabular">{e.billablePct}%</TD>
                       <TD>{e.topProject}</TD>
-                      <TD className="tnum">
+                      <TD className="tabular">
                         {e.earnings != null
                           ? `${e.currency} ${e.earnings.toFixed(2)}`
                           : "—"}

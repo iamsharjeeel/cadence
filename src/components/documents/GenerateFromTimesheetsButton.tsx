@@ -84,7 +84,7 @@ export function GenerateFromTimesheetsButton({
           <select
             value={selectedOrgId ?? ""}
             onChange={(e) => setOrg(e.target.value)}
-            className="h-9 rounded-[var(--radius)] border bg-surface px-2 text-sm"
+            className="h-9 rounded-[var(--radius-card)] border bg-surface px-2 text-sm"
             aria-label="Filter by organization"
           >
             <option value="">All organizations</option>
@@ -95,7 +95,7 @@ export function GenerateFromTimesheetsButton({
             ))}
           </select>
         )}
-        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
+        <Button size="sm" onClick={() => setOpen(true)}>
           Generate from timesheets
         </Button>
       </div>
@@ -103,7 +103,7 @@ export function GenerateFromTimesheetsButton({
       <MotionModal
         open={open}
         onClose={() => setOpen(false)}
-        panelClassName="flex max-h-[min(32rem,90vh)] w-full max-w-lg flex-col rounded-[var(--radius)] border bg-surface shadow-card"
+        panelClassName="flex max-h-[min(32rem,90vh)] max-w-lg flex-col"
       >
             <div className="border-b px-6 py-5">
               <h2
@@ -120,7 +120,7 @@ export function GenerateFromTimesheetsButton({
             <ul className="flex-1 divide-y overflow-y-auto px-2 py-2">
               {timesheets.map((t) => (
                 <li key={t.id}>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius)] px-4 py-3 hover:bg-[var(--accent-soft)]/30">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-card)] px-4 py-3 hover:bg-[var(--accent-soft)]/30">
                     <input
                       type="checkbox"
                       checked={selected.has(t.id)}
@@ -131,7 +131,7 @@ export function GenerateFromTimesheetsButton({
                       <span className="block text-sm font-medium text-ink">
                         {t.employeeName}
                       </span>
-                      <span className="tnum block text-xs text-muted">
+                      <span className="tabular block text-xs text-muted">
                         {formatDate(t.period_start)} –{" "}
                         {formatDate(t.period_end)} ·{" "}
                         {formatMoney(

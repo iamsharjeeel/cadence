@@ -11,7 +11,7 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { LeaveType } from "@/types/db";
 import type { BalanceWithType, RequestWithMeta } from "@/lib/leave/queries";
 import { cancelLeaveRequest } from "./actions";
@@ -47,7 +47,7 @@ function buildDisplayBalances(
         leave_type: {
           name: lt.name,
           category: lt.category,
-          color: lt.color ?? "#B8862F",
+          color: lt.color ?? "var(--accent-mid)",
         },
       } as BalanceWithType;
     });
@@ -148,27 +148,35 @@ export function LeaveEmployeeView({
                   <CardTitle className="text-sm font-medium">
                     <span
                       className="mr-2 inline-block h-2 w-2 rounded-full"
-                      style={{ background: b.leave_type.color ?? "#B8862F" }}
+                      style={{ background: b.leave_type.color ?? "var(--accent-mid)" }}
                     />
                     {b.leave_type.name}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-2 text-xs text-muted">
-                  <div>
-                    <span className="block uppercase tracking-wide">Allocated</span>
-                    <CountUp value={Number(b.allocated_days)} decimals={1} />
-                  </div>
-                  <div>
-                    <span className="block uppercase tracking-wide">Used</span>
-                    <CountUp value={Number(b.used_days)} decimals={1} />
-                  </div>
-                  <div>
-                    <span className="block uppercase tracking-wide">Pending</span>
-                    <CountUp value={Number(b.pending_days)} decimals={1} />
-                  </div>
-                  <div>
-                    <span className="block uppercase tracking-wide">Remaining</span>
+                <CardContent>
+                  <p className="font-display text-[32px] font-bold tabular text-ink">
                     <CountUp value={remaining} decimals={1} />
+                  </p>
+                  <p className="text-xs text-muted">days remaining</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted">
+                    <div>
+                      <span className="block uppercase tracking-wide">Allocated</span>
+                      <span className="tabular font-medium text-ink">
+                        <CountUp value={Number(b.allocated_days)} decimals={1} />
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block uppercase tracking-wide">Used</span>
+                      <span className="tabular font-medium text-ink">
+                        <CountUp value={Number(b.used_days)} decimals={1} />
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block uppercase tracking-wide">Pending</span>
+                      <span className="tabular font-medium text-ink">
+                        <CountUp value={Number(b.pending_days)} decimals={1} />
+                      </span>
+                    </div>
                   </div>
                 </CardContent>
               </MotionCard>
@@ -181,7 +189,7 @@ export function LeaveEmployeeView({
         <CardHeader>
           <CardTitle className="text-base">Calendar — {monthLabel}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="bg-surface">
           <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div key={d} className="py-1">
@@ -198,19 +206,18 @@ export function LeaveEmployeeView({
               return (
                 <div
                   key={day}
-                  className={`flex aspect-square items-center justify-center rounded-md text-sm ${
-                    hit
-                      ? "font-medium text-ink"
-                      : "text-muted"
-                  }`}
-                  style={
-                    hit
-                      ? {
-                          background: `${hit.leave_type.color ?? "#B8862F"}22`,
-                          borderLeft: `3px solid ${hit.leave_type.color ?? "#B8862F"}`,
-                        }
-                      : undefined
-                  }
+                  className={cn(
+                    "flex aspect-square items-center justify-center rounded-[var(--radius-input)] text-sm transition-colors",
+                    !hit && "bg-surface-low text-muted hover:bg-container",
+                    hit?.status === "approved" &&
+                      "border border-[var(--accent)] bg-[var(--accent-soft)] font-medium text-ink",
+                    hit?.status === "pending" &&
+                      "border border-dashed border-[var(--line)] bg-container font-medium text-ink",
+                    hit &&
+                      hit.status !== "approved" &&
+                      hit.status !== "pending" &&
+                      "border border-[var(--line)] bg-surface-low font-medium text-ink",
+                  )}
                   title={
                     hit
                       ? `${hit.leave_type.name} (${hit.status})`
@@ -236,8 +243,8 @@ export function LeaveEmployeeView({
           {requests.length === 0 ? (
             <p className="px-6 py-8 text-sm text-muted">No requests yet.</p>
           ) : (
-            <Table>
-              <THead>
+            <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50">
+              <THead className="bg-surface-low">
                 <TR>
                   <TH>Type</TH>
                   <TH>Dates</TH>
@@ -250,10 +257,10 @@ export function LeaveEmployeeView({
                 {requests.map((r, i) => (
                   <MotionTR key={r.id} index={i}>
                     <TD className="text-sm">{r.leave_type.name}</TD>
-                    <TD className="tnum text-sm text-muted">
+                    <TD className="tabular text-sm text-muted">
                       {formatDate(r.start_date)} – {formatDate(r.end_date)}
                     </TD>
-                    <TD className="tnum text-sm">{r.days_requested}</TD>
+                    <TD className="tabular text-sm">{r.days_requested}</TD>
                     <TD className={`text-sm capitalize ${statusTone(r.status)}`}>
                       {r.status}
                     </TD>

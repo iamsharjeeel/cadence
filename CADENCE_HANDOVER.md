@@ -1081,6 +1081,37 @@ Run `supabase/migrations/20260622000000_time_entry_asana_project.sql` in Supabas
 - `src/app/app/profile/ProfileHashScroll.tsx`, `src/app/app/profile/page.tsx`
 - `src/components/app/NotificationsBell.tsx`, `src/lib/asana/urls.ts`
 
+### Session — Design system overhaul ✅
+
+Full visual redesign across app shell, all `/app/**` pages, and landing page. **No logic, server actions, database queries, types, or API routes changed** — only CSS variables, Tailwind config, component markup/classNames, and font imports.
+
+#### Tokens (DESIGN.md applied)
+- **Light:** parchment `#FBFAF7` background, `#FFFFFF` surface, `#1A1917` ink, warm gold accent `#7F560C` / mid `#C9974A`
+- **Dark:** true black `#000000` background, `#0D0D0B` surface, gold accent `#C9974A`
+- New vars: `--surface-low`, `--surface-container`, `--accent-mid`, `--shadow-card`, `--shadow-float`, `--radius-card` (12px), `--radius-input` (8px), `--radius-chip`
+- Tailwind: `bg-background`, `bg-surface`, `bg-surface-low`, `bg-container`, `text-ink`, `text-muted`, `border-line`, `bg-accent-soft`
+
+#### Typography
+- **Space Grotesk** (400–700) → `--font-space` — default `font-sans`, headings, nav, stat numbers
+- **Inter** (400–600) → `--font-inter` — body via `globals.css` + `font-body`
+- **Playfair Display** (600–700) → `--font-playfair` — landing hero decorative tagline only
+- `.tabular` utility for all numeric display
+
+#### Scope
+- Primitives: Button, Input, Card, Badge, Table, TimePicker, DatePicker, MotionModal
+- App shell: Sidebar (active left-border accent), Topbar (56px), org logo block
+- Pages: dashboard, timesheets log/list, employees, leave, documents, profile, settings, audit, projects, trends, onboarding
+- Landing: hero Playfair accent, feature cards gold left-border, stats bar, testimonial cards, surface-low footer
+- Charts: primary `var(--accent-mid)`, secondary `var(--ink-muted)` via `useChartColors()`
+
+#### Key files
+- `src/app/globals.css`, `tailwind.config.ts`, `src/app/layout.tsx`
+- `src/components/ui/{Button,Input,Card,Badge,Table,TimePicker,DatePicker}.tsx`
+- `src/components/app/{AppShell,Sidebar,Topbar,NotificationsBell}.tsx`
+- `src/components/marketing/LandingPage.tsx`
+- `src/components/motion/{MotionCard,MotionModal}.tsx`
+- `src/lib/chart-colors.ts`
+
 #### Owner verification (prod)
 ```sql
 -- Confirm migration applied

@@ -15,7 +15,7 @@ export function AsanaConnectBanner({ show }: { show: boolean }) {
   return (
     <div
       role="status"
-      className="mb-6 flex items-start gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-surface px-4 py-3 shadow-sm"
+      className="mb-6 flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface px-4 py-3 shadow-sm"
     >
       <AsanaIcon size={22} className="mt-0.5" />
       <div className="min-w-0 flex-1">

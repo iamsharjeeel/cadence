@@ -94,7 +94,7 @@ export function LeaveTypesTab({
               <TD className="text-sm capitalize text-muted">
                 {t.category.replace(/_/g, " ")}
               </TD>
-              <TD className="tnum text-sm">
+              <TD className="tabular text-sm">
                 {t.default_days_per_year ?? "—"}
               </TD>
               <TD>
@@ -111,7 +111,7 @@ export function LeaveTypesTab({
 
       <form
         action={action}
-        className="grid gap-4 rounded-[var(--radius)] border p-5 sm:grid-cols-2"
+        className="grid gap-4 rounded-[var(--radius-card)] border p-5 sm:grid-cols-2"
       >
         <input type="hidden" name="org_id" value={orgId} />
         <h3 className="text-sm font-semibold sm:col-span-2">Add custom type</h3>
@@ -120,7 +120,7 @@ export function LeaveTypesTab({
           <span className="font-medium">Category</span>
           <select
             name="category"
-            className="h-10 rounded-[var(--radius)] border px-3"
+            className="h-10 rounded-[var(--radius-card)] border px-3"
           >
             <option value="custom">Custom</option>
             <option value="annual">Annual</option>

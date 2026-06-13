@@ -43,7 +43,6 @@ export function TimePicker({
   className?: string;
   "aria-label"?: string;
 }) {
-  const autoId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const { hour, minute } = normalizeTime(value);
@@ -89,7 +88,7 @@ export function TimePicker({
         onClick={() => !disabled && setOpen((v) => !v)}
         className={cn(
           fieldBase,
-          "tnum flex h-9 w-[7.5rem] flex-none items-center justify-between gap-1 px-2.5 text-sm",
+          "tabular flex h-9 w-[7.5rem] flex-none items-center justify-between gap-1 px-2.5 text-sm",
           className,
         )}
       >
@@ -102,7 +101,7 @@ export function TimePicker({
           <motion.div
             role="dialog"
             aria-label="Choose time"
-            className="absolute left-0 top-full z-50 mt-1 flex overflow-hidden rounded-[var(--radius)] border bg-surface shadow-lift"
+            className="absolute left-0 top-full z-50 mt-1 flex overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-float"
             {...PICKER_MOTION}
           >
             <ScrollColumn
@@ -122,7 +121,7 @@ export function TimePicker({
               <button
                 type="button"
                 onClick={close}
-                className="rounded-[calc(var(--radius)-4px)] bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-strong)]"
+                className="rounded-[var(--radius-input)] bg-[var(--accent-mid)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-strong)]"
               >
                 Done
               </button>
@@ -156,7 +155,7 @@ function ScrollColumn({
 
   return (
     <div className="flex w-16 flex-col">
-      <span className="border-b px-2 py-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-muted">
+      <span className="border-b border-[var(--line)] px-2 py-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-muted">
         {label}
       </span>
       <div ref={listRef} className="max-h-48 overflow-y-auto overscroll-contain py-1">
@@ -167,10 +166,10 @@ function ScrollColumn({
             data-value={opt}
             onClick={() => onSelect(opt)}
             className={cn(
-              "tnum flex w-full items-center justify-center px-2 py-1.5 text-sm transition-colors",
+              "tabular flex w-full items-center justify-center px-2 py-1.5 text-sm transition-colors",
               selected === opt
-                ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
-                : "text-ink hover:bg-[var(--accent-soft)]/60 hover:text-[var(--accent)]",
+                ? "bg-[var(--accent-mid)] font-medium text-white"
+                : "text-ink hover:bg-[var(--accent-soft)]",
             )}
           >
             {opt}

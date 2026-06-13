@@ -56,18 +56,32 @@ export function ProfileBankingForm({
           name="bank_account_name"
           defaultValue={defaults.bank_account_name}
         />
-        <Input
-          label="Account number"
-          name="bank_account_number"
-          placeholder={accountMasked !== "—" ? accountMasked : "Enter account number"}
-          autoComplete="off"
-        />
-        <Input
-          label="BSB / SWIFT code"
-          name="bank_bsb_swift"
-          placeholder={bsbMasked !== "—" ? bsbMasked : "Enter BSB or SWIFT"}
-          autoComplete="off"
-        />
+        <div>
+          <Input
+            label="Account number"
+            name="bank_account_number"
+            placeholder={accountMasked !== "—" ? accountMasked : "Enter account number"}
+            autoComplete="off"
+          />
+          {accountMasked !== "—" && (
+            <p className="mt-1 font-body text-xs tracking-tight text-ink-muted">
+              Saved: {accountMasked}
+            </p>
+          )}
+        </div>
+        <div>
+          <Input
+            label="BSB / SWIFT code"
+            name="bank_bsb_swift"
+            placeholder={bsbMasked !== "—" ? bsbMasked : "Enter BSB or SWIFT"}
+            autoComplete="off"
+          />
+          {bsbMasked !== "—" && (
+            <p className="mt-1 font-body text-xs tracking-tight text-ink-muted">
+              Saved: {bsbMasked}
+            </p>
+          )}
+        </div>
         <Input label="Tax ID" name="tax_id" defaultValue={defaults.tax_id} />
         <Input
           label="Payment terms (days)"

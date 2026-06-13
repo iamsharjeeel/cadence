@@ -5,6 +5,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MODAL_BACKDROP, MODAL_PANEL } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
+export const MODAL_PANEL_CLASS =
+  "w-full rounded-[var(--radius-card)] bg-surface p-6 shadow-float";
+
 export function MotionModal({
   open,
   onClose,
@@ -32,7 +35,7 @@ export function MotionModal({
           <motion.div
             role="dialog"
             aria-modal
-            className={panelClassName}
+            className={cn(MODAL_PANEL_CLASS, panelClassName)}
             {...MODAL_PANEL}
             onClick={(e) => e.stopPropagation()}
           >

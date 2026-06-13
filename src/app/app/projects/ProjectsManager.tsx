@@ -62,13 +62,13 @@ export function ProjectsManager({
   return (
     <div className="flex flex-col gap-8">
       {requiresOrgSelection && !orgId && (
-        <p className="rounded-[var(--radius)] border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-4 py-3 text-sm text-[var(--danger)]">
+        <p className="rounded-[var(--radius-card)] border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-4 py-3 text-sm text-[var(--danger)]">
           Select an organisation above before creating projects.
         </p>
       )}
 
-      <section className="rounded-[var(--radius)] border bg-surface p-6">
-        <h3 className="font-display text-base font-medium">Create project</h3>
+      <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-card">
+        <h3 className="font-display text-base font-semibold">Create project</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
           <div className="flex flex-col gap-2">
@@ -79,9 +79,12 @@ export function ProjectsManager({
                   key={c}
                   type="button"
                   aria-label={`Color ${c}`}
+                  aria-pressed={color === c}
                   onClick={() => setColor(c)}
-                  className={`h-8 w-8 rounded-full border-2 ${
-                    color === c ? "border-ink" : "border-transparent"
+                  className={`h-9 w-9 rounded-full border-2 shadow-card transition-transform hover:scale-105 ${
+                    color === c
+                      ? "border-ink ring-2 ring-[var(--accent-soft)]"
+                      : "border-[var(--line)]"
                   }`}
                   style={{ backgroundColor: c }}
                 />
@@ -157,25 +160,28 @@ function ProjectSection({
 }) {
   if (projects.length === 0) return null;
   return (
-    <section className="rounded-[var(--radius)] border bg-surface p-6">
-      <h3 className="font-display text-base font-medium">{title}</h3>
-      <ul className="mt-4 flex flex-col gap-2">
+    <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-card">
+      <h3 className="font-display text-base font-semibold">{title}</h3>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => (
           <li
             key={p.id}
-            className="flex items-center justify-between gap-3 rounded-[var(--radius)] border px-4 py-3"
+            className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface-low p-4 shadow-card"
           >
-            <span className="flex min-w-0 items-center gap-2 text-sm">
+            <span className="flex min-w-0 items-center gap-3 text-sm">
               <span
-                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                className="inline-block h-4 w-4 shrink-0 rounded-full shadow-card"
                 style={{ backgroundColor: p.color }}
+                aria-hidden
               />
-              <span className="truncate">{p.name}</span>
-              {showOrgColumn && p.is_org_wide && orgNameById?.[p.org_id] && (
-                <span className="truncate text-muted">
-                  · {orgNameById[p.org_id]}
-                </span>
-              )}
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-ink">{p.name}</span>
+                {showOrgColumn && p.is_org_wide && orgNameById?.[p.org_id] && (
+                  <span className="block truncate text-xs text-muted">
+                    {orgNameById[p.org_id]}
+                  </span>
+                )}
+              </span>
             </span>
             {!readOnly && (
               <Button type="button" variant="ghost" size="sm" onClick={() => onArchive(p.id)}>

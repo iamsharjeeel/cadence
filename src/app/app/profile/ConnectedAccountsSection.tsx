@@ -245,7 +245,7 @@ export function ConnectedAccountsSection({
       <MotionModal
         open={disconnectOpen}
         onClose={() => !pending && setDisconnectOpen(false)}
-        panelClassName="w-full max-w-md rounded-[18px] border border-line bg-surface p-6 shadow-xl"
+        panelClassName="max-w-md"
       >
         <h2 className="font-display text-lg font-semibold text-ink">
           Disconnect Asana?

@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { MotionModal } from "@/components/motion/MotionModal";
@@ -12,7 +13,7 @@ import { useToast } from "@/components/ui/Toast";
 import { PERIOD_CADENCES } from "@/types/db";
 import { titleCase } from "@/lib/utils";
 import { COMMON_CURRENCIES } from "@/lib/constants";
-import { formatAllowedDomains } from "@/lib/org-utils";
+import { formatAllowedDomains, normalizeAllowedDomains } from "@/lib/org-utils";
 import type { Organization } from "@/types/db";
 import {
   updateOrgDetails,
@@ -87,8 +88,10 @@ export function GeneralSettingsTab({
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="rounded-[var(--radius)] border bg-surface p-6">
-        <h3 className="text-sm font-medium text-ink">Organisation details</h3>
+      <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-card">
+        <h3 className="font-display text-base font-semibold text-ink">
+          Organisation details
+        </h3>
         <p className="mt-1 text-sm text-muted">
           Name, currency, and default pay period cadence.
         </p>
@@ -131,11 +134,22 @@ export function GeneralSettingsTab({
         </form>
       </section>
 
-      <section className="rounded-[var(--radius)] border bg-surface p-6">
-        <h3 className="text-sm font-medium text-ink">Allowed domains</h3>
+      <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-card">
+        <h3 className="font-display text-base font-semibold text-ink">
+          Allowed domains
+        </h3>
         <p className="mt-1 text-sm text-muted">
           Employees must sign in with an email from one of these domains.
         </p>
+        {normalizeAllowedDomains(org.allowed_domains).length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {normalizeAllowedDomains(org.allowed_domains).map((d) => (
+              <Badge key={d} tone="accent">
+                {d}
+              </Badge>
+            ))}
+          </div>
+        )}
         <form action={domainsAction} className="mt-4 flex flex-col gap-4">
           {hiddenOrg}
           <Input
@@ -151,8 +165,8 @@ export function GeneralSettingsTab({
         </form>
       </section>
 
-      <section className="rounded-[var(--radius)] border bg-surface p-6">
-        <h3 className="text-sm font-medium text-ink">Logo</h3>
+      <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-card">
+        <h3 className="font-display text-base font-semibold text-ink">Logo</h3>
         <p className="mt-1 text-sm text-muted">
           PNG or JPG, max 2MB. Shown in the sidebar and on generated PDFs.
         </p>
@@ -183,8 +197,10 @@ export function GeneralSettingsTab({
       </section>
 
       {isAdmin && (
-        <section className="rounded-[var(--radius)] border border-[var(--danger)]/30 bg-surface p-6">
-          <h3 className="text-sm font-medium text-[var(--danger)]">Danger zone</h3>
+        <section className="rounded-[var(--radius-card)] bg-[#FFF0F0] p-6 shadow-card dark:bg-[#1A0A0A]">
+          <h3 className="font-display text-base font-semibold text-[var(--danger)]">
+            Danger zone
+          </h3>
           <p className="mt-1 text-sm text-muted">
             Suspend all non-admin employees in your organization. They will lose
             access until reactivated.
@@ -198,30 +214,34 @@ export function GeneralSettingsTab({
             Suspend all employees
           </Button>
           {suspendOpen && (
-            <MotionModal open onClose={() => setSuspendOpen(false)}>
-              <div className="w-full max-w-md rounded-[var(--radius)] border bg-surface p-6 shadow-card">
-                <h4 className="font-medium text-ink">Suspend all employees?</h4>
-                <p className="mt-2 text-sm text-muted">
-                  This will suspend every active employee in your organization.
-                  Admins are not affected.
-                </p>
-                <form
-                  action={suspendAction}
-                  className="mt-4 flex justify-end gap-2"
-                  onSubmit={() => setSuspendOpen(false)}
+            <MotionModal
+              open
+              onClose={() => setSuspendOpen(false)}
+              panelClassName="max-w-md"
+            >
+              <h4 className="font-display text-base font-semibold text-ink">
+                Suspend all employees?
+              </h4>
+              <p className="mt-2 text-sm text-muted">
+                This will suspend every active employee in your organization.
+                Admins are not affected.
+              </p>
+              <form
+                action={suspendAction}
+                className="mt-4 flex justify-end gap-2"
+                onSubmit={() => setSuspendOpen(false)}
+              >
+                <input type="hidden" name="confirm" value="yes" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSuspendOpen(false)}
                 >
-                  <input type="hidden" name="confirm" value="yes" />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSuspendOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <SaveButton label="Confirm suspend" />
-                </form>
-              </div>
+                  Cancel
+                </Button>
+                <SaveButton label="Confirm suspend" />
+              </form>
             </MotionModal>
           )}
         </section>

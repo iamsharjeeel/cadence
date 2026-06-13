@@ -94,13 +94,13 @@ export function ProfileCompleteness({ profile }: { profile: Profile }) {
     <div className="mb-6">
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted">Profile {percent}% complete</span>
-        <span className="tnum font-medium text-[var(--accent-strong)]">
+        <span className="tabular font-medium text-[var(--accent-strong)]">
           {percent}%
         </span>
       </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--line)]">
+      <div className="mt-2 h-1 overflow-hidden rounded-chip bg-surface-low">
         <motion.div
-          className="h-full rounded-full bg-[var(--accent)]"
+          className="h-full rounded-chip bg-accent-mid"
           initial={{ width: 0 }}
           animate={{ width: `${percent}%` }}
           transition={{ duration: 0.4, ease: "easeOut" }}

@@ -148,6 +148,16 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 10. `supabase/migrations/20260621000000_asana_oauth.sql` — **required for Asana OAuth + import**
 11. `supabase/migrations/20260622000000_time_entry_asana_project.sql` — **required for Asana entry picker**
 
+## Design system v2
+
+Cadence uses a **quiet luxury** token system — parchment light mode and true-black dark mode with warm gold accents.
+
+- **Typography:** Space Grotesk (`--font-space`) for headings and UI chrome; Inter (`--font-inter`) for body; Playfair Display (`--font-playfair`) on the landing hero only (decorative tagline)
+- **Light tokens:** background `#FBFAF7`, surface `#FFFFFF`, ink `#1A1917`, accent gold `#7F560C` / mid `#C9974A`
+- **Dark tokens:** background `#000000`, surface `#0D0D0B`, accent `#C9974A`
+- **Primitives:** CSS variables in `src/app/globals.css`, mapped in `tailwind.config.ts` — `bg-background`, `bg-surface`, `bg-surface-low`, `text-ink`, `text-muted`, `shadow-card`, `shadow-float`, `rounded-card` / `rounded-input`
+- **Numeric data:** `.tabular` utility (`font-feature-settings: "tnum"`)
+
 ## License
 
 Private — all rights reserved.

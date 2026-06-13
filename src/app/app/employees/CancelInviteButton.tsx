@@ -41,7 +41,7 @@ export function CancelInviteButton({
       </Button>
 
       <MotionModal open={open} onClose={() => !loading && setOpen(false)}>
-        <div className="w-full max-w-md rounded-[var(--radius)] border bg-surface p-6 shadow-card">
+        <div className="w-full max-w-md rounded-[var(--radius-card)] border bg-surface p-6 shadow-card">
           <h3 className="font-display text-lg font-semibold tracking-tightest text-ink">
             Cancel invite?
           </h3>

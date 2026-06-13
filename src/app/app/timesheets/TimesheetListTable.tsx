@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { OvertimeBadge, TimesheetStatusPill } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate, formatMoney } from "@/lib/utils";
-import type { TimesheetStatus } from "@/types/db";
+import type { TimesheetStatus, UserRole } from "@/types/db";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
 import { GenerateDocumentModal } from "@/components/documents/GenerateDocumentModal";
 import {
@@ -20,7 +20,9 @@ import { DeleteTimesheetControl } from "./DeleteTimesheetControl";
 import { TimesheetStatusActions } from "./TimesheetStatusActions";
 import { bulkApproveTimesheets } from "./actions";
 import { currentSearchParams } from "@/lib/search-params";
-import type { UserRole } from "@/types/db";
+
+const TABLE_HEAD_CLASS =
+  "bg-surface-low [&_th]:font-display [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.06em]";
 
 export type TimesheetListRow = {
   id: string;
@@ -183,8 +185,8 @@ export function TimesheetListTable({
           }}
         />
       )}
-      <Table>
-        <THead>
+      <Table className="border-0">
+        <THead className={TABLE_HEAD_CLASS}>
           <TR>
             <TH className="w-10">
               <input
@@ -231,7 +233,7 @@ export function TimesheetListTable({
         </THead>
         <TBody>
           {timesheets.map((t) => (
-            <TR key={t.id}>
+            <TR key={t.id} className="odd:bg-surface-low">
               <TD>
                 {(t.status === "submitted" || t.status === "approved") && (
                   <input
@@ -251,10 +253,10 @@ export function TimesheetListTable({
               {isSuperadmin && (
                 <TD className="text-sm text-muted">{t.orgName ?? "—"}</TD>
               )}
-              <TD className="tnum text-sm">
+              <TD className="tabular text-sm">
                 {formatDate(t.period_start)} – {formatDate(t.period_end)}
               </TD>
-              <TD className="tnum text-sm text-muted">{t.rowCount}</TD>
+              <TD className="tabular text-sm text-muted">{t.rowCount}</TD>
               <TD>
                 <div className="flex flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -274,7 +276,7 @@ export function TimesheetListTable({
                 </div>
               </TD>
               {isManager && (
-                <TD className="tnum text-sm">
+                <TD className="tabular text-sm">
                   {t.status === "approved" && t.calculated_total !== null
                     ? formatMoney(
                         t.calculated_total,
@@ -283,7 +285,7 @@ export function TimesheetListTable({
                     : "—"}
                 </TD>
               )}
-              <TD className="tnum text-sm text-muted">
+              <TD className="tabular text-sm text-muted">
                 {formatDate(t.created_at)}
               </TD>
               <TD>

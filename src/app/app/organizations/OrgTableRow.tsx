@@ -52,7 +52,7 @@ export function OrgTableRow({ org }: { org: Organization }) {
         )}
       </TD>
       <TD className="text-sm text-muted">{titleCase(org.default_cadence)}</TD>
-      <TD className="tnum text-sm text-muted">{formatDate(org.created_at)}</TD>
+      <TD className="tabular text-sm text-muted">{formatDate(org.created_at)}</TD>
     </TR>
   );
 }

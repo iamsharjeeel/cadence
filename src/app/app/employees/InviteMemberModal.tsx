@@ -60,7 +60,7 @@ export function InviteMemberModal({
       <MotionModal
         open={open}
         onClose={() => !pending && setOpen(false)}
-        panelClassName="w-full max-w-md rounded-[var(--radius)] border bg-surface p-6 shadow-lift"
+        panelClassName="max-w-md"
       >
         <h2 className="font-display text-lg font-semibold tracking-tightest">
           Invite to {orgName}

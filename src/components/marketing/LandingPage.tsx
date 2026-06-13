@@ -108,7 +108,7 @@ const TESTIMONIALS = [
   },
 ] as const;
 
-const HEADLINE = "Time, tracked with rhythm.".split(" ");
+const HEADLINE = ["Log", "time.", "Approve", "once.", "Get", "paid."];
 
 function DashboardMockup() {
   const navItems = [
@@ -119,24 +119,24 @@ function DashboardMockup() {
 
   return (
     <div
-      className="relative hidden overflow-hidden rounded-[var(--radius)] border bg-surface shadow-card lg:block"
+      className="relative hidden overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-card lg:block"
       aria-hidden
     >
-      <div className="flex items-center gap-2 border-b px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-[var(--line)] px-4 py-3">
         <div className="h-2.5 w-2.5 rounded-full bg-[var(--line)]" />
         <div className="h-2.5 w-2.5 rounded-full bg-[var(--line)]" />
         <div className="h-2.5 w-2.5 rounded-full bg-[var(--line)]" />
-        <span className="ml-2 text-xs text-muted">cadence — dashboard</span>
+        <span className="ml-2 font-body text-xs text-muted">cadence — dashboard</span>
       </div>
 
       <div className="flex">
-        <div className="w-28 shrink-0 border-r bg-[var(--accent-soft)]/20 p-2">
+        <div className="w-28 shrink-0 border-r border-[var(--line)] bg-surface-low p-2">
           {navItems.map((item) => (
             <div
               key={item.label}
               className={`mb-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[9px] ${
                 item.active
-                  ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                   : "text-muted"
               }`}
             >
@@ -147,11 +147,11 @@ function DashboardMockup() {
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between border-b px-3 py-2">
-            <span className="text-[10px] font-medium text-ink">Dashboard</span>
+          <div className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2">
+            <span className="font-display text-[10px] font-medium text-ink">Dashboard</span>
             <div className="flex items-center gap-1.5">
               <div className="h-5 w-5 rounded-full bg-[var(--accent-soft)]" />
-              <span className="text-[9px] text-muted">Alex</span>
+              <span className="font-body text-[9px] text-muted">Alex</span>
             </div>
           </div>
 
@@ -163,30 +163,30 @@ function DashboardMockup() {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-lg border bg-[var(--accent-soft)]/30 p-2"
+                className="rounded-lg bg-surface-low p-2"
               >
-                <p className="text-[8px] uppercase tracking-wide text-muted">
+                <p className="font-body text-[8px] uppercase tracking-wide text-muted">
                   {stat.label}
                 </p>
-                <p className="mt-0.5 font-display text-sm font-semibold text-ink">
+                <p className="mt-0.5 font-display text-sm font-bold tabular text-ink">
                   {stat.value}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="mx-3 mb-3 rounded-lg border">
-            <div className="border-b px-2 py-1.5 text-[9px] font-medium text-muted">
+          <div className="mx-3 mb-3 rounded-lg bg-surface-low">
+            <div className="border-b border-[var(--line)] px-2 py-1.5 font-body text-[9px] font-medium text-muted">
               Recent timesheets
             </div>
             {["Sarah · Approved", "James · Submitted", "Priya · Approved"].map(
               (row) => (
                 <div
                   key={row}
-                  className="flex items-center justify-between border-b px-2 py-1.5 last:border-0"
+                  className="flex items-center justify-between border-b border-[var(--line)] px-2 py-1.5 last:border-0"
                 >
-                  <span className="text-[9px] text-ink">{row.split(" · ")[0]}</span>
-                  <span className="rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-[8px] text-[var(--accent-strong)]">
+                  <span className="font-body text-[9px] text-ink">{row.split(" · ")[0]}</span>
+                  <span className="rounded-[var(--radius-chip)] bg-[var(--accent-soft)] px-1.5 py-0.5 font-body text-[8px] text-[var(--accent)]">
                     {row.split(" · ")[1]}
                   </span>
                 </div>
@@ -197,7 +197,7 @@ function DashboardMockup() {
       </div>
 
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-bg to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent"
         aria-hidden
       />
     </div>
@@ -216,8 +216,8 @@ export function LandingPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
-      <header className="sticky top-0 z-20 border-b bg-bg/80 backdrop-blur-md">
+    <div className="flex min-h-screen flex-col bg-background font-body">
+      <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 sm:px-8">
           <Wordmark />
           <div className="flex items-center gap-2 sm:gap-3">
@@ -241,62 +241,70 @@ export function LandingPage() {
       <main className="flex-1">
         <section
           ref={heroSectionRef}
-          className="relative mx-auto max-w-6xl overflow-hidden px-6 pb-20 pt-16 sm:px-8 sm:pt-24"
+          className="relative mx-auto max-w-6xl overflow-hidden bg-background px-6 pb-20 pt-16 sm:px-8 sm:pt-24"
         >
           <HeroCanvas heroRef={heroSectionRef} />
           <div className="relative z-10 grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-            <div>
-              <p className="mb-5 inline-flex items-center gap-2 rounded-full border bg-surface/80 px-3 py-1 text-xs font-medium text-muted backdrop-blur">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                Premium timesheet portal
+            <div className="relative">
+              <p
+                className="pointer-events-none absolute -left-2 top-8 z-0 max-w-lg font-playfair text-4xl font-semibold italic leading-none tracking-tight text-muted/25 sm:text-5xl lg:text-6xl"
+                aria-hidden
+              >
+                Time, tracked with rhythm.
               </p>
-              <h1 className="font-display text-4xl font-semibold leading-[1.02] tracking-tightest sm:text-6xl lg:text-8xl">
-                {HEADLINE.map((word, i) => (
-                  <motion.span
-                    key={`${word}-${i}`}
-                    className="mr-[0.25em] inline-block"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.2,
-                      delay: i * 0.04,
-                      ease: "easeOut",
-                    }}
+              <div className="relative z-10">
+                <p className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-chip)] border border-[var(--line)] bg-surface/80 px-3 py-1 font-body text-xs font-medium text-muted backdrop-blur">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                  Premium timesheet portal
+                </p>
+                <h1 className="font-display text-[40px] font-bold leading-[1.02] tracking-[-0.03em] text-ink sm:text-5xl lg:text-[72px]">
+                  {HEADLINE.map((word, i) => (
+                    <motion.span
+                      key={`${word}-${i}`}
+                      className="mr-[0.25em] inline-block"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.2,
+                        delay: i * 0.04,
+                        ease: "easeOut",
+                      }}
+                    >
+                      {word}
+                    </motion.span>
+                  ))}
+                </h1>
+                <p className="mt-6 max-w-xl font-body text-xl leading-relaxed text-muted">
+                  A premium timesheet portal for modern teams. Upload, approve, and
+                  pay — without the friction.
+                </p>
+                <div className="mt-10 flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/login"
+                    className={`${buttonStyles("primary", "md")} min-h-11`}
                   >
-                    {word}
-                  </motion.span>
-                ))}
-              </h1>
-              <p className="mt-6 max-w-xl text-base leading-relaxed text-muted sm:text-xl">
-                A premium timesheet portal for modern teams. Upload, approve, and
-                pay — without the friction.
-              </p>
-              <div className="mt-10 flex flex-wrap items-center gap-3">
-                <Link
-                  href="/login"
-                  className={`${buttonStyles("primary", "md")} min-h-11`}
-                >
-                  Get started
-                </Link>
-                <button
-                  type="button"
-                  onClick={scrollToFeatures}
-                  className={`${buttonStyles("secondary", "md")} min-h-11`}
-                >
-                  See how it works
-                </button>
+                    Get started
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={scrollToFeatures}
+                    className={`${buttonStyles("secondary", "md")} min-h-11`}
+                  >
+                    See how it works
+                  </button>
+                </div>
               </div>
             </div>
             <DashboardMockup />
           </div>
         </section>
 
-        <section className="border-y bg-surface/30 px-6 py-8 sm:px-8">
+        <section className="border-y border-[var(--line)] bg-surface/30 px-6 py-8 sm:px-8">
           <div className="mx-auto max-w-6xl text-center">
-            <p className="text-xs font-medium uppercase tracking-widest text-muted">
+            <p className="font-body text-xs font-medium uppercase tracking-widest text-muted">
               Built for teams running on
             </p>
-            <p className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs uppercase tracking-wider text-muted/80 sm:gap-x-6 sm:text-sm">
+            <p className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-body text-xs uppercase tracking-wider text-muted/80 sm:gap-x-6 sm:text-sm">
               {INTEGRATIONS.map((name, i) => (
                 <span key={name}>
                   {name}
@@ -311,13 +319,13 @@ export function LandingPage() {
 
         <section
           id="features"
-          className="border-t bg-surface/50 px-6 py-20 sm:px-8"
+          className="border-t border-[var(--line)] bg-background px-6 py-20 sm:px-8"
         >
           <div className="mx-auto max-w-6xl">
             <h2 className="font-display text-2xl font-semibold tracking-tightest sm:text-3xl">
               Built for teams who care about the details
             </h2>
-            <p className="mt-3 max-w-xl text-muted">
+            <p className="mt-3 max-w-xl font-body text-muted">
               Everything you need to move from raw hours to pay-ready documents
               — quietly, reliably.
             </p>
@@ -329,15 +337,15 @@ export function LandingPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.2, delay: i * 0.05, ease: "easeOut" }}
-                  className="h-full rounded-[var(--radius)] border border-l-4 border-l-[var(--accent)] bg-surface p-6 shadow-card"
+                  className="h-full rounded-[var(--radius-card)] border-l-[3px] border-l-[var(--accent-mid)] bg-surface p-6 shadow-card"
                 >
                   <f.icon
-                    className="mb-4 h-6 w-6 text-[var(--accent-strong)]"
+                    className="mb-4 h-6 w-6 text-[var(--accent)]"
                     strokeWidth={1.75}
                     aria-hidden
                   />
-                  <h3 className="font-medium text-ink">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">
+                  <h3 className="font-display font-semibold text-ink">{f.title}</h3>
+                  <p className="mt-2 font-body text-sm leading-relaxed text-muted">
                     {f.description}
                   </p>
                 </motion.div>
@@ -346,18 +354,18 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="border-y bg-[var(--accent-soft)]/20 px-6 py-16 sm:px-8">
+        <section className="border-y border-[var(--line)] bg-surface-low px-6 py-16 sm:px-8">
           <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-3">
             {STATS.map((s) => (
               <div key={s.label} className="text-center">
-                <p className="font-display text-4xl font-semibold text-[var(--accent-strong)] sm:text-5xl">
+                <p className="font-display text-[48px] font-bold tabular text-[var(--accent-mid)]">
                   <LandingCountUp
                     value={s.value}
                     suffix={s.suffix}
                     duration={1}
                   />
                 </p>
-                <p className="mt-2 text-sm text-muted">{s.label}</p>
+                <p className="mt-2 font-body text-sm text-muted">{s.label}</p>
               </div>
             ))}
           </div>
@@ -371,16 +379,16 @@ export function LandingPage() {
             <div className="mt-12 grid gap-10 sm:grid-cols-3">
               {STEPS.map((s) => (
                 <div key={s.step} className="flex flex-col gap-4">
-                  <span className="font-display text-5xl font-semibold text-[var(--accent)]">
+                  <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-2xl font-bold text-[var(--accent)]">
                     {s.step}
                   </span>
                   <s.icon
-                    className="h-8 w-8 text-[var(--accent-strong)]"
+                    className="h-8 w-8 text-[var(--accent)]"
                     strokeWidth={1.75}
                     aria-hidden
                   />
-                  <h3 className="font-medium text-ink">{s.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted">
+                  <h3 className="font-display font-semibold text-ink">{s.title}</h3>
+                  <p className="font-body text-sm leading-relaxed text-muted">
                     {s.description}
                   </p>
                 </div>
@@ -389,19 +397,19 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="border-t px-6 py-20 sm:px-8">
+        <section className="border-t border-[var(--line)] px-6 py-20 sm:px-8">
           <div className="mx-auto max-w-6xl">
             <div className="grid gap-4 sm:grid-cols-3">
               {TESTIMONIALS.map((t) => (
                 <div
                   key={t.name}
-                  className="flex h-full flex-col rounded-[var(--radius)] border bg-surface p-6 shadow-card"
+                  className="flex h-full flex-col rounded-[var(--radius-card)] bg-surface p-6 shadow-card"
                 >
-                  <p className="flex-1 text-sm leading-relaxed text-ink">
+                  <p className="flex-1 font-body text-sm leading-relaxed text-ink">
                     &ldquo;{t.quote}&rdquo;
                   </p>
-                  <p className="mt-6 text-sm font-medium text-ink">{t.name}</p>
-                  <p className="text-xs text-muted">{t.role}</p>
+                  <p className="mt-6 font-body text-sm font-medium text-ink">{t.name}</p>
+                  <p className="font-body text-xs text-muted">{t.role}</p>
                 </div>
               ))}
             </div>
@@ -410,7 +418,7 @@ export function LandingPage() {
 
         <section className="px-6 pb-20 sm:px-8">
           <div className="mx-auto max-w-6xl">
-            <div className="rounded-[var(--radius)] border bg-[var(--accent-soft)]/40 px-6 py-14 text-center sm:px-8">
+            <div className="rounded-[var(--radius-card)] bg-[var(--accent-soft)] px-6 py-14 text-center sm:px-8">
               <h2 className="font-display text-2xl font-semibold tracking-tightest sm:text-3xl">
                 Ready to bring rhythm to your team?
               </h2>
@@ -427,18 +435,18 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t px-6 py-10 sm:px-8">
+      <footer className="border-t border-[var(--line)] bg-surface-low px-6 py-10 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Wordmark />
-            <p className="mt-2 text-sm text-muted">
+            <p className="mt-2 font-body text-sm text-muted">
               Time, tracked with rhythm.
             </p>
-            <p className="mt-1 text-xs text-muted">
+            <p className="mt-1 font-body text-xs text-muted">
               Quiet luxury for payroll teams.
             </p>
           </div>
-          <div className="flex flex-col gap-2 text-sm text-muted sm:items-end">
+          <div className="flex flex-col gap-2 font-body text-sm text-muted sm:items-end">
             <div className="flex flex-wrap gap-4">
               <Link href="/privacy" className="inline-flex min-h-11 items-center hover:text-ink">
                 Privacy

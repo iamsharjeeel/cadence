@@ -7,13 +7,13 @@ export function CurrencyTotalsDisplay({ totals }: { totals: Totals }) {
   const entries = Object.entries(totals).filter(([, v]) => v > 0);
 
   if (entries.length === 0) {
-    return <span className="tnum text-2xl font-semibold text-ink">—</span>;
+    return <span className="font-display font-bold tabular text-ink">—</span>;
   }
 
   return (
     <div className="flex flex-col gap-1">
       {entries.map(([currency, amount]) => (
-        <span key={currency} className="tnum text-2xl font-semibold text-ink">
+        <span key={currency} className="font-display font-bold tabular text-ink">
           <CountUp value={amount} decimals={2} prefix="" suffix="" />
           {" "}
           {currency}

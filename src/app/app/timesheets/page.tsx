@@ -206,7 +206,7 @@ export default async function TimesheetsPage({
             {timesheets.length === 1 ? "timesheet" : "timesheets"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="overflow-hidden p-0">
           {timesheets.length === 0 ? (
             <div className="px-6 py-10">
               <EmptyState

@@ -33,12 +33,20 @@ export function HoursBarChart({
         <CartesianGrid stroke={colors.grid} vertical={false} />
         <XAxis
           dataKey="name"
-          tick={{ fill: colors.tick, fontSize: 12 }}
+          tick={{
+            fill: "var(--ink-muted)",
+            fontSize: 12,
+            fontFamily: "var(--font-inter)",
+          }}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
-          tick={{ fill: colors.tick, fontSize: 12 }}
+          tick={{
+            fill: "var(--ink-muted)",
+            fontSize: 12,
+            fontFamily: "var(--font-inter)",
+          }}
           tickLine={false}
           axisLine={false}
           width={40}
@@ -54,7 +62,7 @@ export function HoursBarChart({
             "Hours",
           ]}
         />
-        <Bar dataKey="hours" fill={colors.primary} radius={[6, 6, 0, 0]} />
+        <Bar dataKey="hours" fill="var(--accent-mid)" radius={[6, 6, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -83,12 +91,20 @@ export function HoursLineChart({
         <CartesianGrid stroke={colors.grid} vertical={false} />
         <XAxis
           dataKey={xKey}
-          tick={{ fill: colors.tick, fontSize: 12 }}
+          tick={{
+            fill: "var(--ink-muted)",
+            fontSize: 12,
+            fontFamily: "var(--font-inter)",
+          }}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
-          tick={{ fill: colors.tick, fontSize: 12 }}
+          tick={{
+            fill: "var(--ink-muted)",
+            fontSize: 12,
+            fontFamily: "var(--font-inter)",
+          }}
           tickLine={false}
           axisLine={false}
           width={40}
@@ -107,9 +123,9 @@ export function HoursLineChart({
         <Line
           type="monotone"
           dataKey={dataKey}
-          stroke={colors.primary}
+          stroke="var(--accent-mid)"
           strokeWidth={2}
-          dot={{ fill: colors.primary, r: 4 }}
+          dot={{ fill: "var(--accent-mid)", r: 4 }}
           activeDot={{ r: 6 }}
         />
       </LineChart>

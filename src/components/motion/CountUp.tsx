@@ -66,7 +66,7 @@ export function CountUp({
   }, [value, duration, started, motionValue]);
 
   return (
-    <span ref={ref} className={`tnum ${className ?? ""}`}>
+    <span ref={ref} className={`tabular ${className ?? ""}`}>
       {prefix}
       <motion.span>{rounded}</motion.span>
       {suffix}

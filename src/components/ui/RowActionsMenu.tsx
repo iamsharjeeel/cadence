@@ -92,7 +92,7 @@ export function RowActionsMenu({
         <motion.div
           ref={menuRef}
           style={{ top: position.top, left: position.left }}
-          className="fixed z-[9998] min-w-[10rem] rounded-[var(--radius)] border bg-surface py-1 shadow-card"
+          className="fixed z-[9998] min-w-[10rem] rounded-[var(--radius-card)] border bg-surface py-1 shadow-card"
           {...DROPDOWN_PANEL}
         >
           {visible.map((action) => {

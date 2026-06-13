@@ -25,7 +25,7 @@ export function Avatar({
   return (
     <span
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--line)] text-[var(--accent-strong)] font-display text-xs font-semibold",
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-mid font-display text-xs font-semibold text-white",
         className,
       )}
       style={dimension}
@@ -33,7 +33,7 @@ export function Avatar({
       {src ? (
         <>
           {!loaded && (
-            <span className="absolute inset-0 animate-pulse bg-[var(--line)]" />
+            <span className="absolute inset-0 animate-pulse bg-surface-low" />
           )}
           <img
             src={src}
@@ -50,7 +50,7 @@ export function Avatar({
           />
         </>
       ) : (
-        <span className="bg-[var(--accent-soft)]">{initials(name, email)}</span>
+        <span>{initials(name, email)}</span>
       )}
     </span>
   );

@@ -131,7 +131,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
           setOpen((v) => !v);
           if (!open) load();
         }}
-        className="relative inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius)] border text-muted transition-colors hover:text-ink"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--line)] text-muted transition-colors hover:text-ink"
       >
         <Bell className="h-4 w-4" />
         {unread > 0 && (
@@ -140,7 +140,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
               "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white",
               hasAsanaReconnectUnread
                 ? "border border-[#F06A6A]/40 bg-surface shadow-sm"
-                : "bg-[var(--accent)]",
+                : "bg-[var(--accent-mid)]",
             )}
           >
             {hasAsanaReconnectUnread ? (
@@ -162,7 +162,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              className="absolute right-0 top-full z-50 mt-2 w-[300px] overflow-hidden rounded-[var(--radius)] border bg-surface shadow-card"
+              className="absolute right-0 top-full z-50 mt-2 w-[300px] overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-float"
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}

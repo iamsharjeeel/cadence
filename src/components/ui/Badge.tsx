@@ -8,7 +8,7 @@ import type {
   UserStatus,
 } from "@/types/db";
 
-type Tone = "accent" | "muted" | "danger";
+type Tone = "accent" | "muted" | "danger" | "success" | "pending" | "error";
 
 export function Badge({
   children,
@@ -22,11 +22,18 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+        "inline-flex items-center gap-1.5 rounded-[var(--radius-chip)] px-2.5 py-1 text-xs font-medium",
+        "font-body font-medium",
         tone === "accent" &&
-          "bg-[var(--accent-soft)] text-[var(--accent-strong)]",
-        tone === "muted" && "bg-[var(--line)] text-muted",
+          "bg-[var(--accent-soft)] text-[var(--accent)]",
+        tone === "muted" && "bg-surface-low text-muted",
         tone === "danger" && "bg-[var(--danger-soft)] text-[var(--danger)]",
+        tone === "success" &&
+          "bg-[#E8F0E4] text-[#3A6B2A] dark:bg-[#1A2E18] dark:text-[#7DBF6A]",
+        tone === "pending" &&
+          "bg-[var(--accent-soft)] text-[var(--accent)]",
+        tone === "error" &&
+          "bg-[#FAE8E8] text-[#9B2020] dark:bg-[#2E1818] dark:text-[#E07070]",
         className,
       )}
     >
@@ -36,9 +43,9 @@ export function Badge({
 }
 
 const STATUS_TONE: Record<UserStatus, Tone> = {
-  active: "accent",
-  pending: "muted",
-  suspended: "danger",
+  active: "success",
+  pending: "pending",
+  suspended: "error",
 };
 
 export function StatusPill({ status }: { status: UserStatus }) {
@@ -46,10 +53,13 @@ export function StatusPill({ status }: { status: UserStatus }) {
 }
 
 export function RolePill({ role }: { role: UserRole }) {
-  return <Badge tone="muted">{titleCase(role)}</Badge>;
+  return (
+    <Badge tone="pending" className="text-[12px]">
+      {titleCase(role)}
+    </Badge>
+  );
 }
 
-// draft (grey), submitted (blue), approved (gold), rejected (red), live (gold pulse for draft)
 export function TimesheetStatusPill({
   status,
   live,
@@ -57,16 +67,11 @@ export function TimesheetStatusPill({
   status: TimesheetStatus;
   live?: boolean;
 }) {
-  if (status === "approved") return <Badge tone="accent">Approved</Badge>;
-  if (status === "rejected") return <Badge tone="danger">Rejected</Badge>;
-  if (status === "submitted")
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(37,99,235,0.12)] px-2.5 py-1 text-xs font-medium text-[#2563EB] dark:text-[#7AA2F7]">
-        Submitted
-      </span>
-    );
+  if (status === "approved") return <Badge tone="success">Approved</Badge>;
+  if (status === "rejected") return <Badge tone="error">Rejected</Badge>;
+  if (status === "submitted") return <Badge tone="pending">Submitted</Badge>;
   if (status === "draft") {
-    if (live) return <Badge tone="accent">Live</Badge>;
+    if (live) return <Badge tone="pending">Live</Badge>;
     return <Badge tone="muted">In progress</Badge>;
   }
   return <Badge tone="muted">Draft</Badge>;
@@ -82,27 +87,17 @@ export function DocumentTypePill({ type }: { type: DocumentType }) {
 
 export function OvertimeBadge({ hours }: { hours: number }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(245,158,11,0.15)] px-2.5 py-1 text-xs font-medium text-[#B45309] dark:text-[#FBBF24]">
+    <Badge tone="pending">
       Overtime{" "}
-      <span className="tnum">+{hours.toFixed(1)}h</span>
-    </span>
+      <span className="tabular">+{hours.toFixed(1)}h</span>
+    </Badge>
   );
 }
 
 export function DocumentStatusPill({ status }: { status: DocumentStatus }) {
-  if (status === "verified")
-    return <Badge tone="accent">Verified</Badge>;
-  if (status === "in_progress")
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(37,99,235,0.12)] px-2.5 py-1 text-xs font-medium text-[#2563EB] dark:text-[#7AA2F7]">
-        In progress
-      </span>
-    );
+  if (status === "verified") return <Badge tone="success">Verified</Badge>;
+  if (status === "in_progress") return <Badge tone="pending">In progress</Badge>;
   if (status === "corrections_needed")
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(245,158,11,0.15)] px-2.5 py-1 text-xs font-medium text-[#B45309] dark:text-[#FBBF24]">
-        Corrections needed
-      </span>
-    );
+    return <Badge tone="error">Corrections needed</Badge>;
   return <Badge tone="muted">Draft</Badge>;
 }
