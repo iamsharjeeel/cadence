@@ -1143,6 +1143,32 @@ WHERE table_name = 'asana_connections' AND column_name = 'project_names_synced_a
 #### Key files
 - `src/components/asana/AsanaProjectPicker.tsx`, `src/app/app/timesheets/TimeEntryRow.tsx`, `TimeTrackingView.tsx`
 
+### Session — Light polish + dark mode (Stitch reference) ✅
+
+Full visual polish for light mode and complete dark mode implementation. **No logic, server actions, database queries, types, or API routes changed** — only CSS variables, Tailwind config, component markup/classNames, and font imports.
+
+#### PART 1 — Light mode fixes
+- **1A Landing hero:** Playfair Display italic tagline as decorative background — absolute, `opacity-10`, `pointer-events-none`, `z-0`, ~96px; headline at `z-10`
+- **1B Sidebar:** "PAYROLL & HR" subtitle under wordmark; org logo block at top; bottom org name + role block retained
+- **1C Dashboard stat cards:** CAPS labels, 42px tabular numbers, section headings 18px/600; greeting via `PageHeader greeting` prop
+- **1D Leave balance cards:** 4-across grid, 48px numbers, progress bar, uppercase labels
+- **1E Audit log badges:** Colored pill chips by action type with dark bordered overrides
+- **1F Timesheets list:** Employee 14px semibold + org secondary line; tabular hours/totals
+- **1G Trends stat cards:** Same dashboard stat treatment, 4-across grid
+
+#### PART 2 — Dark mode (Stitch)
+- **2A–2B Tokens + shapes:** `.dark` block — bg `#0A0A08`, gold `#F7BD48`, hairline borders, zero radius/shadows; global shape overrides
+- **2C–2K Components:** Nav uppercase labels; button/input/modal/topbar dark treatments; gold stat numbers; table + badge dark styles; chart line-only in dark
+
+#### Key files
+- `src/app/globals.css`, `tailwind.config.ts`
+- `src/components/ui/{buttonStyles,Input,Badge,Table}.tsx`
+- `src/components/app/{Sidebar,Topbar,PageHeader}.tsx`
+- `src/components/motion/MotionModal.tsx`
+- `src/app/app/dashboard/*`, `leave/LeaveEmployeeView.tsx`, `audit/AuditLogViewer.tsx`
+- `src/app/app/timesheets/TimesheetListTable.tsx`, `trends/{TrendsCharts,page}.tsx`
+- `src/lib/chart-colors.ts`, `src/components/marketing/LandingPage.tsx`
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)
