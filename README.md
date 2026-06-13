@@ -91,6 +91,16 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - **Unassigned users:** org Team query already scoped; superadmin sees unassigned with Assign-to-org action
 - **Time entry collapse:** saved rows auto-collapse to summary; click to expand
 
+### Phase 9b — Asana picker polish
+- **Picker layout:** Asana project leads the row (same visual weight as Cadence dropdown); Cadence project second; picker hidden when not connected
+- **Custom listbox:** imported-project dropdown clamped to `max-h-60` with scroll (fixes native `<select>` overflow)
+- **Profile hash scroll:** `/app/profile#section-connected` scrolls to Connected accounts (`ProfileHashScroll` + `scroll-mt-20` on section cards)
+- **Bell badge:** unread `asana_reconnect_required` shows Asana icon on the notification dot (coral mark, distinct from count badge)
+- **Project links:** collapsed entry tag + expanded “Open in Asana” use `https://app.asana.com/0/{asana_project_gid}` (gid already stored — no migration)
+- **Collapsed sync:** “Synced …” timestamp on collapsed entry summary when an Asana project is tagged
+- **Empty state:** “No projects imported” shows count of Asana projects available to import
+- **Disconnect confirm:** modal before disconnect (clears imported project list)
+
 ## Getting started
 
 ```bash

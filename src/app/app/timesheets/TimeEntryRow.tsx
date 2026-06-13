@@ -6,6 +6,7 @@ import { Check, Loader2, Trash2 } from "lucide-react";
 
 import { AsanaProjectPicker } from "@/components/asana/AsanaProjectPicker";
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
+import { asanaProjectUrl, formatAsanaSyncedAt } from "@/lib/asana/urls";
 
 import { Button } from "@/components/ui/Button";
 import { fieldBase } from "@/components/ui/Input";
@@ -288,6 +289,7 @@ export function TimeEntryRow({
     (p) => p.id === entry.asana_project_id,
   );
   const isCollapsed = Boolean(entry.collapsed) && entry.id && entry.saveState !== "saving";
+  const asanaSyncedLabel = formatAsanaSyncedAt(asanaProjectNamesSyncedAt);
 
   const timeSummary = isDecimalMode
     ? `${displayHours != null ? `${displayHours.toFixed(1)}h` : "—"} total`
@@ -339,10 +341,21 @@ export function TimeEntryRow({
           {selectedAsanaProject ? (
             <>
               <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />
-              <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted">
+              <a
+                href={asanaProjectUrl(selectedAsanaProject.asana_project_gid)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex min-w-0 items-center gap-1.5 text-sm text-muted transition-colors hover:text-[var(--accent-strong)]"
+              >
                 <AsanaIcon size={14} />
                 <span className="truncate">{selectedAsanaProject.asana_project_name}</span>
-              </span>
+              </a>
+              {asanaSyncedLabel ? (
+                <span className="hidden shrink-0 text-[10px] text-muted sm:inline">
+                  Synced {asanaSyncedLabel}
+                </span>
+              ) : null}
             </>
           ) : null}
         </button>
@@ -453,8 +466,24 @@ export function TimeEntryRow({
           </div>
         )}
 
-        {/* Row 2: Cadence project + Asana picker (separate metadata) */}
-        <div className="grid gap-3 lg:grid-cols-2">
+        {/* Row 2: Asana project (leading) + Cadence project */}
+        <div
+          className={cn(
+            "grid gap-3",
+            asanaConnected && "lg:grid-cols-2",
+          )}
+        >
+          <AsanaProjectPicker
+            connected={asanaConnected}
+            importedProjects={asanaImportedProjects}
+            value={entry.asana_project_id}
+            lastSyncedAt={asanaProjectNamesSyncedAt}
+            disabled={!editable}
+            syncPending={asanaSyncPending}
+            onChange={onAsanaProjectChange}
+            onSync={onAsanaSync}
+          />
+
           <div className="flex min-w-0 items-center gap-2">
             {selectedProject ? (
               <span
@@ -488,17 +517,6 @@ export function TimeEntryRow({
               {editable && <option value="__new__">+ New project</option>}
             </select>
           </div>
-
-          <AsanaProjectPicker
-            connected={asanaConnected}
-            importedProjects={asanaImportedProjects}
-            value={entry.asana_project_id}
-            lastSyncedAt={asanaProjectNamesSyncedAt}
-            disabled={!editable}
-            syncPending={asanaSyncPending}
-            onChange={onAsanaProjectChange}
-            onSync={onAsanaSync}
-          />
         </div>
 
         <input

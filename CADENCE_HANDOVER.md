@@ -1041,6 +1041,55 @@ Then open Import projects — should succeed without re-OAuth (refresh happens s
 #### Manual step required
 Run `supabase/migrations/20260622000000_time_entry_asana_project.sql` in Supabase SQL editor before testing entry picker in production.
 
+### Session — Asana picker reorg, fixes, polish ✅
+
+#### Verify baseline
+- Commit `74af97b` on `main` — Asana entry picker, connect banner, branding, reconnect notifications
+- Migration `20260622000000_time_entry_asana_project.sql` — owner must confirm applied on prod (`time_entries.asana_project_id`, `asana_connections.project_names_synced_at`)
+
+#### Item 1 — Asana project picker reorg
+- `AsanaProjectPicker` moved to **leading** slot in `TimeEntryRow`; Cadence project dropdown second
+- Same prominence as Cadence (`fieldBase` select styling — no coral tint); label **“Asana project”** (not “optional”)
+- Grid is single-column when Asana not connected (no empty gap)
+
+#### Item 2 — Dropdown overflow fix
+- Native `<select>` replaced with custom listbox in `AsanaProjectPicker` — `max-h-60 overflow-y-auto` on the options panel
+
+#### Item 3 — Connected Accounts anchor scroll
+- `ProfileHashScroll` client component on profile page; `scroll-mt-20` on all section cards (clears sticky topbar)
+- CTAs already use `/app/profile#section-connected` (banner, picker empty state, notification bell)
+
+#### Item 4 — Bell badge for Asana reconnect
+- Unread `asana_reconnect_required` → Asana icon on bell dot (surface + coral border); list items use `AsanaIcon` too
+
+#### Item 5 — Clickable Asana tag → project URL
+- **No migration:** `asana_imported_projects.asana_project_gid` already stored
+- Collapsed summary tag links to `https://app.asana.com/0/{gid}`; expanded picker shows “Open in Asana” link
+- Helper: `src/lib/asana/urls.ts` (`asanaProjectUrl`, `formatAsanaSyncedAt`)
+
+#### Item 6 — Last-synced on collapsed row
+- Collapsed summary shows “Synced …” when an Asana project is tagged (uses `asanaProjectNamesSyncedAt`)
+
+#### Item 7 — Empty-state importable count
+- When zero imports, picker fetches `listAsanaProjectsForImport` and shows “N available to import”
+
+#### Item 8 — Disconnect confirmation modal
+- Already present in `ConnectedAccountsSection` — confirms before revoke + clear imported list
+
+#### Key files
+- `src/components/asana/AsanaProjectPicker.tsx`, `src/app/app/timesheets/TimeEntryRow.tsx`
+- `src/app/app/profile/ProfileHashScroll.tsx`, `src/app/app/profile/page.tsx`
+- `src/components/app/NotificationsBell.tsx`, `src/lib/asana/urls.ts`
+
+#### Owner verification (prod)
+```sql
+-- Confirm migration applied
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'time_entries' AND column_name = 'asana_project_id';
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'asana_connections' AND column_name = 'project_names_synced_at';
+```
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)

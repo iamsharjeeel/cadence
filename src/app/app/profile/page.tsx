@@ -15,6 +15,7 @@ import { getAsanaConnectionStatus } from "@/lib/asana/connection";
 import { createClient } from "@/lib/supabase/server";
 import type { AsanaImportedProject } from "@/types/db";
 import { ConnectedAccountsSection } from "./ConnectedAccountsSection";
+import { ProfileHashScroll } from "./ProfileHashScroll";
 import { maskSensitive } from "@/lib/bank-crypto";
 import { ProfileBankingForm } from "./ProfileBankingForm";
 import { ProfileNameForm } from "./ProfileNameForm";
@@ -45,6 +46,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
   return (
     <div>
+      <ProfileHashScroll />
       <PageHeader
         title="Your profile"
         description="Update your personal and employment details. Role and status are managed by your administrator."
@@ -53,7 +55,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       <ProfileCompleteness profile={profile} />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card id="section-personal">
+        <Card id="section-personal" className="scroll-mt-20">
           <CardHeader>
             <CardTitle>Personal details</CardTitle>
             <CardDescription>Your display name and email.</CardDescription>
@@ -91,7 +93,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         </Card>
       </div>
 
-      <Card id="section-employment" className="mt-4">
+      <Card id="section-employment" className="mt-4 scroll-mt-20">
         <CardHeader>
           <CardTitle>Job details</CardTitle>
           <CardDescription>Your role and start date.</CardDescription>
@@ -104,7 +106,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         </CardContent>
       </Card>
 
-      <Card id="section-banking" className="mt-4">
+      <Card id="section-banking" className="mt-4 scroll-mt-20">
         <CardHeader>
           <CardTitle>Banking &amp; tax</CardTitle>
           <CardDescription>
@@ -126,7 +128,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         </CardContent>
       </Card>
 
-      <Card id="section-connected" className="mt-4">
+      <Card id="section-connected" className="mt-4 scroll-mt-20">
         <CardHeader>
           <CardTitle>Connected accounts</CardTitle>
           <CardDescription>
@@ -144,7 +146,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         </CardContent>
       </Card>
 
-      <Card id="section-emergency" className="mt-4">
+      <Card id="section-emergency" className="mt-4 scroll-mt-20">
         <CardHeader>
           <CardTitle>Emergency contact</CardTitle>
           <CardDescription>Someone we can reach in an emergency.</CardDescription>

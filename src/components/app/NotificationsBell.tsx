@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { AsanaIcon } from "@/components/icons/AsanaIcon";
 import { useNavigation } from "@/components/app/NavigationProvider";
 import { DROPDOWN_PANEL } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -116,6 +117,9 @@ export function NotificationsBell({ userId }: { userId: string }) {
   }
 
   const badgeLabel = unread > 9 ? "9+" : String(unread);
+  const hasAsanaReconnectUnread = items.some(
+    (n) => !n.read && n.type === "asana_reconnect_required",
+  );
 
   return (
     <div className="relative">
@@ -131,8 +135,19 @@ export function NotificationsBell({ userId }: { userId: string }) {
       >
         <Bell className="h-4 w-4" />
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold text-white">
-            {badgeLabel}
+          <span
+            className={cn(
+              "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white",
+              hasAsanaReconnectUnread
+                ? "border border-[#F06A6A]/40 bg-surface shadow-sm"
+                : "bg-[var(--accent)]",
+            )}
+          >
+            {hasAsanaReconnectUnread ? (
+              <AsanaIcon size={10} />
+            ) : (
+              badgeLabel
+            )}
           </span>
         )}
       </button>
@@ -172,7 +187,11 @@ export function NotificationsBell({ userId }: { userId: string }) {
                   </p>
                 ) : (
                   items.slice(0, 50).map((n, i) => {
-                    const Icon = TYPE_ICONS[n.type] ?? Bell;
+                    const Icon =
+                      n.type === "asana_reconnect_required"
+                        ? AsanaIcon
+                        : (TYPE_ICONS[n.type] ?? Bell);
+                    const isAsanaIcon = n.type === "asana_reconnect_required";
                     return (
                       <motion.button
                         key={n.id}
@@ -190,7 +209,14 @@ export function NotificationsBell({ userId }: { userId: string }) {
                           n.read && "opacity-70",
                         )}
                       >
-                        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-strong)]" />
+                        <Icon
+                          className={cn(
+                            "mt-0.5 shrink-0",
+                            isAsanaIcon
+                              ? "h-4 w-4"
+                              : "h-4 w-4 text-[var(--accent-strong)]",
+                          )}
+                        />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-ink">{n.title}</p>
                           {n.body && (
