@@ -29,6 +29,16 @@ export function isOvernightShift(start: string, end: string): boolean {
   return eh! * 60 + em! <= sh! * 60 + sm!;
 }
 
+/** Derived from clock times — end before start on the same calendar day. */
+export function deriveIsOvernight(start: string, end: string): boolean {
+  return isOvernightShift(start, end);
+}
+
+/** Overnight entries skip same-day overlap validation. */
+export function shouldSkipOverlapCheck(start: string, end: string): boolean {
+  return deriveIsOvernight(start, end);
+}
+
 export type TimeRange = { startMin: number; endMin: number };
 
 export function toRange(start: string, end: string, overnight: boolean): TimeRange | null {

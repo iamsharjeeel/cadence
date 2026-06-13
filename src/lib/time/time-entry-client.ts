@@ -27,6 +27,7 @@ export type TimeEntryWriteRow = {
   end_time: string;
   entry_mode: EntryMode;
   decimal_hours: number | null;
+  is_overnight: boolean;
   description: string | null;
   billable: boolean;
 };
@@ -91,6 +92,7 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
       end_time: synthetic.end_time,
       entry_mode: "decimal_hours",
       decimal_hours: hours,
+      is_overnight: false,
       description: input.description?.trim() || null,
       billable: input.billable ?? true,
     };
@@ -117,6 +119,7 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
     end_time: end,
     entry_mode: "time_range",
     decimal_hours: null,
+    is_overnight: overnight,
     description: input.description?.trim() || null,
     billable: input.billable ?? true,
   };
@@ -178,7 +181,7 @@ export async function saveTimeEntryClient(
   const built = buildWriteRow(input);
   if (!("org_id" in built)) return built;
 
-  if (built.entry_mode === "time_range") {
+  if (built.entry_mode === "time_range" && !built.is_overnight) {
     const overlap = await checkOverlap(
       input.employeeId,
       input.entryDate,
@@ -203,6 +206,7 @@ export async function saveTimeEntryClient(
         end_time: built.end_time,
         entry_mode: built.entry_mode,
         decimal_hours: built.decimal_hours,
+        is_overnight: built.is_overnight,
         description: built.description,
         billable: built.billable,
       })

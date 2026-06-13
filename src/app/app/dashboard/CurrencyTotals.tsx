@@ -8,7 +8,7 @@ export function CurrencyTotalsDisplay({ totals }: { totals: Totals }) {
 
   if (entries.length === 0) {
     return (
-      <span className="font-display text-6xl font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
+      <span className="truncate font-display text-3xl font-bold leading-none tabular text-ink sm:text-4xl lg:text-6xl dark:text-[var(--accent)]">
         —
       </span>
     );
@@ -19,7 +19,7 @@ export function CurrencyTotalsDisplay({ totals }: { totals: Totals }) {
       {entries.map(([currency, amount]) => (
         <span
           key={currency}
-          className="font-display text-6xl font-bold leading-none tabular text-ink dark:text-[var(--accent)]"
+          className="truncate font-display text-3xl font-bold leading-none tabular text-ink sm:text-4xl lg:text-6xl dark:text-[var(--accent)]"
         >
           <CountUp value={amount} decimals={2} prefix="" suffix="" />
           {" "}

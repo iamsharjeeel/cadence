@@ -8,7 +8,7 @@ import { STAT_STAGGER_CONTAINER, STAT_STAGGER_ITEM } from "@/lib/motion";
 export function StatCardGrid({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
-      className="grid gap-4 sm:grid-cols-3"
+      className="grid grid-cols-2 gap-3 sm:grid-cols-4"
       variants={STAT_STAGGER_CONTAINER}
       initial="hidden"
       whileInView="show"
@@ -20,5 +20,9 @@ export function StatCardGrid({ children }: { children: React.ReactNode }) {
 }
 
 export function StatCardItem({ children }: { children: React.ReactNode }) {
-  return <motion.div variants={STAT_STAGGER_ITEM}>{children}</motion.div>;
+  return (
+    <motion.div variants={STAT_STAGGER_ITEM} className="min-w-0 overflow-hidden">
+      {children}
+    </motion.div>
+  );
 }

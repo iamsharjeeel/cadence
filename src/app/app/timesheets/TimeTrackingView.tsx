@@ -23,7 +23,6 @@ import {
   type GoogleCalendarPrefill,
 } from "@/lib/google-calendar/prefill";
 import type { GoogleCalendarEventWithMeta } from "@/lib/google-calendar/sync";
-import { isOvernightShift } from "@/lib/time/validation";
 import {
   canPersistDecimalEntry,
   type EntryMode,
@@ -107,8 +106,6 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
     description: e.description ?? "",
     billable: e.billable,
     total_hours: Number(e.total_hours),
-    overnightConfirmed:
-      mode === "time_range" ? isOvernightShift(start, end) : false,
     saveState: "saved",
     collapsed: true,
   };
@@ -430,16 +427,6 @@ export function TimeTrackingView({
           return;
         }
 
-        const overnight =
-          !isDecimal && isOvernightShift(entry.start_time, entry.end_time);
-        if (overnight && !entry.overnightConfirmed) {
-          updateEntry(date, clientId, {
-            saveState: "error",
-            error: "Overnight shift — confirm to save.",
-          });
-          return;
-        }
-
         updateEntry(date, clientId, { saveState: "saving", error: undefined });
 
         const res = await saveTimeEntryClient({
@@ -474,7 +461,6 @@ export function TimeTrackingView({
           asana_project_id: entry.asana_project_id,
           description: entry.description,
           billable: entry.billable,
-          overnightConfirmed: overnight || entry.overnightConfirmed,
           ...(options?.collapse ? { collapsed: true } : {}),
         });
 
@@ -710,14 +696,6 @@ export function TimeTrackingView({
                             billable: next,
                           });
                         }
-                      }}
-                      onConfirmOvernight={() => {
-                        updateEntry(day.date, entry.clientId, {
-                          overnightConfirmed: true,
-                        });
-                        void persistEntry(day.date, entry.clientId, {
-                          overnightConfirmed: true,
-                        });
                       }}
                       onProjectPick={(pick) => {
                         updateEntry(day.date, entry.clientId, {

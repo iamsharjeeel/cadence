@@ -1263,6 +1263,31 @@ Run `supabase/migrations/20260624000000_google_calendar.sql` in Supabase SQL edi
 - Updated: `ConnectedAccountsSection.tsx`, `LeaveEmployeeView.tsx`, `TimeTrackingView.tsx`, `AppShell.tsx`, `Sidebar.tsx`, `Topbar.tsx`
 - `supabase/migrations/20260624000000_google_calendar.sql`
 
+### Session — Modal flicker, overnight auto-detect, overlap skip, delete dialog, mobile stats ✅
+
+Six surgical fixes — no logic outside specified scope.
+
+#### Fix 1 — Modal flickering + scroll (Asana + Google Calendar)
+- **`AsanaManageModal.tsx`**, **`GoogleCalendarManageModal.tsx`**, **`AsanaImportModal.tsx`:** fetch guarded with `useRef` so data loads once per open (no re-fetch on parent re-render); Google Calendar `syncAllEvents()` guarded against concurrent calls.
+- **`MotionModal.tsx`:** body scroll lock on open; backdrop `fixed inset-0 bg-black/50 z-40`; panel `fixed` centered `z-50`; manage modals use `max-h-[80vh] flex flex-col` + scrollable `overflow-y-auto flex-1` content area.
+
+#### Fix 2 — Overnight shift auto-detect
+- **`TimeEntryRow.tsx` / `TimeTrackingView.tsx`:** removed overnight confirmation button/prompt; `end_time < start_time` silently treated as overnight.
+- **`time-entry-client.ts`:** `canPersistTimeEntry()` allows overnight pairs; writes `is_overnight: true` when derived from times before save.
+
+#### Fix 3 — Skip overlap check for overnight entries
+- **`validation.ts`:** `deriveIsOvernight()` / `shouldSkipOverlapCheck()` helpers.
+- **`time-entry-client.ts` + `time-actions.ts`:** client + server overlap validation skipped when entry is overnight.
+
+#### Fix 4 — Delete timesheet dialog
+- **`DeleteTimesheetControl.tsx`:** MotionModal with spec styling — Space Grotesk 18px heading, Inter 14px warning copy, Cancel (secondary) + Delete (`bg-red-600`), dark border accent.
+
+#### Fix 5 — Trends + dashboard mobile stat cards
+- **`TrendsCharts.tsx`**, **`StatCard.tsx`**, **`CurrencyTotals.tsx`**, **`StatCardGrid.tsx`**, **`EmployeeDashboardContent.tsx`:** responsive stat numbers `text-3xl sm:text-4xl lg:text-6xl`; grids `grid-cols-2 sm:grid-cols-4 gap-3`; cards `min-w-0 overflow-hidden`; labels `text-[10px] sm:text-[11px]`; values truncate.
+
+#### Fix 6 — Connected accounts tiles layout
+- **`ConnectedAccountsSection.tsx`:** `grid grid-cols-1 sm:grid-cols-2 gap-4`; tiles `min-w-0`; Manage button inside each tile card.
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)

@@ -35,7 +35,6 @@ export type EntryRowData = {
   description: string;
   billable: boolean;
   total_hours?: number | null;
-  overnightConfirmed?: boolean;
   saveState: SaveState;
   error?: string;
   collapsed?: boolean;
@@ -243,7 +242,6 @@ export function TimeEntryRow({
   onProjectPick,
   onAsanaSync,
   onCreateProject,
-  onConfirmOvernight,
   onExpand,
 }: {
   entry: EntryRowData;
@@ -264,7 +262,6 @@ export function TimeEntryRow({
   }) => void;
   onAsanaSync?: () => void;
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
-  onConfirmOvernight: () => void;
   onExpand?: () => void;
 }) {
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -281,7 +278,7 @@ export function TimeEntryRow({
       ? hoursBetween(
           entry.start_time,
           entry.end_time,
-          Boolean(entry.overnightConfirmed) || Boolean(overnight),
+          Boolean(overnight),
         )
       : null;
   const displayHours =
@@ -560,16 +557,6 @@ export function TimeEntryRow({
           </AnimatePresence>
         </div>
 
-        {overnight && !entry.overnightConfirmed && editable && (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={onConfirmOvernight}
-          >
-            Confirm overnight shift
-          </Button>
-        )}
       </div>
 
       <CreateProjectModal

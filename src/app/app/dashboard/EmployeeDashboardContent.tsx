@@ -44,15 +44,15 @@ export async function EmployeeDashboardContent({
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard
           label="Approved hours this month"
           value={data.approvedHoursMonth}
           decimals={1}
         />
-        <Card className="dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+        <Card className="min-w-0 overflow-hidden dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
           <CardContent className="flex flex-col gap-0 py-6">
-            <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted dark:text-[var(--ink-muted)]">
+            <span className="font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted sm:text-[11px] dark:text-[var(--ink-muted)]">
               Total earnings this month
             </span>
             <div className="py-4">

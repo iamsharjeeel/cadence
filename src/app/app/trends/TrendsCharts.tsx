@@ -36,7 +36,7 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Avg hours / day" value={data.avgHoursPerDay} suffix="h" />
         <Stat label="Top project" value={0} text={data.topProject} />
         <Stat label="Billable hours" value={data.billableHours} suffix="h" />
@@ -331,12 +331,12 @@ function Stat({
   text?: string;
 }) {
   return (
-    <Card className="dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+    <Card className="min-w-0 overflow-hidden dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
       <CardContent className="flex flex-col gap-0 py-6">
-        <p className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted dark:text-[var(--ink-muted)]">
+        <p className="font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted sm:text-[11px] dark:text-[var(--ink-muted)]">
           {label}
         </p>
-        <p className="py-4 font-display text-6xl font-bold leading-none tabular text-[var(--accent)]">
+        <p className="truncate py-4 font-display text-3xl font-bold leading-none tabular text-[var(--accent)] sm:text-4xl lg:text-6xl">
           {text ?? (
             <>
               <CountUp value={value} decimals={1} />

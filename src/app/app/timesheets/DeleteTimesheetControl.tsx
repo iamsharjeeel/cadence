@@ -59,47 +59,49 @@ export function DeleteTimesheetControl({
         Delete
       </button>
 
-      <MotionModal open={open} onClose={() => !loading && setOpen(false)}>
-        <div className="w-full max-w-md rounded-[var(--radius-card)] border bg-surface p-6 shadow-card">
-          <h3 className="font-display text-lg font-semibold tracking-tightest text-ink">
-            Delete this timesheet?
-          </h3>
-          <p className="mt-2 text-sm text-muted">
-            This will permanently delete this timesheet and all its entries. This
-            cannot be undone.
-          </p>
-          {isApproved && (
-            <div className="mt-3 rounded-[calc(var(--radius-card)-4px)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
-              This timesheet is approved. You are about to permanently delete an
-              approved record.
-            </div>
-          )}
-          {hasDocument && (
-            <div className="mt-3 rounded-[calc(var(--radius-card)-4px)] border border-[var(--line)] px-4 py-3 text-sm text-muted">
-              A document has been generated for this timesheet. Deleting it will
-              not delete the document.
-            </div>
-          )}
-          <div className="mt-6 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              size="sm"
-              loading={loading}
-              onClick={() => void handleDelete()}
-            >
-              Delete
-            </Button>
+      <MotionModal
+        open={open}
+        onClose={() => !loading && setOpen(false)}
+        panelClassName="max-w-md rounded-card bg-[var(--surface)] shadow-float dark:border dark:border-[var(--accent)]"
+      >
+        <h3 className="font-display text-[18px] font-semibold tracking-tightest text-ink">
+          Delete this timesheet?
+        </h3>
+        <p className="mt-2 font-body text-sm text-muted">
+          This will permanently delete this timesheet and all its entries. This
+          cannot be undone.
+        </p>
+        {isApproved && (
+          <div className="mt-3 rounded-[calc(var(--radius-card)-4px)] bg-[var(--danger-soft)] px-4 py-3 font-body text-sm text-[var(--danger)]">
+            This timesheet is approved. You are about to permanently delete an
+            approved record.
           </div>
+        )}
+        {hasDocument && (
+          <div className="mt-3 rounded-[calc(var(--radius-card)-4px)] border border-[var(--line)] px-4 py-3 font-body text-sm text-muted">
+            A document has been generated for this timesheet. Deleting it will
+            not delete the document.
+          </div>
+        )}
+        <div className="mt-6 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setOpen(false)}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            loading={loading}
+            className="bg-red-600 text-white hover:bg-red-700"
+            onClick={() => void handleDelete()}
+          >
+            Delete
+          </Button>
         </div>
       </MotionModal>
     </>

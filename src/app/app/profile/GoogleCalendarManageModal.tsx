@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Loader2, RefreshCw, Unplug } from "lucide-react";
 
@@ -47,9 +47,16 @@ export function GoogleCalendarManageModal({
   const [pending, startTransition] = useTransition();
   const [syncPending, startSync] = useTransition();
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const hasFetched = useRef(false);
+  const syncInFlight = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hasFetched.current = false;
+      return;
+    }
+    if (hasFetched.current) return;
+    hasFetched.current = true;
 
     setLoading(true);
     setLoadError(null);
@@ -95,18 +102,24 @@ export function GoogleCalendarManageModal({
   }
 
   function handleSync() {
+    if (syncInFlight.current || syncPending) return;
+    syncInFlight.current = true;
     startSync(async () => {
-      const result = await syncAllEvents();
-      onToast(result.message);
-      if (result.needsReconnect) {
-        setNeedsReconnect(true);
-        return;
-      }
-      if (result.ok) {
-        const refreshed = await loadManageModalEvents();
-        if (refreshed.ok && refreshed.events) {
-          setEvents(refreshed.events);
+      try {
+        const result = await syncAllEvents();
+        onToast(result.message);
+        if (result.needsReconnect) {
+          setNeedsReconnect(true);
+          return;
         }
+        if (result.ok) {
+          const refreshed = await loadManageModalEvents();
+          if (refreshed.ok && refreshed.events) {
+            setEvents(refreshed.events);
+          }
+        }
+      } finally {
+        syncInFlight.current = false;
       }
     });
   }
@@ -142,8 +155,12 @@ export function GoogleCalendarManageModal({
 
   return (
     <>
-      <MotionModal open={open} onClose={onClose} panelClassName="max-w-lg">
-        <div className="flex items-start gap-3">
+      <MotionModal
+        open={open}
+        onClose={onClose}
+        panelClassName="flex max-h-[80vh] max-w-lg flex-col"
+      >
+        <div className="flex shrink-0 items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#4285F4]/10">
             <GoogleCalendarIcon size={22} />
           </div>
@@ -165,128 +182,131 @@ export function GoogleCalendarManageModal({
           </div>
         </div>
 
-        {needsReconnect ? (
-          <div className="mt-4 rounded-[12px] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]">
-            Your Google Calendar connection expired.
-            <Link
-              href="/api/google-calendar/connect"
-              className={`${buttonStyles("primary", "sm")} mt-3`}
-            >
-              Reconnect Google Calendar
-            </Link>
-          </div>
-        ) : null}
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-sm text-muted">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Loading calendars…
-          </div>
-        ) : loadError ? (
-          <p className="mt-4 text-sm text-[var(--danger)]">{loadError}</p>
-        ) : (
-          <>
-            <div className="mt-6 border-t border-line pt-5">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-medium text-ink">Calendars to sync</h3>
-                  <p className="text-xs text-muted">
-                    Toggle which calendars appear in Cadence.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  loading={syncPending}
-                  onClick={handleSync}
-                >
-                  Sync events
-                </Button>
-              </div>
-
-              <ul className="max-h-40 divide-y divide-line overflow-y-auto rounded-[12px] border border-line">
-                {calendars.map((cal) => (
-                  <li
-                    key={cal.id}
-                    className="flex items-center justify-between gap-3 px-4 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-ink">
-                        {cal.summary}
-                        {cal.primary ? (
-                          <span className="ml-2 text-xs text-muted">Primary</span>
-                        ) : null}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={cal.isSynced}
-                      onClick={() => handleToggle(cal)}
-                      className={cn(
-                        "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                        cal.isSynced ? "bg-[#4285F4]" : "bg-[var(--line)]",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                          cal.isSynced ? "left-[22px]" : "left-0.5",
-                        )}
-                      />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {needsReconnect ? (
+            <div className="mt-4 rounded-[12px] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]">
+              Your Google Calendar connection expired.
+              <Link
+                href="/api/google-calendar/connect"
+                className={`${buttonStyles("primary", "sm")} mt-3`}
+              >
+                Reconnect Google Calendar
+              </Link>
             </div>
+          ) : null}
 
-            <div className="mt-6 border-t border-line pt-5">
-              <h3 className="text-sm font-medium text-ink">Upcoming events (7 days)</h3>
-              {events.length === 0 ? (
-                <p className="mt-3 text-sm text-muted">
-                  No synced events yet. Select calendars and sync events.
-                </p>
-              ) : (
-                <ul className="mt-3 max-h-52 divide-y divide-line overflow-y-auto rounded-[12px] border border-line">
-                  {events.map((event) => (
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-sm text-muted">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading calendars…
+            </div>
+          ) : loadError ? (
+            <p className="mt-4 text-sm text-[var(--danger)]">{loadError}</p>
+          ) : (
+            <>
+              <div className="mt-6 border-t border-line pt-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-medium text-ink">Calendars to sync</h3>
+                    <p className="text-xs text-muted">
+                      Toggle which calendars appear in Cadence.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    loading={syncPending}
+                    disabled={syncInFlight.current}
+                    onClick={handleSync}
+                  >
+                    Sync events
+                  </Button>
+                </div>
+
+                <ul className="divide-y divide-line rounded-[12px] border border-line">
+                  {calendars.map((cal) => (
                     <li
-                      key={event.id}
-                      className="flex items-start justify-between gap-3 px-4 py-3"
+                      key={cal.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-ink">
-                          {event.title ?? "Untitled event"}
+                          {cal.summary}
+                          {cal.primary ? (
+                            <span className="ml-2 text-xs text-muted">Primary</span>
+                          ) : null}
                         </p>
-                        <p className="text-xs text-muted">
-                          {formatDate(event.start_at.slice(0, 10))} ·{" "}
-                          {formatEventTime(event.start_at)} –{" "}
-                          {formatEventTime(event.end_at)}
-                        </p>
-                        {event.calendar_name ? (
-                          <p className="truncate text-xs text-muted">
-                            {event.calendar_name}
-                          </p>
-                        ) : null}
                       </div>
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
-                        loading={refreshingId === event.google_event_id}
-                        onClick={() => handleRefreshEvent(event.google_event_id)}
+                        role="switch"
+                        aria-checked={cal.isSynced}
+                        onClick={() => handleToggle(cal)}
+                        className={cn(
+                          "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                          cal.isSynced ? "bg-[#4285F4]" : "bg-[var(--line)]",
+                        )}
                       >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
+                        <span
+                          className={cn(
+                            "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                            cal.isSynced ? "left-[22px]" : "left-0.5",
+                          )}
+                        />
+                      </button>
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
-          </>
-        )}
+              </div>
 
-        <div className="mt-6 flex justify-end border-t border-line pt-5">
+              <div className="mt-6 border-t border-line pt-5">
+                <h3 className="text-sm font-medium text-ink">Upcoming events (7 days)</h3>
+                {events.length === 0 ? (
+                  <p className="mt-3 text-sm text-muted">
+                    No synced events yet. Select calendars and sync events.
+                  </p>
+                ) : (
+                  <ul className="mt-3 divide-y divide-line rounded-[12px] border border-line">
+                    {events.map((event) => (
+                      <li
+                        key={event.id}
+                        className="flex items-start justify-between gap-3 px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-ink">
+                            {event.title ?? "Untitled event"}
+                          </p>
+                          <p className="text-xs text-muted">
+                            {formatDate(event.start_at.slice(0, 10))} ·{" "}
+                            {formatEventTime(event.start_at)} –{" "}
+                            {formatEventTime(event.end_at)}
+                          </p>
+                          {event.calendar_name ? (
+                            <p className="truncate text-xs text-muted">
+                              {event.calendar_name}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          loading={refreshingId === event.google_event_id}
+                          onClick={() => handleRefreshEvent(event.google_event_id)}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="mt-6 flex shrink-0 justify-end border-t border-line pt-5">
           <Button
             type="button"
             variant="danger"

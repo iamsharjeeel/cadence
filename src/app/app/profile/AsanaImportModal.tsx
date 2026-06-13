@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
@@ -33,9 +33,15 @@ export function AsanaImportModal({
   const [actionNeedsReconnect, setActionNeedsReconnect] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pending, startTransition] = useTransition();
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hasFetched.current = false;
+      return;
+    }
+    if (hasFetched.current) return;
+    hasFetched.current = true;
 
     setLoading(true);
     setLoadError(null);
@@ -105,8 +111,12 @@ export function AsanaImportModal({
   const showReconnect = needsReconnect || actionNeedsReconnect;
 
   return (
-    <MotionModal open={open} onClose={onClose} panelClassName="max-w-2xl">
-      <div className="flex items-start justify-between gap-4">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      panelClassName="flex max-h-[80vh] max-w-2xl flex-col"
+    >
+      <div className="flex shrink-0 items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <AsanaIcon size={28} className="mt-0.5 shrink-0" />
           <div>
@@ -121,7 +131,7 @@ export function AsanaImportModal({
         </div>
       </div>
 
-      <div className="mt-5 max-h-[50vh] overflow-y-auto rounded-2xl border border-line">
+      <div className="mt-5 min-h-0 flex-1 overflow-y-auto rounded-2xl border border-line">
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted">
             <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
@@ -186,7 +196,7 @@ export function AsanaImportModal({
       </div>
 
       {actionError ? (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="mt-3 flex shrink-0 flex-wrap items-center gap-3">
           <p className="text-sm text-red-600">{actionError}</p>
           {showReconnect ? (
             <Link
@@ -199,7 +209,7 @@ export function AsanaImportModal({
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <Button
           type="button"
           variant="ghost"

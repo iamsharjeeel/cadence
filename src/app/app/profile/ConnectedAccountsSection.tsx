@@ -91,13 +91,13 @@ export function ConnectedAccountsSection({
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-[12px] bg-surface p-5 shadow-card">
+        <div className="min-w-0 rounded-[12px] bg-surface p-5 shadow-card">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
+            <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#F06A6A]/10">
                 <AsanaIcon size={22} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium text-ink">Asana</p>
                   <ConnectionBadge connected={asanaConnection.connected} />
@@ -138,13 +138,13 @@ export function ConnectedAccountsSection({
           </div>
         </div>
 
-        <div className="rounded-[12px] bg-surface p-5 shadow-card">
+        <div className="min-w-0 rounded-[12px] bg-surface p-5 shadow-card">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
+            <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#4285F4]/10">
                 <GoogleCalendarIcon size={22} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium text-ink">Google Calendar</p>
                   <ConnectionBadge connected={gcalConnection.connected} />

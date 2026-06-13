@@ -175,15 +175,17 @@ export async function upsertTimeEntry(
   const guard = await assertEditableTimesheet(payload.timesheetId, profile.id);
   if (!guard.ok) return guard;
 
-  const overlap = await checkOverlap(
-    profile.id,
-    payload.entryDate,
-    validated.start,
-    validated.end,
-    validated.overnight,
-    payload.id,
-  );
-  if (overlap) return { ok: false, message: overlap };
+  if (!validated.overnight) {
+    const overlap = await checkOverlap(
+      profile.id,
+      payload.entryDate,
+      validated.start,
+      validated.end,
+      validated.overnight,
+      payload.id,
+    );
+    if (overlap) return { ok: false, message: overlap };
+  }
 
   const db = createAdminClient();
   const projectId =
@@ -199,6 +201,7 @@ export async function upsertTimeEntry(
     entry_date: payload.entryDate,
     start_time: validated.start,
     end_time: validated.end,
+    is_overnight: validated.overnight,
     description: payload.description?.trim() || null,
     billable: payload.billable ?? true,
   };
@@ -212,6 +215,7 @@ export async function upsertTimeEntry(
         entry_date: row.entry_date,
         start_time: row.start_time,
         end_time: row.end_time,
+        is_overnight: row.is_overnight,
         description: row.description,
         billable: row.billable,
       })
