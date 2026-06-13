@@ -75,7 +75,7 @@ export default async function DashboardPage({
             }
           />
           <section>
-            <h2 className="mb-4 font-display text-lg font-semibold tracking-tightest">
+            <h2 className="mb-4 font-display text-[18px] font-semibold tracking-tightest">
               Organizations
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -98,18 +98,18 @@ export default async function DashboardPage({
                       </div>
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
-                          <span className="text-sm text-muted font-body">
+                          <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
                             Employees
                           </span>
-                          <p className="font-display font-bold tabular text-ink">
+                          <p className="font-display text-[42px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
                             {org.employeeCount}
                           </p>
                         </div>
                         <div>
-                          <span className="text-sm text-muted font-body">
+                          <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
                             Pending
                           </span>
-                          <p className="font-display font-bold tabular text-ink">
+                          <p className="font-display text-[42px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
                             {org.pendingCount}
                           </p>
                         </div>
@@ -156,26 +156,26 @@ export default async function DashboardPage({
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <span className="text-sm text-muted font-body">
+                        <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
                           Employees
                         </span>
-                        <p className="font-display font-bold tabular text-ink">
+                        <p className="font-display text-[42px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
                           {org.employeeCount}
                         </p>
                       </div>
                       <div>
-                        <span className="text-sm text-muted font-body">
+                        <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
                           Pending
                         </span>
-                        <p className="font-display font-bold tabular text-ink">
+                        <p className="font-display text-[42px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
                           {org.pendingCount}
                         </p>
                       </div>
                       <div className="col-span-2">
-                        <span className="text-sm text-muted font-body">
+                        <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
                           Approved hours (month)
                         </span>
-                        <p className="font-display font-bold tabular text-ink">
+                        <p className="font-display text-[42px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
                           {org.approvedHoursPeriod.toLocaleString(undefined, {
                             maximumFractionDigits: 1,
                           })}

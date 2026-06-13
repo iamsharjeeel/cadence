@@ -106,6 +106,9 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - **Collapse on Save only:** autosave no longer collapses; loaded entries still start collapsed; Save = persist + collapse
 - **Collapsed summary precedence:** Cadence-only, Asana-only (no erroneous "No project"), or both shown together; "Synced …" subordinate to Asana tag
 
+### Light polish + dark mode (Stitch reference)
+Light mode polish pass + dark mode implementation: sharp corners, hairline borders, gold-on-black stat numbers, uppercase nav labels in dark, audit action badge chips, leave balance cards with progress bars, landing hero Playfair tagline as decorative background layer, sidebar org logo block at top with "PAYROLL & HR" subtitle.
+
 ## Getting started
 
 ```bash
@@ -154,7 +157,8 @@ Cadence uses a **quiet luxury** token system — parchment light mode and true-b
 
 - **Typography:** Space Grotesk (`--font-space`) for headings and UI chrome; Inter (`--font-inter`) for body; Playfair Display (`--font-playfair`) on the landing hero only (decorative tagline)
 - **Light tokens:** background `#FBFAF7`, surface `#FFFFFF`, ink `#1A1917`, accent gold `#7F560C` / mid `#C9974A`
-- **Dark tokens:** background `#000000`, surface `#0D0D0B`, accent `#C9974A`
+- **Dark tokens (Stitch):** background `#0A0A08`, surface `#131310`, accent `#F7BD48`, sharp corners (0px radius), hairline borders, no card shadows
+- **Light polish + dark mode:** see session note above — gold-on-black stat numbers, uppercase dark nav, audit badge chips, modal gold border in dark
 - **Primitives:** CSS variables in `src/app/globals.css`, mapped in `tailwind.config.ts` — `bg-background`, `bg-surface`, `bg-surface-low`, `text-ink`, `text-muted`, `shadow-card`, `shadow-float`, `rounded-card` / `rounded-input`
 - **Numeric data:** `.tabular` utility (`font-feature-settings: "tnum"`)
 

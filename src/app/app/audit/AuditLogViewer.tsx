@@ -11,7 +11,78 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { summarizePayload } from "@/lib/audit/summarize";
 import { currentSearchParams } from "@/lib/search-params";
 import type { AuditLogEntry } from "@/lib/audit/queries";
-import { titleCase } from "@/lib/utils";
+import { cn, titleCase } from "@/lib/utils";
+
+function auditActionBadgeClass(action: string): string {
+  const a = action.toLowerCase();
+  const base =
+    "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide dark:rounded-none";
+
+  if (
+    a === "created" ||
+    a.includes("create") ||
+    a.includes("invited") ||
+    a === "approved"
+  ) {
+    return cn(
+      base,
+      "bg-[#E8F4EA] text-[#2D6A35] dark:border dark:border-[#3A6B2A] dark:bg-transparent dark:text-[#7DBF6A]",
+    );
+  }
+  if (
+    a.includes("delete") ||
+    a.includes("removed") ||
+    a.includes("cancelled") ||
+    a === "rejected" ||
+    a.includes("recalled")
+  ) {
+    return cn(
+      base,
+      "bg-[#FBE9E9] text-[#8B2020] dark:border dark:border-[#8B2020] dark:bg-transparent dark:text-[#E07070]",
+    );
+  }
+  if (
+    a.includes("submitted") ||
+    a.includes("completed") ||
+    a.includes("generated") ||
+    a.includes("emailed") ||
+    a.includes("signed") ||
+    a.includes("acknowledged")
+  ) {
+    return cn(
+      base,
+      "bg-[var(--accent-soft)] text-[var(--accent)] dark:border dark:border-[var(--accent)] dark:bg-transparent dark:text-[var(--accent)]",
+    );
+  }
+  if (a.includes("viewed") || a.includes("assigned")) {
+    return cn(
+      base,
+      "bg-[var(--surface-low)] text-[var(--ink-muted)] dark:border dark:border-[var(--line)] dark:bg-transparent dark:text-[var(--ink-muted)]",
+    );
+  }
+  if (
+    a.includes("change") ||
+    a.includes("update") ||
+    a.includes("settings")
+  ) {
+    return cn(
+      base,
+      "bg-[#FFF8E6] text-[#8A6000] dark:border dark:border-[var(--accent)] dark:bg-transparent dark:text-[var(--accent)]",
+    );
+  }
+  return cn(
+    base,
+    "bg-[var(--surface-low)] text-[var(--ink-muted)] dark:border dark:border-[var(--line)] dark:bg-transparent dark:text-[var(--ink-muted)]",
+  );
+}
+
+function AuditActionBadge({ action }: { action: string }) {
+  return (
+    <span className={auditActionBadgeClass(action)}>
+      {action.replace(/_/g, " ")}
+    </span>
+  );
+}
 
 export type AuditFilters = {
   org: string;
@@ -154,9 +225,9 @@ export function AuditLogViewer({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-card">
-        <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50">
-          <THead className="bg-surface-low">
+      <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-card dark:border dark:border-[var(--line)] dark:shadow-none">
+        <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50 dark:[&_tbody_tr:nth-child(even)]:bg-[var(--surface)]">
+          <THead className="bg-surface-low dark:border-b dark:border-[var(--line)] dark:bg-[var(--surface-low)] [&_th]:text-[11px] [&_th]:tracking-[0.08em]">
             <TR>
               <TH>Timestamp</TH>
               <TH>Actor</TH>
@@ -174,7 +245,10 @@ export function AuditLogViewer({
               </TR>
             ) : (
               entries.map((entry) => (
-                <TR key={entry.id}>
+                <TR
+                  key={entry.id}
+                  className="dark:border-b dark:border-[var(--line)] dark:bg-[var(--surface)] dark:odd:bg-[var(--surface)] dark:hover:bg-[var(--surface-low)]"
+                >
                   <TD className="tabular whitespace-nowrap text-sm">
                     {new Date(entry.created_at).toLocaleString()}
                   </TD>
@@ -194,7 +268,9 @@ export function AuditLogViewer({
                       "—"
                     )}
                   </TD>
-                  <TD className="text-sm">{entry.action}</TD>
+                  <TD className="text-sm">
+                    <AuditActionBadge action={entry.action} />
+                  </TD>
                   <TD className="text-sm text-muted">{entry.entity ?? "—"}</TD>
                   <TD className="max-w-xs truncate text-sm text-muted">
                     {summarizePayload(entry.action, entry.payload)}

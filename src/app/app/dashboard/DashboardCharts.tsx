@@ -123,10 +123,10 @@ export function HoursLineChart({
         <Line
           type="monotone"
           dataKey={dataKey}
-          stroke="var(--accent-mid)"
-          strokeWidth={2}
-          dot={{ fill: "var(--accent-mid)", r: 4 }}
-          activeDot={{ r: 6 }}
+          stroke={colors.primary}
+          strokeWidth={colors.lineStrokeWidth}
+          dot={false}
+          activeDot={{ r: 4, fill: colors.primary }}
         />
       </LineChart>
     </ResponsiveContainer>

@@ -36,7 +36,7 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-4 gap-4">
         <Stat label="Avg hours / day" value={data.avgHoursPerDay} suffix="h" />
         <Stat label="Top project" value={0} text={data.topProject} />
         <Stat label="Billable hours" value={data.billableHours} suffix="h" />
@@ -45,9 +45,10 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
 
       <TrendLineChart
         data={data.periodLine}
-        primary="var(--accent-mid)"
+        primary={colors.primary}
         grid={colors.grid}
-        tick="var(--ink-muted)"
+        tick={colors.tick}
+        strokeWidth={colors.lineStrokeWidth}
         animate={!reducedMotion}
       />
       <div className="grid gap-4 lg:grid-cols-2">
@@ -167,12 +168,14 @@ function TrendLineChart({
   primary,
   grid,
   tick,
+  strokeWidth,
   animate,
 }: {
   data: { label: string; hours: number }[];
   primary: string;
   grid: string;
   tick: string;
+  strokeWidth: number;
   animate: boolean;
 }) {
   return (
@@ -204,7 +207,7 @@ function TrendLineChart({
               type="monotone"
               dataKey="hours"
               stroke={primary}
-              strokeWidth={2}
+              strokeWidth={strokeWidth}
               dot={false}
               isAnimationActive={animate}
             />
@@ -328,10 +331,12 @@ function Stat({
   text?: string;
 }) {
   return (
-    <Card>
-      <CardContent className="py-4">
-        <p className="text-sm text-muted font-body">{label}</p>
-        <p className="font-display font-bold tabular text-ink mt-1">
+    <Card className="dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+      <CardContent className="flex flex-col gap-0 py-6">
+        <p className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted dark:text-[var(--ink-muted)]">
+          {label}
+        </p>
+        <p className="py-4 font-display text-[42px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
           {text ?? (
             <>
               <CountUp value={value} decimals={1} />

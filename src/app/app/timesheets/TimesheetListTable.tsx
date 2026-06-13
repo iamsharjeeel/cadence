@@ -199,7 +199,6 @@ export function TimesheetListTable({
               />
             </TH>
             {isManager && <TH>Employee</TH>}
-            {isSuperadmin && <TH>Org</TH>}
             <TH>
               <Link
                 href={sortLink("period")}
@@ -233,7 +232,7 @@ export function TimesheetListTable({
         </THead>
         <TBody>
           {timesheets.map((t) => (
-            <TR key={t.id} className="odd:bg-surface-low">
+            <TR key={t.id} className="odd:bg-surface-low dark:border-b dark:border-[var(--line)] dark:bg-[var(--surface)] dark:odd:bg-[var(--surface)] dark:hover:bg-[var(--surface-low)]">
               <TD>
                 {(t.status === "submitted" || t.status === "approved") && (
                   <input
@@ -246,12 +245,12 @@ export function TimesheetListTable({
                 )}
               </TD>
               {isManager && (
-                <TD className="text-sm font-medium text-ink">
-                  {t.employeeName}
+                <TD>
+                  <p className="text-[14px] font-semibold text-ink">{t.employeeName}</p>
+                  {isSuperadmin && t.orgName && (
+                    <p className="text-[12px] text-muted">{t.orgName}</p>
+                  )}
                 </TD>
-              )}
-              {isSuperadmin && (
-                <TD className="text-sm text-muted">{t.orgName ?? "—"}</TD>
               )}
               <TD className="tabular text-sm">
                 {formatDate(t.period_start)} – {formatDate(t.period_end)}

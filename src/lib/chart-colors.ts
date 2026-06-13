@@ -10,6 +10,7 @@ export type ChartColors = {
   tick: string;
   /** Gold shades for multi-series charts — all derived from design tokens. */
   palette: string[];
+  lineStrokeWidth: number;
 };
 
 function readCssVar(name: string): string {
@@ -20,17 +21,18 @@ function readCssVar(name: string): string {
 }
 
 function readChartColors(): ChartColors {
+  const isDark = document.documentElement.classList.contains("dark");
   const primary = readCssVar("--accent-mid");
   const secondary = readCssVar("--ink-muted");
   const accentStrong = readCssVar("--accent-strong");
   const accentRgb = readCssVar("--accent-rgb");
-  const isDark = document.documentElement.classList.contains("dark");
 
   return {
     primary,
     secondary,
-    grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(26,25,23,0.06)",
+    grid: isDark ? "rgba(255,255,248,0.06)" : "rgba(26,25,23,0.06)",
     tick: secondary,
+    lineStrokeWidth: isDark ? 1.5 : 2,
     palette: accentRgb
       ? [
           primary,

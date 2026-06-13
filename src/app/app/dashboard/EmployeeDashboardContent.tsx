@@ -33,6 +33,7 @@ export async function EmployeeDashboardContent({
       <PageHeader
         title={`Good to see you, ${firstName}.`}
         description="Your approved hours and earnings this month."
+        greeting
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/app/timesheets/log">
@@ -49,12 +50,14 @@ export async function EmployeeDashboardContent({
           value={data.approvedHoursMonth}
           decimals={1}
         />
-        <Card>
-          <CardContent className="flex flex-col gap-2">
-            <span className="text-sm text-muted font-body">
+        <Card className="dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+          <CardContent className="flex flex-col gap-0 py-6">
+            <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted dark:text-[var(--ink-muted)]">
               Total earnings this month
             </span>
-            <CurrencyTotalsDisplay totals={data.earningsByCurrency} />
+            <div className="py-4">
+              <CurrencyTotalsDisplay totals={data.earningsByCurrency} />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -62,7 +65,7 @@ export async function EmployeeDashboardContent({
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>My hours by period</CardTitle>
+            <CardTitle className="text-[18px] font-semibold">My hours by period</CardTitle>
             <CardDescription>Last 6 approved pay periods.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -72,7 +75,7 @@ export async function EmployeeDashboardContent({
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent timesheets</CardTitle>
+            <CardTitle className="text-[18px] font-semibold">Recent timesheets</CardTitle>
             <CardDescription>Your last 5 submissions.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">

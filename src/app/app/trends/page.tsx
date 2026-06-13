@@ -120,10 +120,10 @@ export default async function TrendsPage({
                   {adminData.employeeRows.map((e) => (
                     <TR key={e.name} className="border-0 odd:bg-surface-low">
                       <TD>{e.name}</TD>
-                      <TD className="tabular">{e.hours.toFixed(1)}</TD>
-                      <TD className="tabular">{e.billablePct}%</TD>
-                      <TD>{e.topProject}</TD>
-                      <TD className="tabular">
+                    <TD className="tabular dark:text-[var(--accent)]">{e.hours.toFixed(1)}</TD>
+                    <TD className="tabular dark:text-[var(--accent)]">{e.billablePct}%</TD>
+                    <TD>{e.topProject}</TD>
+                    <TD className="tabular dark:text-[var(--accent)]">
                         {e.earnings != null
                           ? `${e.currency} ${e.earnings.toFixed(2)}`
                           : "—"}

@@ -93,12 +93,14 @@ export function AdminDashboardView({
           />
         </StatCardItem>
         <StatCardItem>
-          <Card>
-            <CardContent className="flex flex-col gap-2">
-              <span className="text-sm text-muted font-body">
+          <Card className="dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+            <CardContent className="flex flex-col gap-0 py-6">
+              <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted dark:text-[var(--ink-muted)]">
                 Payroll estimate
               </span>
-              <CurrencyTotalsDisplay totals={data.payrollByCurrency} />
+              <div className="py-4">
+                <CurrencyTotalsDisplay totals={data.payrollByCurrency} />
+              </div>
             </CardContent>
           </Card>
         </StatCardItem>
@@ -107,7 +109,7 @@ export function AdminDashboardView({
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Hours by employee</CardTitle>
+            <CardTitle className="text-[18px] font-semibold">Hours by employee</CardTitle>
             <CardDescription>Approved hours this month.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -116,7 +118,7 @@ export function AdminDashboardView({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Weekly trend</CardTitle>
+            <CardTitle className="text-[18px] font-semibold">Weekly trend</CardTitle>
             <CardDescription>
               Approved hours over the last 8 weeks.
             </CardDescription>
@@ -135,7 +137,7 @@ export function AdminDashboardView({
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Employee breakdown</CardTitle>
+            <CardTitle className="text-[18px] font-semibold">Employee breakdown</CardTitle>
             <CardDescription>
               Approved hours and estimated totals.
             </CardDescription>
@@ -180,7 +182,7 @@ export function AdminDashboardView({
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent activity</CardTitle>
+            <CardTitle className="text-[18px] font-semibold">Recent activity</CardTitle>
             <CardDescription>Last 10 audit log entries.</CardDescription>
           </CardHeader>
           <CardContent>

@@ -10,6 +10,9 @@ import type {
 
 type Tone = "accent" | "muted" | "danger" | "success" | "pending" | "error";
 
+const badgeBase =
+  "inline-flex items-center gap-1.5 rounded-[var(--radius-chip)] px-2.5 py-1 text-xs font-medium font-body dark:rounded-none";
+
 export function Badge({
   children,
   tone = "accent",
@@ -22,18 +25,19 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-[var(--radius-chip)] px-2.5 py-1 text-xs font-medium",
-        "font-body font-medium",
+        badgeBase,
         tone === "accent" &&
-          "bg-[var(--accent-soft)] text-[var(--accent)]",
-        tone === "muted" && "bg-surface-low text-muted",
-        tone === "danger" && "bg-[var(--danger-soft)] text-[var(--danger)]",
+          "bg-[var(--accent-soft)] text-[var(--accent)] dark:border dark:border-[var(--line)] dark:bg-transparent dark:text-[var(--ink-muted)]",
+        tone === "muted" &&
+          "bg-surface-low text-muted dark:border dark:border-[var(--line)] dark:bg-transparent dark:text-[var(--ink-muted)]",
+        tone === "danger" &&
+          "bg-[var(--danger-soft)] text-[var(--danger)] dark:border dark:border-[#8B2020] dark:bg-transparent dark:text-[#E07070]",
         tone === "success" &&
-          "bg-[#E8F0E4] text-[#3A6B2A] dark:bg-[#1A2E18] dark:text-[#7DBF6A]",
+          "bg-[#E8F4EA] text-[#2D6A35] dark:border dark:border-[#3A6B2A] dark:bg-transparent dark:text-[#7DBF6A]",
         tone === "pending" &&
-          "bg-[var(--accent-soft)] text-[var(--accent)]",
+          "bg-[var(--accent-soft)] text-[var(--accent)] dark:border dark:border-[var(--accent)] dark:bg-transparent dark:text-[var(--accent)]",
         tone === "error" &&
-          "bg-[#FAE8E8] text-[#9B2020] dark:bg-[#2E1818] dark:text-[#E07070]",
+          "bg-[#FBE9E9] text-[#8B2020] dark:border dark:border-[#8B2020] dark:bg-transparent dark:text-[#E07070]",
         className,
       )}
     >

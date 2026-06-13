@@ -136,47 +136,38 @@ export function LeaveEmployeeView({
           description="Your organization hasn't set up leave types yet. Contact your admin."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-4 gap-4">
           {displayBalances.map((b) => {
             const remaining =
               Number(b.allocated_days) -
               Number(b.used_days) -
               Number(b.pending_days);
+            const allocated = Number(b.allocated_days);
+            const usedPct =
+              allocated > 0
+                ? Math.min(100, ((allocated - remaining) / allocated) * 100)
+                : 0;
+            const unit = b.leave_type.category === "hours" ? "hrs" : "days";
             return (
-              <MotionCard key={b.leave_type_id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    <span
-                      className="mr-2 inline-block h-2 w-2 rounded-full"
-                      style={{ background: b.leave_type.color ?? "var(--accent-mid)" }}
-                    />
+              <MotionCard
+                key={b.leave_type_id}
+                className="shadow-card dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none"
+              >
+                <CardContent className="p-5">
+                  <p className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
                     {b.leave_type.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-display text-[32px] font-bold tabular text-ink">
-                    <CountUp value={remaining} decimals={1} />
                   </p>
-                  <p className="text-xs text-muted">days remaining</p>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted">
-                    <div>
-                      <span className="block uppercase tracking-wide">Allocated</span>
-                      <span className="tabular font-medium text-ink">
-                        <CountUp value={Number(b.allocated_days)} decimals={1} />
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block uppercase tracking-wide">Used</span>
-                      <span className="tabular font-medium text-ink">
-                        <CountUp value={Number(b.used_days)} decimals={1} />
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block uppercase tracking-wide">Pending</span>
-                      <span className="tabular font-medium text-ink">
-                        <CountUp value={Number(b.pending_days)} decimals={1} />
-                      </span>
-                    </div>
+                  <p className="mt-3 font-display text-[48px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
+                    <CountUp value={remaining} decimals={1} />
+                    <span className="ml-1.5 font-body text-[16px] font-normal text-muted">
+                      {unit}
+                    </span>
+                  </p>
+                  <div className="mt-4 h-[3px] w-full overflow-hidden rounded-[var(--radius-chip)] bg-surface-low">
+                    <div
+                      className="h-full rounded-[var(--radius-chip)] bg-accent-mid"
+                      style={{ width: `${usedPct}%` }}
+                    />
                   </div>
                 </CardContent>
               </MotionCard>

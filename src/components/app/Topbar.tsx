@@ -22,13 +22,14 @@ export function Topbar({ profile }: { profile: Profile }) {
   const current = items.find((i) => i.href === currentPath);
 
   const linkClass =
-    "flex items-center gap-3 rounded-[var(--radius-input)] border-l-2 border-transparent px-3 py-2.5 font-display text-sm font-medium min-h-11";
+    "flex items-center gap-3 rounded-[var(--radius-input)] border-l-2 border-transparent px-3 py-2.5 font-display text-sm font-medium min-h-11 dark:uppercase dark:tracking-[0.08em] dark:text-[11px] dark:font-semibold";
   const activeClass =
-    "border-l-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]";
-  const inactiveClass = "text-muted hover:bg-[var(--accent-soft)]/50 hover:text-ink";
+    "border-l-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] dark:bg-transparent dark:text-[var(--accent)]";
+  const inactiveClass =
+    "text-muted hover:bg-[var(--accent-soft)]/50 hover:text-ink dark:text-[var(--ink-muted)] dark:hover:bg-transparent dark:hover:text-[var(--ink)]";
 
   return (
-    <header className="sticky top-0 z-20 h-14 border-b border-[var(--line)] bg-surface">
+    <header className="sticky top-0 z-20 h-14 border-b border-[var(--line)] bg-surface dark:bg-[var(--background)] dark:border-[var(--line)]">
       <div className="flex h-14 items-center gap-3 px-5 sm:px-8">
         <button
           type="button"
@@ -47,7 +48,7 @@ export function Topbar({ profile }: { profile: Profile }) {
           </svg>
         </button>
 
-        <h1 className="font-display text-base font-semibold tracking-tightest">
+        <h1 className="font-display text-base font-semibold tracking-tightest dark:uppercase dark:tracking-[0.06em] dark:text-[12px] dark:font-semibold dark:text-[var(--ink-muted)]">
           {current?.label ?? "Cadence"}
         </h1>
 

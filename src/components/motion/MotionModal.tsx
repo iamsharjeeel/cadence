@@ -6,7 +6,7 @@ import { MODAL_BACKDROP, MODAL_PANEL } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 export const MODAL_PANEL_CLASS =
-  "w-full rounded-[var(--radius-card)] bg-surface p-6 shadow-float";
+  "w-full rounded-[var(--radius-card)] bg-surface p-6 shadow-float dark:rounded-none dark:border dark:border-[var(--accent)] dark:bg-[var(--surface)] dark:shadow-none";
 
 export function MotionModal({
   open,
@@ -26,7 +26,7 @@ export function MotionModal({
       {open && (
         <motion.div
           className={cn(
-            "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4",
+            "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 dark:bg-black/70",
             className,
           )}
           {...MODAL_BACKDROP}

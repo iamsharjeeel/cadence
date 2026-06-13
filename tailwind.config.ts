@@ -32,6 +32,7 @@ const config: Config = {
       borderColor: {
         DEFAULT: "var(--line)",
         line: "var(--line)",
+        hairline: "var(--border-hairline)",
       },
       borderRadius: {
         DEFAULT: "var(--radius-card)",

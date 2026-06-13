@@ -247,12 +247,12 @@ export function LandingPage() {
           <div className="relative z-10 grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="relative">
               <p
-                className="pointer-events-none absolute -left-2 top-8 z-0 max-w-lg font-playfair text-4xl font-semibold italic leading-none tracking-tight text-muted/25 sm:text-5xl lg:text-6xl"
+                className="pointer-events-none absolute -left-2 top-0 z-0 max-w-none select-none font-playfair text-[96px] font-semibold italic leading-none tracking-tight text-ink opacity-10 sm:-left-4"
                 aria-hidden
               >
                 Time, tracked with rhythm.
               </p>
-              <div className="relative z-10">
+              <div className="relative z-10 pt-4">
                 <p className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-chip)] border border-[var(--line)] bg-surface/80 px-3 py-1 font-body text-xs font-medium text-muted backdrop-blur">
                   <span className="h-1.5 w-1.5 rounded-full bg-accent" />
                   Premium timesheet portal

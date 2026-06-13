@@ -22,17 +22,33 @@ export function Sidebar({
   const items = navForRole(role);
 
   const linkClass =
-    "flex items-center gap-3 rounded-[var(--radius-input)] border-l-2 border-transparent px-3 py-2.5 font-display text-sm font-medium transition-colors";
+    "flex items-center gap-3 rounded-[var(--radius-input)] border-l-2 border-transparent px-3 py-2.5 font-display text-sm font-medium transition-colors dark:uppercase dark:tracking-[0.08em] dark:text-[11px] dark:font-semibold";
   const activeClass =
-    "border-l-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]";
-  const inactiveClass = "text-muted hover:bg-[var(--accent-soft)]/50 hover:text-ink";
+    "border-l-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] dark:bg-transparent dark:text-[var(--accent)]";
+  const inactiveClass =
+    "text-muted hover:bg-[var(--accent-soft)]/50 hover:text-ink dark:text-[var(--ink-muted)] dark:hover:bg-transparent dark:hover:text-[var(--ink)]";
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-[var(--line)] bg-surface lg:flex">
-      <div className="flex h-14 items-center px-6">
-        <Link href="/app/dashboard">
+      <div className="border-b border-[var(--line)] px-6 py-5">
+        <Link href="/app/dashboard" className="block">
           <Wordmark />
+          <p className="mt-1 font-display text-[10px] uppercase tracking-widest text-muted">
+            PAYROLL &amp; HR
+          </p>
         </Link>
+        {orgName && (
+          <div className="mt-4 flex items-center gap-3 rounded-[var(--radius-card)] bg-surface-low p-3">
+            <OrgLogo
+              name={orgName}
+              logoUrl={orgLogoUrl}
+              size="md"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink">{orgName}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
