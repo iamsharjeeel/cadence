@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
+import { GoogleEventDetailModal } from "@/components/google-calendar/GoogleEventDetailModal";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { MotionCard } from "@/components/motion/MotionCard";
 import { MotionTR } from "@/components/motion/MotionTR";
@@ -18,6 +19,7 @@ import {
 } from "@/lib/leave/types";
 import type { LeaveType } from "@/types/db";
 import type { BalanceWithType, RequestWithMeta } from "@/lib/leave/queries";
+import type { GoogleCalendarEventWithMeta } from "@/lib/google-calendar/sync";
 import { cancelLeaveRequest } from "./actions";
 import { RequestLeaveModal } from "./RequestLeaveModal";
 
@@ -82,19 +84,31 @@ function requestOnDay(requests: RequestWithMeta[], iso: string) {
   );
 }
 
+function gcalEventsOnDay(events: GoogleCalendarEventWithMeta[], iso: string) {
+  return events.filter((e) => e.start_at.slice(0, 10) === iso);
+}
+
 export function LeaveEmployeeView({
   balances,
   requests,
   leaveTypes,
   calendarMonth,
+  googleCalendarEvents = [],
+  showGoogleCalendar = false,
 }: {
   balances: BalanceWithType[];
   requests: RequestWithMeta[];
   leaveTypes: LeaveType[];
   calendarMonth: string;
+  googleCalendarEvents?: GoogleCalendarEventWithMeta[];
+  showGoogleCalendar?: boolean;
 }) {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [gcalModalOpen, setGcalModalOpen] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [selectedGcalEvent, setSelectedGcalEvent] =
+    useState<GoogleCalendarEventWithMeta | null>(null);
+  const [gcalEvents, setGcalEvents] = useState(googleCalendarEvents);
   const { toast } = useToast();
 
   const displayBalances = useMemo(
@@ -130,7 +144,7 @@ export function LeaveEmployeeView({
         <p className="text-sm text-muted">
           Request time off and track your remaining balance.
         </p>
-        <Button onClick={() => setModalOpen(true)} disabled={leaveTypes.length === 0}>
+        <Button onClick={() => setRequestModalOpen(true)} disabled={leaveTypes.length === 0}>
           Request leave
         </Button>
       </div>
@@ -207,6 +221,9 @@ export function LeaveEmployeeView({
               const day = i + 1;
               const iso = dateStr(calendarMonth, day);
               const hit = requestOnDay(calendarRequests, iso);
+              const dayGcal = showGoogleCalendar
+                ? gcalEventsOnDay(gcalEvents, iso)
+                : [];
               return (
                 <div
                   key={day}
@@ -229,12 +246,35 @@ export function LeaveEmployeeView({
                   }
                 >
                   <span className="text-[13px] text-muted">{day}</span>
+                  {dayGcal.length > 0 ? (
+                    <div className="mt-1 flex flex-col gap-0.5">
+                      {dayGcal.slice(0, 2).map((event) => (
+                        <button
+                          key={event.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedGcalEvent(event);
+                            setGcalModalOpen(true);
+                          }}
+                          className="truncate rounded-full bg-[#4285F4] px-2 py-0.5 text-left text-[10px] font-medium text-white"
+                        >
+                          {event.title ?? "Event"}
+                        </button>
+                      ))}
+                      {dayGcal.length > 2 ? (
+                        <span className="text-[10px] text-muted">
+                          +{dayGcal.length - 2} more
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
           </div>
           <p className="px-4 py-3 text-xs text-muted">
             Highlighted days show approved or pending leave.
+            {showGoogleCalendar ? " Blue pills are synced Google Calendar events." : ""}
           </p>
         </CardContent>
       </MotionCard>
@@ -296,11 +336,28 @@ export function LeaveEmployeeView({
         </CardContent>
       </MotionCard>
 
-      {modalOpen && (
+      {gcalModalOpen && selectedGcalEvent ? (
+        <GoogleEventDetailModal
+          open={gcalModalOpen}
+          onClose={() => {
+            setGcalModalOpen(false);
+            setSelectedGcalEvent(null);
+          }}
+          event={selectedGcalEvent}
+          onEventUpdated={(updated) => {
+            setGcalEvents((prev) =>
+              prev.map((e) => (e.id === updated.id ? updated : e)),
+            );
+            setSelectedGcalEvent(updated);
+          }}
+        />
+      ) : null}
+
+      {requestModalOpen && (
         <RequestLeaveModal
           leaveTypes={leaveTypes.filter((t) => t.is_active)}
           balances={displayBalances}
-          onClose={() => setModalOpen(false)}
+          onClose={() => setRequestModalOpen(false)}
         />
       )}
     </div>

@@ -12,6 +12,7 @@ import {
 import { RolePill, StatusPill } from "@/components/ui/Badge";
 import { requireActiveProfile } from "@/lib/auth";
 import { getAsanaConnectionStatus } from "@/lib/asana/connection";
+import { getGCalConnectionStatus } from "@/lib/google-calendar/connection";
 import { createClient } from "@/lib/supabase/server";
 import type { AsanaImportedProject } from "@/types/db";
 import { ConnectedAccountsSection } from "./ConnectedAccountsSection";
@@ -27,13 +28,14 @@ import { ProfileCompleteness } from "./ProfileCompleteness";
 export const metadata: Metadata = { title: "Profile" };
 
 type ProfilePageProps = {
-  searchParams?: { asana?: string };
+  searchParams?: { asana?: string; gcal?: string };
 };
 
 export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const profile = await requireActiveProfile();
-  const [connection, importedProjects] = await Promise.all([
+  const [asanaConnection, gcalConnection, importedProjects] = await Promise.all([
     getAsanaConnectionStatus(profile.id),
+    getGCalConnectionStatus(profile.id),
     loadImportedAsanaProjects(profile.id),
   ]);
 
@@ -41,6 +43,13 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     searchParams?.asana === "connected"
       ? "connected"
       : searchParams?.asana === "error"
+        ? "error"
+        : null;
+
+  const gcalFlash =
+    searchParams?.gcal === "connected"
+      ? "connected"
+      : searchParams?.gcal === "error"
         ? "error"
         : null;
 
@@ -132,15 +141,17 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         <CardHeader>
           <CardTitle className="text-base">Connected accounts</CardTitle>
           <CardDescription>
-            Link personal integrations. Each user connects their own Asana account.
+            Link personal integrations — Asana for project tagging, Google Calendar for event sync.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Suspense fallback={null}>
             <ConnectedAccountsSection
-              connection={connection}
+              asanaConnection={asanaConnection}
               importedProjects={importedProjects}
-              flash={asanaFlash}
+              gcalConnection={gcalConnection}
+              asanaFlash={asanaFlash}
+              gcalFlash={gcalFlash}
             />
           </Suspense>
         </CardContent>

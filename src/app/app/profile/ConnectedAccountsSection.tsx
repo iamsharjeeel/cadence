@@ -1,60 +1,77 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ExternalLink, Loader2, RefreshCw, Unplug } from "lucide-react";
 
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
-
-import { MotionModal } from "@/components/motion/MotionModal";
+import { GoogleCalendarIcon } from "@/components/icons/GoogleCalendarIcon";
 import { Button, buttonStyles } from "@/components/ui/Button";
 import type { AsanaConnectionStatus } from "@/lib/asana/connection";
+import type { GCalConnectionStatus } from "@/lib/google-calendar/connection";
 import type { AsanaImportedProject } from "@/types/db";
-import { AsanaImportModal } from "./AsanaImportModal";
-import {
-  disconnectAsana,
-  removeImportedAsanaProject,
-  syncImportedAsanaProjectNames,
-} from "./asana-actions";
+import { cn } from "@/lib/utils";
+import { AsanaManageModal } from "./AsanaManageModal";
+import { GoogleCalendarManageModal } from "./GoogleCalendarManageModal";
+
+function ConnectionBadge({ connected }: { connected: boolean }) {
+  return (
+    <span
+      className={cn(
+        "rounded-[var(--radius-chip)] px-2 py-0.5 text-[11px] font-medium",
+        connected
+          ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+          : "bg-surface-low text-muted",
+      )}
+    >
+      {connected ? "Connected" : "Not connected"}
+    </span>
+  );
+}
 
 export function ConnectedAccountsSection({
-  connection,
+  asanaConnection,
   importedProjects,
-  flash,
+  gcalConnection,
+  asanaFlash,
+  gcalFlash,
 }: {
-  connection: AsanaConnectionStatus;
+  asanaConnection: AsanaConnectionStatus;
   importedProjects: AsanaImportedProject[];
-  flash?: "connected" | "error" | null;
+  gcalConnection: GCalConnectionStatus;
+  asanaFlash?: "connected" | "error" | null;
+  gcalFlash?: "connected" | "error" | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [toast, setToast] = useState<string | null>(null);
-  const [disconnectOpen, setDisconnectOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
-  const [needsReconnect, setNeedsReconnect] = useState(false);
-  const [pending, startTransition] = useTransition();
-  const [syncPending, startSync] = useTransition();
-  const [removePendingId, setRemovePendingId] = useState<string | null>(null);
+  const [asanaManageOpen, setAsanaManageOpen] = useState(false);
+  const [gcalManageOpen, setGcalManageOpen] = useState(false);
+  const [asanaNeedsReconnect, setAsanaNeedsReconnect] = useState(false);
 
   useEffect(() => {
-    if (flash === "connected") {
+    if (asanaFlash === "connected") {
       setToast("Asana connected successfully.");
-      setNeedsReconnect(false);
-    } else if (flash === "error") {
+      setAsanaNeedsReconnect(false);
+    } else if (asanaFlash === "error") {
       setToast("Couldn't connect Asana. Please try again.");
+    } else if (gcalFlash === "connected") {
+      setToast("Google Calendar connected successfully.");
+    } else if (gcalFlash === "error") {
+      setToast("Couldn't connect Google Calendar. Please try again.");
     }
-  }, [flash]);
+  }, [asanaFlash, gcalFlash]);
 
   useEffect(() => {
-    if (!flash) return;
+    if (!asanaFlash && !gcalFlash) return;
     const params = new URLSearchParams(searchParams.toString());
     params.delete("asana");
+    params.delete("gcal");
     const next = params.toString();
     router.replace(next ? `/app/profile?${next}` : "/app/profile", {
       scroll: false,
     });
-  }, [flash, router, searchParams]);
+  }, [asanaFlash, gcalFlash, router, searchParams]);
 
   useEffect(() => {
     if (!toast) return;
@@ -62,224 +79,140 @@ export function ConnectedAccountsSection({
     return () => clearTimeout(t);
   }, [toast]);
 
-  function handleDisconnect() {
-    startTransition(async () => {
-      const result = await disconnectAsana();
-      setToast(result.message);
-      if (result.ok) setDisconnectOpen(false);
-    });
-  }
-
-  function handleSync() {
-    startSync(async () => {
-      const result = await syncImportedAsanaProjectNames();
-      setToast(result.message);
-      if (result.needsReconnect) setNeedsReconnect(true);
-    });
-  }
-
-  function handleRemove(projectId: string) {
-    setRemovePendingId(projectId);
-    startTransition(async () => {
-      const result = await removeImportedAsanaProject(projectId);
-      setToast(result.message);
-      setRemovePendingId(null);
-    });
-  }
-
   return (
     <>
       {toast ? (
         <div
           role="status"
-          className="mb-4 rounded-2xl border border-line bg-[var(--accent-soft)] px-4 py-3 text-sm text-ink"
+          className="mb-4 rounded-[12px] border border-line bg-[var(--accent-soft)] px-4 py-3 text-sm text-ink"
         >
           {toast}
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F06A6A]/10">
-            <AsanaIcon size={24} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-[12px] bg-surface p-5 shadow-card">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#F06A6A]/10">
+                <AsanaIcon size={22} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium text-ink">Asana</p>
+                  <ConnectionBadge connected={asanaConnection.connected} />
+                </div>
+                {asanaConnection.connected ? (
+                  <p className="mt-1 text-sm text-muted">
+                    {asanaConnection.asanaUserEmail ??
+                      asanaConnection.asanaUserName ??
+                      "Connected account"}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted">
+                    Import projects for time entry tagging.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="font-medium text-ink">Asana</p>
-            {connection.connected ? (
-              <p className="mt-1 text-sm text-muted">
-                Connected as{" "}
-                <span className="font-medium text-ink">
-                  {connection.asanaUserName ?? connection.asanaUserEmail ?? "your account"}
-                </span>
-                {connection.asanaUserEmail && connection.asanaUserName ? (
-                  <span className="text-muted"> · {connection.asanaUserEmail}</span>
-                ) : null}
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted">
-                Connect your personal Asana account to browse and import projects.
-              </p>
-            )}
-          </div>
-        </div>
 
-        <div className="flex flex-wrap gap-2">
-          {connection.connected ? (
-            <>
-              {needsReconnect ? (
-                <Link
-                  href="/api/asana/connect"
-                  className={buttonStyles("primary", "sm")}
-                >
-                  Reconnect Asana
-                </Link>
-              ) : null}
+          <div className="mt-4">
+            {asanaConnection.connected ? (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => setImportOpen(true)}
+                onClick={() => setAsanaManageOpen(true)}
               >
-                Import projects
+                Manage
               </Button>
+            ) : (
+              <Link
+                href="/api/asana/connect"
+                className={buttonStyles("primary", "sm")}
+              >
+                Connect
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-[12px] bg-surface p-5 shadow-card">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#4285F4]/10">
+                <GoogleCalendarIcon size={22} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium text-ink">Google Calendar</p>
+                  <ConnectionBadge connected={gcalConnection.connected} />
+                </div>
+                {gcalConnection.connected ? (
+                  <p className="mt-1 text-sm text-muted">
+                    {gcalConnection.googleEmail ?? "Connected account"}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted">
+                    Sync events to leave calendar and time log suggestions.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            {gcalConnection.connected ? (
               <Button
                 type="button"
-                variant="ghost"
+                variant="secondary"
                 size="sm"
-                loading={pending}
-                onClick={() => setDisconnectOpen(true)}
+                onClick={() => setGcalManageOpen(true)}
               >
-                <Unplug className="mr-1.5 h-4 w-4" />
-                Disconnect
+                Manage
               </Button>
-            </>
-          ) : (
-            <Link
-              href="/api/asana/connect"
-              className={buttonStyles("primary", "sm")}
-            >
-              Connect Asana
-              <ExternalLink className="h-4 w-4" />
-            </Link>
-          )}
+            ) : (
+              <Link
+                href="/api/google-calendar/connect"
+                className={buttonStyles("primary", "sm")}
+              >
+                Connect
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
-      {connection.connected && needsReconnect ? (
+      {asanaConnection.connected ? (
+        <AsanaManageModal
+          open={asanaManageOpen}
+          onClose={() => setAsanaManageOpen(false)}
+          connection={asanaConnection}
+          importedProjects={importedProjects}
+          onToast={setToast}
+          onNeedsReconnect={() => setAsanaNeedsReconnect(true)}
+        />
+      ) : null}
+
+      {gcalConnection.connected ? (
+        <GoogleCalendarManageModal
+          open={gcalManageOpen}
+          onClose={() => setGcalManageOpen(false)}
+          connection={gcalConnection}
+          onToast={setToast}
+        />
+      ) : null}
+
+      {asanaConnection.connected && asanaNeedsReconnect ? (
         <div
           role="status"
-          className="mt-4 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]"
+          className="mt-4 rounded-[12px] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]"
         >
-          Your Asana connection needs additional permissions. Reconnect to import
-          projects from your workspaces.
+          Your Asana connection needs additional permissions. Open Manage to
+          reconnect.
         </div>
       ) : null}
-
-      {connection.connected ? (
-        <div className="mt-6 border-t border-line pt-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-medium text-ink">Imported projects</h3>
-              <p className="text-xs text-muted">
-                Personal list — tag time entries from the log view.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              loading={syncPending}
-              onClick={handleSync}
-            >
-              <RefreshCw className="mr-1.5 h-4 w-4" />
-              Sync names
-            </Button>
-          </div>
-
-          {importedProjects.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
-              No projects imported yet. Use Import projects to add some from Asana.
-            </p>
-          ) : (
-            <ul className="divide-y divide-line rounded-2xl border border-line">
-              {importedProjects.map((project) => (
-                <li
-                  key={project.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-ink">
-                      {project.asana_project_name}
-                    </p>
-                    <p className="truncate text-xs text-muted">
-                      {project.asana_workspace_name ?? project.asana_workspace_gid}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    loading={removePendingId === project.id}
-                    disabled={pending && removePendingId !== project.id}
-                    onClick={() => handleRemove(project.id)}
-                  >
-                    Remove
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : null}
-
-      <AsanaImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onImported={(message) => {
-          setNeedsReconnect(false);
-          setToast(message);
-        }}
-        onNeedsReconnect={() => setNeedsReconnect(true)}
-      />
-
-      <MotionModal
-        open={disconnectOpen}
-        onClose={() => !pending && setDisconnectOpen(false)}
-        panelClassName="max-w-md"
-      >
-        <h2 className="font-display text-lg font-semibold text-ink">
-          Disconnect Asana?
-        </h2>
-        <p className="mt-2 text-sm text-muted">
-          Stored tokens will be revoked and removed. Your imported project list
-          will also be cleared — you can reconnect and re-import anytime.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={pending}
-            onClick={() => setDisconnectOpen(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            loading={pending}
-            onClick={handleDisconnect}
-          >
-            {pending ? (
-              <>
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                Disconnecting…
-              </>
-            ) : (
-              "Disconnect"
-            )}
-          </Button>
-        </div>
-      </MotionModal>
     </>
   );
 }

@@ -21,7 +21,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **GitHub repo:** `cadence` (private, `iamsharjeeel/cadence`)
 - **Google OAuth:** configured — redirect URI `https://irybkcryeywmwpcmhlaa.supabase.co/auth/v1/callback`, JS origin `https://cadence-eta-five.vercel.app`
 - **Supabase Auth URL config:** Site URL = Vercel URL; Redirect URLs include `https://cadence-eta-five.vercel.app/**`
-- **Env vars (set in Vercel):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `SUPERADMIN_EMAIL` (server-only), `DOCUMENT_ENCRYPTION_KEY` (server-only), `RESEND_API_KEY` (server-only), `RESEND_FROM_EMAIL` (server-only), `ASANA_CLIENT_ID` (server-only), `ASANA_CLIENT_SECRET` (server-only), `ASANA_REDIRECT_URI` (server-only — `https://cadence-eta-five.vercel.app/api/asana/callback`)
+- **Env vars (set in Vercel):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `SUPERADMIN_EMAIL` (server-only), `DOCUMENT_ENCRYPTION_KEY` (server-only), `RESEND_API_KEY` (server-only), `RESEND_FROM_EMAIL` (server-only), `ASANA_CLIENT_ID` (server-only), `ASANA_CLIENT_SECRET` (server-only), `ASANA_REDIRECT_URI` (server-only — `https://cadence-eta-five.vercel.app/api/asana/callback`), `GOOGLE_CLIENT_ID` (server-only), `GOOGLE_CLIENT_SECRET` (server-only), `GOOGLE_CALENDAR_REDIRECT_URI` (server-only — `https://cadence-eta-five.vercel.app/api/google-calendar/callback`)
 
 ## Key product decisions (all locked)
 - **Multi-tenant** from day one. Every table scoped by `org_id`.
@@ -69,6 +69,9 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - `org_invites`: id, org_id, email, role, invited_by, created_at, expires_at, accepted_at — pending email invites
 - `asana_connections`: id, user_id (unique), access_token_enc, refresh_token_enc, expires_at, asana_user_gid/name/email, project_names_synced_at, connected_at, updated_at — per-user OAuth tokens (encrypted)
 - `asana_imported_projects`: id, user_id, asana_project_gid, asana_project_name, asana_workspace_gid/name, imported_at — personal imported project list (not org `projects`)
+- `google_calendar_connections`: id, user_id (unique), access_token_enc, refresh_token_enc, expires_at, google_email, connected_at, updated_at — per-user Google OAuth tokens (encrypted)
+- `google_selected_calendars`: id, user_id, calendar_id, calendar_name, is_synced — calendars chosen for sync
+- `google_calendar_events`: id, user_id, google_event_id, calendar_id, title, description, location, start_at, end_at, organizer_email/name, guests jsonb, html_link, synced_at — persisted synced events
 
 ### Helper functions (SECURITY DEFINER)
 `auth_role()`, `auth_org()`, `is_active()`, `next_document_number(org_id, type)`
@@ -1217,6 +1220,48 @@ Run `supabase/migrations/20260623000000_leave_types_unit.sql` in Supabase SQL ed
 - **`src/components/time/ProjectPicker.tsx`:** single dropdown — Asana section (when connected + imports) + Cadence projects + “+ New project”; mutual exclusion (`project_id` XOR `asana_project_id`); placeholder “Project”; dark mode tokens.
 - **`TimeEntryRow.tsx`:** replaces `AsanaProjectPicker` + `CadenceProjectListbox` with `<ProjectPicker />`; `AsanaProjectPickerMeta` only when Asana project selected.
 - **`TimeTrackingView.tsx`:** `onProjectPick` clears the other ID on save.
+
+### Session — Google Calendar integration ✅
+
+#### Manual step required
+Run `supabase/migrations/20260624000000_google_calendar.sql` in Supabase SQL editor **before** deploying (or paste the SQL from the migration file).
+
+#### Architecture
+- **Per-user OAuth** — each Cadence user connects their own Google account; scope `calendar.readonly`.
+- **Entry point:** Profile → **Connected accounts** — side-by-side Asana + Google Calendar tiles; **Manage** opens modals (no inline expansion).
+- **OAuth flow:**
+  - `GET /api/google-calendar/connect` — httpOnly state cookie, redirects to Google OAuth
+  - `GET /api/google-calendar/callback` — exchanges code, fetches user email, encrypts tokens, redirects to `/app/profile?gcal=connected#section-connected`
+  - `POST /api/google-calendar/disconnect` — revokes token, clears connection + selected calendars + synced events
+- **Token encryption:** AES-256-GCM via `DOCUMENT_ENCRYPTION_KEY`, scrypt salt `cadence-gcal-v1` (`src/lib/google-calendar/crypto.ts`).
+- **Token refresh:** `getValidGCalAccessToken()` refreshes when expired or within 5 minutes of expiry.
+
+#### Database
+- **`google_calendar_connections`** — per-user OAuth tokens (encrypted), `google_email`, timestamps. RLS: user manages own row.
+- **`google_selected_calendars`** — `calendar_id`, `calendar_name`, `is_synced`. Unique `(user_id, calendar_id)`.
+- **`google_calendar_events`** — synced events (title, times, organizer, guests jsonb, html_link). Unique `(user_id, google_event_id)`.
+- Index: `idx_gcal_events_user_date` on `(user_id, start_at)`.
+
+#### Env vars (Vercel, server-only unless noted)
+- `GOOGLE_CLIENT_ID` — Google Cloud OAuth client ID (Calendar API enabled)
+- `GOOGLE_CLIENT_SECRET` — OAuth client secret
+- `GOOGLE_CALENDAR_REDIRECT_URI` — must match Google console (`…/api/google-calendar/callback`)
+
+#### UI & features
+- **Connected accounts:** two-tile grid; `AsanaManageModal` + `GoogleCalendarManageModal`; official multicolor `GoogleCalendarIcon`.
+- **Google manage modal:** calendar sync toggles, Sync events button, upcoming events list with per-row refresh, disconnect confirm.
+- **Leave calendar:** synced events as blue `#4285F4` pills on day cells when connected + ≥1 `is_synced` calendar; click → `GoogleEventDetailModal`.
+- **Log time suggestions:** SSR prefetch `getEventsForDay` per week day; collapsible “From calendar” section with Add button; `?date=&prefill=` from event detail modal.
+- **Mobile nav:** sidebar hidden below 768px; full-screen overlay z-50; topbar hamburger + Cadence wordmark center + avatar/bell right.
+
+#### Key files
+- `src/lib/google-calendar/{config,crypto,connection,api,sync,errors,prefill}.ts`
+- `src/app/api/google-calendar/{connect,callback,disconnect}/route.ts`
+- `src/app/app/profile/{google-calendar-actions,AsanaManageModal,GoogleCalendarManageModal}.tsx`
+- `src/components/icons/GoogleCalendarIcon.tsx`
+- `src/components/google-calendar/GoogleEventDetailModal.tsx`
+- Updated: `ConnectedAccountsSection.tsx`, `LeaveEmployeeView.tsx`, `TimeTrackingView.tsx`, `AppShell.tsx`, `Sidebar.tsx`, `Topbar.tsx`
+- `supabase/migrations/20260624000000_google_calendar.sql`
 
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)

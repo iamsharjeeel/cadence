@@ -106,6 +106,14 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - **Collapse on Save only:** autosave no longer collapses; loaded entries still start collapsed; Save = persist + collapse
 - **Collapsed summary precedence:** Cadence-only, Asana-only (no erroneous "No project"), or both shown together; "Synced …" subordinate to Asana tag
 
+### Phase 10 — Google Calendar integration
+- **Per-user OAuth:** Google Calendar `calendar.readonly` scope; tokens encrypted at rest (`cadence-gcal-v1` salt)
+- **Profile → Connected accounts:** side-by-side Asana + Google Calendar tiles; Manage modals for each integration
+- **Calendar sync:** select calendars, sync events (−7 to +60 days), persisted in `google_calendar_events`
+- **Leave page:** synced events as blue chips on calendar grid; event detail modal with “Add as time entry”
+- **Log time:** “From calendar” suggestions per day; prefill via `?date=&prefill=` query params
+- **Mobile nav:** sidebar overlay below 768px; topbar hamburger + Cadence wordmark + avatar/bell
+
 ### Light polish + dark mode (Stitch reference)
 Light mode polish pass + dark mode implementation: sharp corners, hairline borders, gold-on-black stat numbers, uppercase nav labels in dark, audit action badge chips, leave balance cards with progress bars, landing hero Playfair tagline as decorative background layer, sidebar org logo block at top with "PAYROLL & HR" subtitle.
 
@@ -134,6 +142,9 @@ npm run dev                        # http://localhost:3000
 | `ASANA_CLIENT_ID` | server-only | Asana OAuth app client ID |
 | `ASANA_CLIENT_SECRET` | server-only | Asana OAuth app client secret |
 | `ASANA_REDIRECT_URI` | server-only | Must match Asana app registration (`…/api/asana/callback`) |
+| `GOOGLE_CLIENT_ID` | server-only | Google OAuth client ID (Calendar API) |
+| `GOOGLE_CLIENT_SECRET` | server-only | Google OAuth client secret |
+| `GOOGLE_CALENDAR_REDIRECT_URI` | server-only | Must match Google console (`…/api/google-calendar/callback`) |
 
 ## Database migrations
 
@@ -150,6 +161,8 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 9. `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` — **required for decimal-hours entry mode**
 10. `supabase/migrations/20260621000000_asana_oauth.sql` — **required for Asana OAuth + import**
 11. `supabase/migrations/20260622000000_time_entry_asana_project.sql` — **required for Asana entry picker**
+12. `supabase/migrations/20260623000000_leave_types_unit.sql` — leave unit system
+13. `supabase/migrations/20260624000000_google_calendar.sql` — **required for Google Calendar integration**
 
 ## Design system v2
 

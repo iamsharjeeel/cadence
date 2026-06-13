@@ -5,6 +5,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  getEventsForDateRange,
+  hasSyncedCalendars,
+} from "@/lib/google-calendar/sync";
+import { hasGCalConnection } from "@/lib/google-calendar/connection";
+import {
   getLeaveBalancesForEmployee,
   getLeaveRequestsForEmployee,
   getOrgLeaveTypes,
@@ -21,11 +26,23 @@ async function loadPersonalLeave(profile: Awaited<ReturnType<typeof requireActiv
 
   const year = new Date().getFullYear();
   const calendarMonth = new Date().toISOString().slice(0, 7);
-  const [balances, requests, leaveTypes] = await Promise.all([
-    getLeaveBalancesForEmployee(profile, year),
-    getLeaveRequestsForEmployee(profile),
-    getOrgLeaveTypes(profile.org_id),
-  ]);
+  const monthStart = `${calendarMonth}-01`;
+  const monthEnd = `${calendarMonth}-${String(new Date(Number(calendarMonth.slice(0, 4)), Number(calendarMonth.slice(5, 7)), 0).getDate()).padStart(2, "0")}`;
+
+  const [balances, requests, leaveTypes, gcalConnected, gcalSynced] =
+    await Promise.all([
+      getLeaveBalancesForEmployee(profile, year),
+      getLeaveRequestsForEmployee(profile),
+      getOrgLeaveTypes(profile.org_id),
+      hasGCalConnection(profile.id),
+      hasSyncedCalendars(profile.id),
+    ]);
+
+  const showGoogleCalendar = gcalConnected && gcalSynced;
+  const googleCalendarEvents =
+    showGoogleCalendar
+      ? await getEventsForDateRange(profile.id, monthStart, monthEnd)
+      : [];
 
   return (
     <LeaveEmployeeView
@@ -33,6 +50,8 @@ async function loadPersonalLeave(profile: Awaited<ReturnType<typeof requireActiv
       requests={requests}
       leaveTypes={leaveTypes}
       calendarMonth={calendarMonth}
+      googleCalendarEvents={googleCalendarEvents}
+      showGoogleCalendar={showGoogleCalendar}
     />
   );
 }

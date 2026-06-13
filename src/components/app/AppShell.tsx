@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { Sidebar } from "@/components/app/Sidebar";
@@ -21,6 +22,11 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const isOnboarding = pathname.startsWith("/app/onboarding");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   if (isOnboarding) {
     return (
@@ -41,9 +47,15 @@ export function AppShell({
           role={profile.role}
           orgName={orgName}
           orgLogoUrl={orgLogoUrl}
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
         />
         <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar profile={profile} />
+          <Topbar
+            profile={profile}
+            mobileNavOpen={mobileNavOpen}
+            onMobileNavToggle={() => setMobileNavOpen((v) => !v)}
+          />
           <main className="flex-1 bg-background px-5 py-8 sm:px-8">
             <PageTransition>{children}</PageTransition>
           </main>

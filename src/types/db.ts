@@ -151,6 +151,138 @@ export type Database = {
           },
         ]
       }
+      google_calendar_connections: {
+        Row: {
+          id: string
+          user_id: string
+          access_token_enc: string
+          refresh_token_enc: string | null
+          expires_at: string
+          google_email: string | null
+          connected_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          access_token_enc: string
+          refresh_token_enc?: string | null
+          expires_at: string
+          google_email?: string | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          access_token_enc?: string
+          refresh_token_enc?: string | null
+          expires_at?: string
+          google_email?: string | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_selected_calendars: {
+        Row: {
+          id: string
+          user_id: string
+          calendar_id: string
+          calendar_name: string
+          is_synced: boolean
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          calendar_id: string
+          calendar_name: string
+          is_synced?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          calendar_id?: string
+          calendar_name?: string
+          is_synced?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_selected_calendars_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_calendar_events: {
+        Row: {
+          id: string
+          user_id: string
+          google_event_id: string
+          calendar_id: string
+          title: string | null
+          description: string | null
+          location: string | null
+          start_at: string
+          end_at: string
+          organizer_email: string | null
+          organizer_name: string | null
+          guests: Json
+          html_link: string | null
+          synced_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          google_event_id: string
+          calendar_id: string
+          title?: string | null
+          description?: string | null
+          location?: string | null
+          start_at: string
+          end_at: string
+          organizer_email?: string | null
+          organizer_name?: string | null
+          guests?: Json
+          html_link?: string | null
+          synced_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          google_event_id?: string
+          calendar_id?: string
+          title?: string | null
+          description?: string | null
+          location?: string | null
+          start_at?: string
+          end_at?: string
+          organizer_email?: string | null
+          organizer_name?: string | null
+          guests?: Json
+          html_link?: string | null
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           allowed_domains: string[]
@@ -1104,6 +1236,9 @@ export const Constants = {
 export type Organization = Tables<"organizations">
 export type AsanaConnection = Tables<"asana_connections">
 export type AsanaImportedProject = Tables<"asana_imported_projects">
+export type GoogleCalendarConnection = Tables<"google_calendar_connections">
+export type GoogleSelectedCalendar = Tables<"google_selected_calendars">
+export type GoogleCalendarEventRow = Tables<"google_calendar_events">
 export type Profile = Tables<"profiles">
 export type AuditLog = Tables<"audit_log">
 export type Document = Tables<"documents">
