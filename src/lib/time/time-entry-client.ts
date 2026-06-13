@@ -8,6 +8,7 @@ import {
   type EntryMode,
 } from "@/lib/time/decimal-hours";
 import {
+  durationHours,
   hoursBetween,
   isOvernightShift,
   parseTime,
@@ -193,6 +194,13 @@ export async function saveTimeEntryClient(
   if (!("row" in built)) return built;
   const { row, overnight } = built;
 
+  // Compute hours client-side with overnight wrapping — the DB `total_hours`
+  // generated column is (end - start)/3600 and goes NEGATIVE for overnight.
+  const computedHours =
+    row.entry_mode === "decimal_hours"
+      ? row.decimal_hours ?? 0
+      : durationHours(row.start_time, row.end_time) ?? 0;
+
   if (row.entry_mode === "time_range" && !overnight) {
     const overlap = await checkOverlap(
       input.employeeId,
@@ -223,7 +231,7 @@ export async function saveTimeEntryClient(
       })
       .eq("id", input.id)
       .eq("employee_id", input.employeeId)
-      .select("id, total_hours")
+      .select("id")
       .single();
 
     if (error || !data) {
@@ -236,14 +244,14 @@ export async function saveTimeEntryClient(
     return {
       ok: true,
       id: data.id,
-      total_hours: Number(data.total_hours),
+      total_hours: computedHours,
     };
   }
 
   const { data, error } = await supabase
     .from("time_entries")
     .insert(row)
-    .select("id, total_hours")
+    .select("id")
     .single();
 
   if (error || !data) {
@@ -256,7 +264,7 @@ export async function saveTimeEntryClient(
   return {
     ok: true,
     id: data.id,
-    total_hours: Number(data.total_hours),
+    total_hours: computedHours,
   };
 }
 

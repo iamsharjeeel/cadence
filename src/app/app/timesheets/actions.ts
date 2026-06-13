@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { calculateTotal } from "@/lib/timesheets/calc";
+import { durationHours } from "@/lib/time/validation";
 import type { RateType } from "@/types/db";
 
 export type ActionResult = {
@@ -19,9 +20,23 @@ export type ActionResult = {
 async function totalHoursForTimesheet(db: ReturnType<typeof createAdminClient>, id: string) {
   const { data: rows } = await db
     .from("time_entries")
-    .select("total_hours")
+    .select("start_time, end_time, entry_mode, decimal_hours")
     .eq("timesheet_id", id);
-  let total = (rows ?? []).reduce((sum, r) => sum + Number(r.total_hours), 0);
+  // Recompute with overnight wrapping — never sum the generated total_hours
+  // column (negative for overnight). Drives calculated_total (pay) at approval.
+  let total =
+    Math.round(
+      (rows ?? []).reduce((sum, r) => {
+        const hrs =
+          r.entry_mode === "decimal_hours" && r.decimal_hours != null
+            ? Number(r.decimal_hours)
+            : durationHours(
+                String(r.start_time).slice(0, 5),
+                String(r.end_time).slice(0, 5),
+              ) ?? 0;
+        return sum + hrs;
+      }, 0) * 100,
+    ) / 100;
   if (total === 0) {
     const { data: legacyRows } = await db
       .from("timesheet_rows")

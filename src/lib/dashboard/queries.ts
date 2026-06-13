@@ -1,8 +1,36 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { durationHours } from "@/lib/time/validation";
 import type { Profile, Timesheet } from "@/types/db";
 import { currentMonthRange, isoWeekKey, lastNWeeks } from "./period";
+
+/** Time-entry columns needed to compute hours with overnight wrapping. */
+const ENTRY_HOURS_SELECT = "start_time, end_time, entry_mode, decimal_hours";
+
+type EntryHoursRow = {
+  start_time?: string | null;
+  end_time?: string | null;
+  entry_mode?: string | null;
+  decimal_hours?: number | null;
+  total_hours?: number | null;
+};
+
+/** Hours for a single entry, wrapping overnight (never the negative generated column). */
+function entryHours(r: EntryHoursRow): number {
+  if (r.entry_mode === "decimal_hours" && r.decimal_hours != null) {
+    return Number(r.decimal_hours);
+  }
+  if (r.start_time && r.end_time) {
+    return (
+      durationHours(
+        String(r.start_time).slice(0, 5),
+        String(r.end_time).slice(0, 5),
+      ) ?? 0
+    );
+  }
+  return Number(r.total_hours ?? 0);
+}
 
 export type CurrencyTotals = Record<string, number>;
 
@@ -48,8 +76,8 @@ export type OrgSummaryCard = {
   approvedHoursPeriod: number;
 };
 
-function sumEntryHours(rows: { total_hours: number | null }[]): number {
-  return rows.reduce((s, r) => s + Number(r.total_hours ?? 0), 0);
+function sumEntryHours(rows: EntryHoursRow[]): number {
+  return Math.round(rows.reduce((s, r) => s + entryHours(r), 0) * 100) / 100;
 }
 
 function monthRange() {
@@ -89,7 +117,7 @@ export async function getEmployeeDashboard(
   if (approvedMonthIds.length > 0) {
     const { data: entries } = await db
       .from("time_entries")
-      .select("total_hours")
+      .select(ENTRY_HOURS_SELECT)
       .in("timesheet_id", approvedMonthIds);
     approvedHoursMonth = sumEntryHours(entries ?? []);
   }
@@ -98,7 +126,7 @@ export async function getEmployeeDashboard(
     approved.slice(0, 6).map(async (t) => {
       const { data: entries } = await db
         .from("time_entries")
-        .select("total_hours")
+        .select(ENTRY_HOURS_SELECT)
         .eq("timesheet_id", t.id);
       return {
         label: t.period_start.slice(5),
@@ -167,14 +195,14 @@ export async function getAdminDashboard(
   if (approvedIds.length > 0) {
     const { data: entries } = await db
       .from("time_entries")
-      .select("total_hours, entry_date, timesheet_id")
+      .select(`${ENTRY_HOURS_SELECT}, entry_date, timesheet_id`)
       .in("timesheet_id", approvedIds);
 
     const sheetById = new Map(approved.map((t) => [t.id, t]));
 
     for (const row of entries ?? []) {
       if (!row.timesheet_id) continue;
-      const hrs = Number(row.total_hours ?? 0);
+      const hrs = entryHours(row);
       approvedHoursPeriod += hrs;
       const sheet = sheetById.get(row.timesheet_id);
       if (sheet) {
@@ -315,7 +343,7 @@ export async function getSuperadminOrgSummaries(): Promise<OrgSummaryCard[]> {
     if (ids.length > 0) {
       const { data: entries } = await db
         .from("time_entries")
-        .select("total_hours")
+        .select(ENTRY_HOURS_SELECT)
         .in("timesheet_id", ids);
       approvedHoursPeriod = sumEntryHours(entries ?? []);
     }

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { durationHours } from "@/lib/time/validation";
 import {
   OVERTIME_HOURS_THRESHOLD,
   SUBMIT_MIN_DAYS,
@@ -29,12 +30,26 @@ export async function computeWeekStats(timesheetId: string): Promise<WeekStats> 
   const db = createAdminClient();
   const { data: entries } = await db
     .from("time_entries")
-    .select("entry_date, total_hours")
+    .select("entry_date, start_time, end_time, entry_mode, decimal_hours")
     .eq("timesheet_id", timesheetId);
 
   const rows = entries ?? [];
   const daysLogged = new Set(rows.map((r) => r.entry_date)).size;
-  const totalHours = rows.reduce((sum, r) => sum + Number(r.total_hours), 0);
+  // Compute with overnight wrapping — never sum the generated `total_hours`
+  // column, which is negative for overnight ranges (end < start).
+  const totalHours =
+    Math.round(
+      rows.reduce((sum, r) => {
+        const hrs =
+          r.entry_mode === "decimal_hours" && r.decimal_hours != null
+            ? Number(r.decimal_hours)
+            : durationHours(
+                String(r.start_time).slice(0, 5),
+                String(r.end_time).slice(0, 5),
+              ) ?? 0;
+        return sum + hrs;
+      }, 0) * 100,
+    ) / 100;
   const ot = overtimeHours(totalHours);
 
   return {

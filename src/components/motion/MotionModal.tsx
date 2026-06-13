@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
@@ -23,21 +24,29 @@ export function MotionModal({
   className?: string;
   panelClassName?: string;
 }) {
+  // Portal to <body> so the modal escapes any transformed ancestor
+  // (PageTransition / MotionCard animate `y` → `transform`, which would
+  // otherwise make `position: fixed` resolve against that box instead of the
+  // viewport — the cause of off-center placement + hover flicker).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (!open) return;
     lockBodyScroll();
     return () => unlockBodyScroll();
   }, [open]);
 
-  return (
-    // Default (sync) mode: backdrop + panel are two keyed children that must
-    // animate in/out together. `mode="wait"` would serialize sibling exits.
+  if (!mounted) return null;
+
+  return createPortal(
+    // Sync mode: backdrop + panel are keyed children that animate together.
     <AnimatePresence>
       {open && (
         <motion.div
           key="cadence-modal-backdrop"
           aria-hidden="true"
-          className="fixed inset-0 z-40 bg-black/50"
+          className="fixed inset-0 z-[100] bg-black/50"
           {...MODAL_BACKDROP}
           onClick={onClose}
         />
@@ -48,22 +57,28 @@ export function MotionModal({
           role="dialog"
           aria-modal="true"
           className={cn(
-            "pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4",
+            "pointer-events-none fixed inset-0 z-[101] flex items-center justify-center p-4",
             className,
           )}
           {...MODAL_PANEL}
         >
+          {/* Single flex child carries the width constraint so justify-center
+              actually centers it. max-w from panelClassName wins; otherwise
+              default to max-w-lg. */}
           <div
             className={cn(
               "pointer-events-auto max-h-[calc(100vh-2rem)] w-full",
               panelClassName?.includes("max-w-") ? "" : "max-w-lg",
+              MODAL_PANEL_CLASS,
+              panelClassName,
             )}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className={cn(MODAL_PANEL_CLASS, panelClassName)}>{children}</div>
+            {children}
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

@@ -32,6 +32,7 @@ import {
   deleteTimeEntryClient,
   saveTimeEntryClient,
 } from "@/lib/time/time-entry-client";
+import { durationHours } from "@/lib/time/validation";
 import {
   computeWeekStatsFromPersisted,
   groupHoursByProject,
@@ -90,6 +91,12 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
   const mode = (e.entry_mode ?? "time_range") as EntryMode;
   const start = formatTime(e.start_time);
   const end = formatTime(e.end_time);
+  // Never trust the DB `total_hours` (generated, negative for overnight) —
+  // recompute with overnight wrapping for display/aggregation.
+  const computedHours =
+    mode === "decimal_hours" && e.decimal_hours != null
+      ? Number(e.decimal_hours)
+      : durationHours(start, end) ?? Number(e.total_hours);
   return {
     clientId: e.id,
     id: e.id,
@@ -105,7 +112,7 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
     asana_project_id: e.asana_project_id ?? null,
     description: e.description ?? "",
     billable: e.billable,
-    total_hours: Number(e.total_hours),
+    total_hours: computedHours,
     saveState: "saved",
     collapsed: true,
   };

@@ -1337,6 +1337,43 @@ Six-part hardening pass. Branch `claude/dreamy-franklin-wlhqld`.
 - **Branch:** pushed to `claude/dreamy-franklin-wlhqld` (per branch policy — not directly to `main`). Promote/merge as desired.
 - **Google Calendar reconnect (optional):** existing connections get their email backfilled on first Manage-open. For email-at-connect on *new* sign-ins, no action needed (scopes added). No migration required this session.
 
+### Session — Modal flicker ROOT CAUSE (portal), overnight duration formula, trends client-side filters ✅
+
+Branch `claude/dreamy-franklin-wlhqld`. Three items; Item 1 was misdiagnosed twice before.
+
+#### Item 1 — Modal flicker + off-center (ACTUAL root cause this time)
+- **Diagnosis:** `position: fixed` modals render *inside* `PageTransition`'s `<motion.div {...PAGE_TRANSITION}>` (`AppShell.tsx`), and `PAGE_TRANSITION` animates `y` → a `transform`. Per CSS, a transformed ancestor becomes the **containing block for `fixed`** descendants, so the backdrop/panel resolved against the **main-content box** (offset by sidebar, only as tall as content) — not the viewport. → off-center, partial dimming; and when hovering re-rendered the subtree, Framer re-applied/cleared the transform so the fixed children's containing block flipped → **flicker**. The prior flex-centering rewrite couldn't fix an *ancestor* problem. (`RowActionsMenu` already portals for this exact reason.)
+- **Secondary:** `max-w` from `panelClassName` was applied to the inner block div, not the centered flex child → left-aligned even when viewport-relative.
+- **Fix:** `MotionModal` now `createPortal`s to `document.body` (escapes all transformed ancestors → `fixed` is viewport-relative), and collapses to a **single flex child** carrying the width constraint so `justify-center` works. z bumped to `z-[100]/[101]`. `OfficialDocSignModal` (bespoke full-screen) also portaled. Notifications bell / time+date pickers were never affected (topbar-based / `absolute`, not `fixed`).
+
+#### Item 2 — Overnight duration formula (wrong sign + magnitude)
+- **Diagnosis:** live `time_entries.total_hours` is `GENERATED ALWAYS AS (end - start)/3600` → **negative** for overnight (23:30→00:15 = −23.25h). The app read this DB value directly. The pure formula `hoursBetween` already wraps correctly; nothing used it for persisted rows.
+- **Fix (client-side, no DB change, no `is_overnight`):** new `durationHours(start,end)` in `validation.ts` (wraps when end ≤ start). Every consumer now recomputes instead of reading the generated column:
+  - Log view: `saveTimeEntryClient` returns computed hours; `TimeTrackingView.entryToDraft` recomputes → fixes row chip, week TOTAL, by-project, billable split, submit progress.
+  - Server submit gate: `week-stats.ts computeWeekStats`.
+  - Detail page `[id]/page.tsx` (per-row + total). Approval pay: `actions.ts totalHoursForTimesheet` → correct `calculated_total`.
+  - Dashboard `queries.ts` + Trends `trends.ts` (wrapped once at the data-loading boundary) + SSR `week-stats-from-entries.ts`.
+  - Verified: 23:30→00:15 = 0.75h, 22:00→02:00 = 4.0h, 09:00→17:00 = 8h. (CSV export reads legacy `timesheet_rows.hours`, unaffected.)
+
+#### Item 3 — Trends filters caused full reload
+- **Diagnosis:** range filter used a raw `<a href="?range=…">` → full document reload; superadmin org select navigated via router.
+- **Fix:** new `getTrendsBundle()` (shared server lib), `fetchTrendsData()` server action, and `TrendsClient.tsx` client component holding `range`/`org` state — filter changes call the action and update charts **in place** (dim during `useTransition`, `history.replaceState` keeps the URL shareable, no navigation). Range pills are now `<button>`s; org is a native dark-mode `<select>`.
+
+#### Key files
+- `src/components/motion/MotionModal.tsx`, `src/components/official-docs/OfficialDocSignModal.tsx`
+- `src/lib/time/validation.ts` (`durationHours`), `time-entry-client.ts`, `week-stats.ts`, `week-stats-from-entries.ts`, `trends.ts`
+- `src/app/app/timesheets/TimeTrackingView.tsx`, `[id]/page.tsx`, `actions.ts`; `src/lib/dashboard/queries.ts`
+- `src/app/app/trends/{page.tsx,TrendsClient.tsx,trends-actions.ts}`
+
+#### Owner test checklist
+1. Open Delete dialog from a timesheet row → **centered**, full-screen dim, no shake; move cursor over dimmed area → **no flicker**. Repeat for onboarding modal + official-doc sign.
+2. Log `23:30–00:15` → **0.75h** on the row, week TOTAL, by-project, billable, submit progress. Log `22:00–02:00` → **4.0h**.
+3. `/trends`: click Weekly/Fortnightly/Monthly/6 months/Yearly and (superadmin) switch Organization → charts update **in place**, no full-page reload/flash.
+
+#### Notes / not changed
+- Kept client-side per instruction (no DB migration; `total_hours` stays generated; `is_overnight` not reintroduced).
+- Branch pushed to `claude/dreamy-franklin-wlhqld` only (not `main`).
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)

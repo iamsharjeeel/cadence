@@ -4,16 +4,38 @@ import {
   SUBMIT_MIN_HOURS,
   type WeekStats,
 } from "@/lib/time/week-constants";
+import { durationHours } from "@/lib/time/validation";
 
-type EntrySlice = { entry_date: string; total_hours: number | null };
+type EntrySlice = {
+  entry_date: string;
+  total_hours?: number | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  entry_mode?: string | null;
+  decimal_hours?: number | null;
+};
+
+/** Hours for a slice, wrapping overnight — never the negative generated column. */
+function sliceHours(e: EntrySlice): number {
+  if (e.entry_mode === "decimal_hours" && e.decimal_hours != null) {
+    return Number(e.decimal_hours);
+  }
+  if (e.start_time && e.end_time) {
+    return (
+      durationHours(
+        String(e.start_time).slice(0, 5),
+        String(e.end_time).slice(0, 5),
+      ) ?? 0
+    );
+  }
+  return Number(e.total_hours ?? 0);
+}
 
 /** Derive week stats from entry rows already in hand — avoids a redundant DB query. */
 export function weekStatsFromEntries(entries: EntrySlice[]): WeekStats {
-  const rows = entries.filter(
-    (e) => e.total_hours != null && !Number.isNaN(Number(e.total_hours)),
-  );
-  const daysLogged = new Set(rows.map((r) => r.entry_date)).size;
-  const totalHours = rows.reduce((sum, r) => sum + Number(r.total_hours), 0);
+  const daysLogged = new Set(entries.map((r) => r.entry_date)).size;
+  const totalHours =
+    Math.round(entries.reduce((sum, r) => sum + sliceHours(r), 0) * 100) / 100;
   const overtime =
     totalHours > OVERTIME_HOURS_THRESHOLD
       ? Math.round((totalHours - OVERTIME_HOURS_THRESHOLD) * 100) / 100

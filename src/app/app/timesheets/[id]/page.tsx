@@ -28,8 +28,23 @@ import type {
   TimesheetStatus,
 } from "@/types/db";
 import type { TimeEntryWithProject } from "@/types/time-tracking";
+import { durationHours } from "@/lib/time/validation";
 
 export const metadata: Metadata = { title: "Timesheet" };
+
+/** Correct hours for an entry — wraps overnight (the DB total_hours column is
+ *  generated as (end - start)/3600 and goes negative for overnight ranges). */
+function entryHours(e: TimeEntryWithProject): number {
+  if (e.entry_mode === "decimal_hours" && e.decimal_hours != null) {
+    return Number(e.decimal_hours);
+  }
+  return (
+    durationHours(
+      String(e.start_time).slice(0, 5),
+      String(e.end_time).slice(0, 5),
+    ) ?? Number(e.total_hours)
+  );
+}
 
 export default async function TimesheetDetailPage({
   params,
@@ -109,7 +124,7 @@ export default async function TimesheetDetailPage({
   const canApprove = hasRole(profile, ["admin", "superadmin"]);
   const totalHours =
     entries.length > 0
-      ? entries.reduce((sum, r) => sum + Number(r.total_hours), 0)
+      ? Math.round(entries.reduce((sum, r) => sum + entryHours(r), 0) * 100) / 100
       : rows.reduce((sum, r) => sum + Number(r.hours), 0);
   const isReadOnlyAdmin =
     canApprove && timesheet.employee_id !== profile.id;
@@ -332,7 +347,7 @@ export default async function TimesheetDetailPage({
                     <TD className="tabular text-sm">{formatDate(r.entry_date)}</TD>
                     <TD className="tabular text-sm">{String(r.start_time).slice(0, 5)}</TD>
                     <TD className="tabular text-sm">{String(r.end_time).slice(0, 5)}</TD>
-                    <TD className="tabular text-sm">{r.total_hours}</TD>
+                    <TD className="tabular text-sm">{entryHours(r)}</TD>
                     <TD className="text-sm">
                       {r.project?.name ?? "—"}
                     </TD>

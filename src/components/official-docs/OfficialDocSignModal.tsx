@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import SignatureCanvas from "react-signature-canvas";
 
 import { Button } from "@/components/ui/Button";
@@ -26,6 +27,9 @@ export function OfficialDocSignModal({
   const [busy, setBusy] = useState(false);
   const sigRef = useRef<SignatureCanvas>(null);
   const fetched = useRef(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     lockBodyScroll();
@@ -72,8 +76,10 @@ export function OfficialDocSignModal({
     setBusy(false);
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex flex-col bg-background">
       <div className="flex items-center justify-between border-b px-6 py-4">
         <h2 className="font-display text-lg font-semibold text-ink">{document.name}</h2>
         <Button variant="ghost" size="sm" onClick={onClose}>
@@ -136,6 +142,7 @@ export function OfficialDocSignModal({
             : "Acknowledge"}
         </Button>
       </div>
-    </div>
+    </div>,
+    window.document.body,
   );
 }

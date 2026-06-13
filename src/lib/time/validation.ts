@@ -20,6 +20,18 @@ export function hoursBetween(start: string, end: string, overnight: boolean): nu
   return Math.round(((endMin - startMin) / 60) * 100) / 100;
 }
 
+/**
+ * Correct positive duration (hours) for ANY start/end pair, wrapping past
+ * midnight when end <= start (overnight). e.g. 23:30→00:15 = 0.75h,
+ * 22:00→02:00 = 4h, 09:00→17:00 = 8h.
+ *
+ * Use this for all display/aggregation — NEVER the DB `total_hours` column,
+ * which is GENERATED as (end - start)/3600 and goes negative for overnight.
+ */
+export function durationHours(start: string, end: string): number | null {
+  return hoursBetween(start, end, isOvernightShift(start, end));
+}
+
 export function isOvernightShift(start: string, end: string): boolean {
   const s = parseTime(start);
   const e = parseTime(end);

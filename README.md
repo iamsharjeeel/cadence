@@ -124,6 +124,11 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
 - **Dark mode dropdowns:** native `<select>`/`<option>` and all custom listboxes respect surface tokens.
 - **Hardening:** per-route `error.tsx` boundaries, request-sequence guard on the time-log loader, trends empty states, fetch-once guards, verified interval/effect cleanup. `npm run typecheck` + `npm run build` pass clean.
 
+### Modal portal, overnight duration, client-side trends filters
+- **Modals render via a portal to `document.body`** so `position: fixed` escapes transformed ancestors (the page-transition `motion.div`) — fixes off-center dialogs and hover flicker over the dimmed backdrop.
+- **Overnight duration** (e.g. 23:30→00:15 = 0.75h, 22:00→02:00 = 4h) is computed with a wrapping formula everywhere hours are shown/aggregated, instead of the DB generated column (which is negative for overnight).
+- **Trends filters** (time window + organization) update charts **in place** via client state + a server action — no full page reload.
+
 ## Getting started
 
 ```bash

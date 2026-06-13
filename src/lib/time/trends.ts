@@ -3,8 +3,24 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PeriodCadence, Profile } from "@/types/db";
 import { periodForDate, shiftPeriod, toIsoDate } from "@/lib/time/periods";
+import { durationHours } from "@/lib/time/validation";
 
 export type TrendRange = "weekly" | "fortnightly" | "monthly" | "6month" | "yearly";
+
+/** Columns needed to recompute hours with overnight wrapping. */
+const TREND_ENTRY_SELECT =
+  "entry_date, billable, project_id, employee_id, start_time, end_time, entry_mode, decimal_hours";
+
+type RawEntryRow = {
+  entry_date: string;
+  billable: boolean;
+  project_id: string | null;
+  employee_id: string;
+  start_time: string | null;
+  end_time: string | null;
+  entry_mode: string | null;
+  decimal_hours: number | null;
+};
 
 type EntryRow = {
   entry_date: string;
@@ -13,6 +29,29 @@ type EntryRow = {
   project_id: string | null;
   employee_id: string;
 };
+
+/**
+ * Normalise raw rows into EntryRow with overnight-wrapped `total_hours` so every
+ * downstream reducer is correct — the DB total_hours column is negative for
+ * overnight ranges (end < start).
+ */
+function withWrappedHours(rows: RawEntryRow[]): EntryRow[] {
+  return rows.map((r) => ({
+    entry_date: r.entry_date,
+    billable: r.billable,
+    project_id: r.project_id,
+    employee_id: r.employee_id,
+    total_hours:
+      r.entry_mode === "decimal_hours" && r.decimal_hours != null
+        ? Number(r.decimal_hours)
+        : r.start_time && r.end_time
+          ? durationHours(
+              String(r.start_time).slice(0, 5),
+              String(r.end_time).slice(0, 5),
+            ) ?? 0
+          : 0,
+  }));
+}
 
 function rangeStart(range: TrendRange): string {
   const d = new Date();
@@ -129,11 +168,11 @@ export async function getEmployeeTrends(profile: Profile, range: TrendRange) {
 
   const { data: entries } = await db
     .from("time_entries")
-    .select("entry_date, total_hours, billable, project_id, employee_id")
+    .select(TREND_ENTRY_SELECT)
     .eq("employee_id", profile.id)
     .gte("entry_date", since);
 
-  const rows = (entries ?? []) as EntryRow[];
+  const rows = withWrappedHours((entries ?? []) as RawEntryRow[]);
   const projectIds = [...new Set(rows.map((r) => r.project_id).filter(Boolean))] as string[];
   const projectMap = await loadProjects(projectIds);
 
@@ -152,11 +191,11 @@ export async function getOrgAggregateTrends(orgId: string, range: TrendRange) {
 
   const { data: entries } = await db
     .from("time_entries")
-    .select("entry_date, total_hours, billable, project_id, employee_id")
+    .select(TREND_ENTRY_SELECT)
     .eq("org_id", orgId)
     .gte("entry_date", since);
 
-  const rows = (entries ?? []) as EntryRow[];
+  const rows = withWrappedHours((entries ?? []) as RawEntryRow[]);
   const projectIds = [...new Set(rows.map((r) => r.project_id).filter(Boolean))] as string[];
   const projectMap = await loadProjects(projectIds);
 
@@ -169,17 +208,51 @@ export async function getOrgAggregateTrends(orgId: string, range: TrendRange) {
   return buildTrendMetrics(rows, projectMap, cadence ?? "monthly");
 }
 
+export type TrendsBundle = {
+  personalTrends: Awaited<ReturnType<typeof getEmployeeTrends>> | null;
+  orgAggregateData: Awaited<ReturnType<typeof getOrgAggregateTrends>> | null;
+  adminData: Awaited<ReturnType<typeof getAdminTrends>> | null;
+};
+
+/**
+ * Resolves the full set of trend data for a profile + range (+ optional org for
+ * superadmin). Shared by the server page (initial render) and the client
+ * `fetchTrendsData` action (in-place filter updates — no navigation).
+ */
+export async function getTrendsBundle(
+  profile: Profile,
+  range: TrendRange,
+  orgIdParam?: string,
+): Promise<TrendsBundle> {
+  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isSuperadmin = profile.role === "superadmin";
+  const selectedOrg = isSuperadmin ? orgIdParam?.trim() || undefined : undefined;
+  const effectiveOrg = selectedOrg ?? profile.org_id ?? undefined;
+
+  const personalTrends = profile.org_id
+    ? await getEmployeeTrends(profile, range)
+    : null;
+  const orgAggregateData =
+    isManager && effectiveOrg
+      ? await getOrgAggregateTrends(effectiveOrg, range)
+      : null;
+  const adminData =
+    isManager && effectiveOrg ? await getAdminTrends(effectiveOrg, range) : null;
+
+  return { personalTrends, orgAggregateData, adminData };
+}
+
 export async function getAdminTrends(orgId: string, range: TrendRange) {
   const db = createAdminClient();
   const since = rangeStart(range);
 
   const { data: entries } = await db
     .from("time_entries")
-    .select("employee_id, entry_date, total_hours, billable, project_id")
+    .select(TREND_ENTRY_SELECT)
     .eq("org_id", orgId)
     .gte("entry_date", since);
 
-  const rows = (entries ?? []) as EntryRow[];
+  const rows = withWrappedHours((entries ?? []) as RawEntryRow[]);
   const employeeIds = [...new Set(rows.map((r) => r.employee_id))];
   const projectIds = [...new Set(rows.map((r) => r.project_id).filter(Boolean))] as string[];
 
