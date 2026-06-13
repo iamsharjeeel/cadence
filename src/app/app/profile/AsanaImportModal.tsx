@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 import { MotionModal } from "@/components/motion/MotionModal";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonStyles } from "@/components/ui/Button";
 import {
   importAsanaProjects,
   listAsanaProjectsForImport,
@@ -15,15 +16,19 @@ export function AsanaImportModal({
   open,
   onClose,
   onImported,
+  onNeedsReconnect,
 }: {
   open: boolean;
   onClose: () => void;
   onImported?: (message: string) => void;
+  onNeedsReconnect?: () => void;
 }) {
   const [projects, setProjects] = useState<AsanaProjectForImport[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNeedsReconnect, setActionNeedsReconnect] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -32,19 +37,23 @@ export function AsanaImportModal({
 
     setLoading(true);
     setLoadError(null);
+    setNeedsReconnect(false);
     setActionError(null);
+    setActionNeedsReconnect(false);
     setSelected(new Set());
 
     listAsanaProjectsForImport().then((result) => {
       setLoading(false);
       if (!result.ok || !result.projects) {
         setLoadError(result.message);
+        setNeedsReconnect(Boolean(result.needsReconnect));
+        if (result.needsReconnect) onNeedsReconnect?.();
         setProjects([]);
         return;
       }
       setProjects(result.projects);
     });
-  }, [open]);
+  }, [open, onNeedsReconnect]);
 
   const importable = useMemo(
     () => projects.filter((p) => !p.alreadyImported),
@@ -77,16 +86,21 @@ export function AsanaImportModal({
 
   function handleImport() {
     setActionError(null);
+    setActionNeedsReconnect(false);
     startTransition(async () => {
       const result = await importAsanaProjects([...selected]);
       if (!result.ok) {
         setActionError(result.message);
+        setActionNeedsReconnect(Boolean(result.needsReconnect));
+        if (result.needsReconnect) onNeedsReconnect?.();
         return;
       }
       onImported?.(result.message);
       onClose();
     });
   }
+
+  const showReconnect = needsReconnect || actionNeedsReconnect;
 
   return (
     <MotionModal open={open} onClose={onClose} panelClassName="w-full max-w-2xl rounded-[18px] border border-line bg-surface p-6 shadow-xl">
@@ -109,7 +123,17 @@ export function AsanaImportModal({
             Loading projects from Asana…
           </div>
         ) : loadError ? (
-          <p className="px-4 py-10 text-center text-sm text-red-600">{loadError}</p>
+          <div className="px-4 py-10 text-center">
+            <p className="text-sm text-red-600">{loadError}</p>
+            {showReconnect ? (
+              <Link
+                href="/api/asana/connect"
+                className={buttonStyles("primary", "sm", "mt-4 inline-flex")}
+              >
+                Reconnect Asana
+              </Link>
+            ) : null}
+          </div>
         ) : projects.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-muted">
             No projects found in your Asana account.
@@ -157,7 +181,17 @@ export function AsanaImportModal({
       </div>
 
       {actionError ? (
-        <p className="mt-3 text-sm text-red-600">{actionError}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <p className="text-sm text-red-600">{actionError}</p>
+          {showReconnect ? (
+            <Link
+              href="/api/asana/connect"
+              className={buttonStyles("primary", "sm")}
+            >
+              Reconnect Asana
+            </Link>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">

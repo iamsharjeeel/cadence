@@ -72,6 +72,7 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
     description: "",
     billable: true,
     saveState: "idle",
+    collapsed: false,
   };
 }
 
@@ -97,6 +98,7 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
     overnightConfirmed:
       mode === "time_range" ? isOvernightShift(start, end) : false,
     saveState: "saved",
+    collapsed: true,
   };
 }
 
@@ -354,6 +356,7 @@ export function TimeTrackingView({
           description: entry.description,
           billable: entry.billable,
           overnightConfirmed: overnight || entry.overnightConfirmed,
+          collapsed: true,
         });
 
         window.setTimeout(() => {
@@ -586,6 +589,9 @@ export function TimeTrackingView({
                         }
                       }}
                       onCreateProject={handleCreateProject}
+                      onExpand={() =>
+                        updateEntry(day.date, entry.clientId, { collapsed: false })
+                      }
                     />
                   ))}
                 </AnimatePresence>

@@ -30,6 +30,7 @@ export function ConnectedAccountsSection({
   const [toast, setToast] = useState<string | null>(null);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
   const [pending, startTransition] = useTransition();
   const [syncPending, startSync] = useTransition();
   const [removePendingId, setRemovePendingId] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export function ConnectedAccountsSection({
   useEffect(() => {
     if (flash === "connected") {
       setToast("Asana connected successfully.");
+      setNeedsReconnect(false);
     } else if (flash === "error") {
       setToast("Couldn't connect Asana. Please try again.");
     }
@@ -70,6 +72,7 @@ export function ConnectedAccountsSection({
     startSync(async () => {
       const result = await syncImportedAsanaProjectNames();
       setToast(result.message);
+      if (result.needsReconnect) setNeedsReconnect(true);
     });
   }
 
@@ -121,6 +124,14 @@ export function ConnectedAccountsSection({
         <div className="flex flex-wrap gap-2">
           {connection.connected ? (
             <>
+              {needsReconnect ? (
+                <Link
+                  href="/api/asana/connect"
+                  className={buttonStyles("primary", "sm")}
+                >
+                  Reconnect Asana
+                </Link>
+              ) : null}
               <Button
                 type="button"
                 variant="secondary"
@@ -151,6 +162,16 @@ export function ConnectedAccountsSection({
           )}
         </div>
       </div>
+
+      {connection.connected && needsReconnect ? (
+        <div
+          role="status"
+          className="mt-4 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]"
+        >
+          Your Asana connection needs additional permissions. Reconnect to import
+          projects from your workspaces.
+        </div>
+      ) : null}
 
       {connection.connected ? (
         <div className="mt-6 border-t border-line pt-5">
@@ -212,7 +233,11 @@ export function ConnectedAccountsSection({
       <AsanaImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        onImported={(message) => setToast(message)}
+        onImported={(message) => {
+          setNeedsReconnect(false);
+          setToast(message);
+        }}
+        onNeedsReconnect={() => setNeedsReconnect(true)}
       />
 
       <MotionModal

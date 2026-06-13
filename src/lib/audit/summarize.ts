@@ -15,6 +15,10 @@ export function summarizePayload(
   if (action === "profile.role_change" && p.from && p.to) {
     return `Role changed from ${p.from} → ${p.to}`;
   }
+  if (action === "profile.rate_change" && p.from && p.to) {
+    const source = p.source === "self" ? "Self-updated" : "Admin updated";
+    return `${source} rate`;
+  }
   if (action === "timesheet_approved" && p.calculated_total != null) {
     return `Approved · total ${p.calculated_total}`;
   }
@@ -38,6 +42,9 @@ export function summarizePayload(
   }
   if (action === "member_removed" && p.email) {
     return `Removed ${String(p.email)} from org`;
+  }
+  if (action === "member_assigned" && p.email) {
+    return `Assigned ${String(p.email)} to ${p.org_name ?? "org"} as ${p.role ?? "employee"}`;
   }
   if (action === "member_invite_cancelled" && p.email) {
     return `Cancelled invite to ${String(p.email)}`;

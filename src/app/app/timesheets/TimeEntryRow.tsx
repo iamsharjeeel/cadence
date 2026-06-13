@@ -31,6 +31,7 @@ export type EntryRowData = {
   overnightConfirmed?: boolean;
   saveState: SaveState;
   error?: string;
+  collapsed?: boolean;
 };
 
 const ROW_MOTION = {
@@ -231,6 +232,7 @@ export function TimeEntryRow({
   onProjectChange,
   onCreateProject,
   onConfirmOvernight,
+  onExpand,
 }: {
   entry: EntryRowData;
   editable: boolean;
@@ -243,6 +245,7 @@ export function TimeEntryRow({
   onProjectChange: (projectId: string | null) => void;
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onConfirmOvernight: () => void;
+  onExpand?: () => void;
 }) {
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -264,6 +267,59 @@ export function TimeEntryRow({
   const displayHours =
     entry.id && entry.total_hours != null ? entry.total_hours : previewHours;
   const selectedProject = projects.find((p) => p.id === entry.project_id);
+  const isCollapsed = Boolean(entry.collapsed) && entry.id && entry.saveState !== "saving";
+
+  const timeSummary = isDecimalMode
+    ? `${displayHours != null ? `${displayHours.toFixed(1)}h` : "—"} total`
+    : entry.start_time && entry.end_time
+      ? `${entry.start_time} – ${entry.end_time}${displayHours != null ? ` · ${displayHours.toFixed(1)}h` : ""}`
+      : "—";
+
+  if (isCollapsed) {
+    return (
+      <motion.div layout {...ROW_MOTION} className="overflow-hidden">
+        <button
+          type="button"
+          onClick={onExpand}
+          disabled={!editable}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-[calc(var(--radius)-4px)] border border-[var(--line)] bg-[var(--bg)]/50 px-3 py-2.5 text-left transition-colors",
+            editable && "hover:bg-[var(--accent-soft)]/40",
+            !editable && "cursor-default",
+          )}
+        >
+          <span className="tnum shrink-0 text-sm font-medium text-ink">
+            {timeSummary}
+          </span>
+          <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />
+          <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-ink">
+            {selectedProject ? (
+              <>
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: selectedProject.color }}
+                  aria-hidden
+                />
+                <span className="truncate">{selectedProject.name}</span>
+              </>
+            ) : (
+              <span className="truncate text-muted">No project</span>
+            )}
+          </span>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+              entry.billable
+                ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                : "bg-[var(--line)] text-muted",
+            )}
+          >
+            {entry.billable ? "Billable" : "Non-billable"}
+          </span>
+        </button>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div layout {...ROW_MOTION} className="overflow-hidden">

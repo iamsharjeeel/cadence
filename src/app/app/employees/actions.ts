@@ -190,6 +190,7 @@ export async function setRate(
     action: "profile.rate_change",
     entity: targetId,
     payload: {
+      source: "admin",
       from: {
         rate: auth.target.rate,
         rate_type: auth.target.rate_type,

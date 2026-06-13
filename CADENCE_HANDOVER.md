@@ -29,7 +29,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **Auth:** Google OAuth only. Domain-gated — user email domain matched against org `allowed_domains`.
 - **Account creation:** admin invite (email link) or self-signup via matching org domain. New users land **active** — no pending approval gate. Invite redemption assigns org + role on first OAuth sign-in.
 - **Org creation:** superadmin creates orgs manually.
-- **Rates:** admin sets/edits employee rate; employee views own rate read-only.
+- **Rates:** employee sets/edits own rate on Profile; admin/owner can also edit via Team table. Rate history/versioning at submission time remains a future consideration.
 - **Rate types:** hourly (hours×rate), salaried (period slice, hours informational), fixed (flat, hours informational).
 - **Pay periods:** configurable cadence (weekly/biweekly/monthly) per org + freeform custom ranges. Overlap guard prevents duplicate periods.
 - **Approval workflow:** draft → submitted → approved/rejected (rejected→resubmit). Rate + currency snapshot onto timesheet AT APPROVAL.
@@ -88,7 +88,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - Server-side re-validation of all parsed rows (never trust client).
 - Service-role key server-only, never `NEXT_PUBLIC_`, never in client bundle.
 - Rate/calc always from DB server-side, never client input.
-- Employees can never self-set role/rate/status — enforced in server actions.
+- Employees can never self-set role/status — enforced in server actions. Rate is self-editable on Profile.
 - Audit log on: approval, role/rate/status change, org creation, timesheet submission.
 - Reject `.xlsm`/macros; validate MIME + extension + size (max 10MB).
 - CSV export: re-check admin/superadmin role server-side before streaming.
@@ -976,6 +976,38 @@ SET expires_at = now() - interval '1 minute'
 WHERE user_id = '<your-user-uuid>';
 ```
 Then open Import projects — should succeed without re-OAuth (refresh happens server-side).
+
+### Stabilization session ✅ — Asana scopes, self-service rate, unassigned users, entry collapse
+
+#### Item 1 — Asana centralized scopes + reconnect flow
+- **`ASANA_REQUIRED_SCOPES`** in `src/lib/asana/config.ts` — single source of truth: `projects:read`, `workspaces:read` (space-delimited for OAuth `scope` param).
+- **`src/lib/asana/errors.ts`** — detects Asana "must be present" scope errors; surfaces `ASANA_RECONNECT_MESSAGE` instead of raw API text.
+- **Import projects / sync:** on insufficient scope → "Reconnect Asana to grant additional permissions" + Reconnect button (re-triggers `/api/asana/connect` with current scopes).
+- **Reconnect upsert:** `upsertAsanaConnection` uses `onConflict: "user_id"` — existing row updated, not duplicated.
+- **Owner action:** existing connections issued under old `projects:read`-only scope must reconnect once after deploy.
+
+#### Item 2 — Employee self-service rate
+- **Profile → Employment:** Rate field editable via `ProfileRateForm.tsx`; Role/Status remain read-only/admin-managed.
+- **`updateOwnRate`** server action — no approval gate; flows into week summary estimated earnings same as admin-set rate.
+- **Audit:** `profile.rate_change` payload includes `source: "self"` (Profile) vs `source: "admin"` (Team table).
+- **Future note:** rate-at-submission-time versioning on past pay advices not built — current rate used for at-a-glance estimates only.
+
+#### Item 3 — Unassigned users on Team page
+- **Investigation:** Org-scoped admin/owner query already filters `.eq("org_id", actor.org_id)` — unassigned users do **not** leak into an org's Team table.
+- **Superadmin global view:** unassigned users (`org_id` null) correctly appear with Organization = "Unassigned" — platform oversight, not a query bug.
+- **Fix:** Unassigned rows hide Role/Status/Rate/Banking/Onboarding controls; superadmin gets **Assign to org** modal (`assignMemberToOrg` + `AssignMemberModal.tsx`). Audit: `member_assigned`.
+- **`iamsharjeeel@gmail.com` test row:** still visible on superadmin Employees until assigned via new action; hidden from org-scoped Team views.
+
+#### Item 4 — Auto-collapse saved time entries
+- Saved entries collapse to compact summary row (time range or decimal total, project + color dot, billable badge).
+- Click summary to re-expand for editing; new/unsaved entries stay expanded; add-entry does not disturb collapsed rows.
+- Framer Motion 160ms consistent with existing row transitions.
+
+#### Key files (this session)
+- `src/lib/asana/config.ts`, `src/lib/asana/errors.ts`
+- `src/app/app/profile/ProfileRateForm.tsx`, updated `actions.ts`, `AsanaImportModal.tsx`, `ConnectedAccountsSection.tsx`
+- `src/app/app/employees/assign-actions.ts`, `AssignMemberModal.tsx`, updated `page.tsx`
+- `src/app/app/timesheets/TimeEntryRow.tsx`, `TimeTrackingView.tsx`
 
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)

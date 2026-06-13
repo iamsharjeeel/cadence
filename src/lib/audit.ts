@@ -10,6 +10,7 @@ export type AuditAction =
   | "profile.status_change"
   | "member_invited"
   | "member_removed"
+  | "member_assigned"
   | "member_invite_cancelled"
   | "org.create"
   | "org.update"

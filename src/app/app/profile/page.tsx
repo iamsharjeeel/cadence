@@ -15,11 +15,11 @@ import { getAsanaConnectionStatus } from "@/lib/asana/connection";
 import { createClient } from "@/lib/supabase/server";
 import type { AsanaImportedProject } from "@/types/db";
 import { ConnectedAccountsSection } from "./ConnectedAccountsSection";
-import { formatMoney, titleCase } from "@/lib/utils";
 import { maskSensitive } from "@/lib/bank-crypto";
 import { ProfileBankingForm } from "./ProfileBankingForm";
 import { ProfileNameForm } from "./ProfileNameForm";
 import { ProfileEmploymentForm } from "./ProfileEmploymentForm";
+import { ProfileRateForm } from "./ProfileRateForm";
 import { ProfileEmergencyForm } from "./ProfileEmergencyForm";
 import { ProfileCompleteness } from "./ProfileCompleteness";
 
@@ -47,7 +47,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     <div>
       <PageHeader
         title="Your profile"
-        description="Update your personal and employment details. Role, rate, and status are set by your administrator."
+        description="Update your personal and employment details. Role and status are managed by your administrator."
       />
 
       <ProfileCompleteness profile={profile} />
@@ -69,7 +69,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         <Card>
           <CardHeader>
             <CardTitle>Employment</CardTitle>
-            <CardDescription>Read-only — managed by an admin.</CardDescription>
+            <CardDescription>
+              Role and status are managed by an admin. You can set your own rate.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
             <Field label="Role">
@@ -79,14 +81,11 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
               <StatusPill status={profile.status} />
             </Field>
             <Field label="Rate">
-              <span className="tnum text-sm font-medium text-ink">
-                {formatMoney(profile.rate, profile.currency)}
-                {profile.rate !== null && (
-                  <span className="ml-1 text-muted">
-                    · {titleCase(profile.rate_type)}
-                  </span>
-                )}
-              </span>
+              <ProfileRateForm
+                rate={profile.rate}
+                rateType={profile.rate_type}
+                currency={profile.currency}
+              />
             </Field>
           </CardContent>
         </Card>

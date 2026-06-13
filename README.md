@@ -83,6 +83,12 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - **Token refresh:** automatic refresh when access token expires (5-minute buffer)
 - **Deferred:** linking imported Asana projects to timesheet entries (next session)
 
+### Stabilization — scopes, rate, team, collapse
+- **Asana scopes:** `ASANA_REQUIRED_SCOPES` in `src/lib/asana/config.ts` (`projects:read`, `workspaces:read`); reconnect prompt on insufficient scope; existing tokens need one reconnect
+- **Self-service rate:** Profile → Employment rate editable; audit `source: self|admin`
+- **Unassigned users:** org Team query already scoped; superadmin sees unassigned with Assign-to-org action
+- **Time entry collapse:** saved rows auto-collapse to summary; click to expand
+
 ## Getting started
 
 ```bash

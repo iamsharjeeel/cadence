@@ -5,8 +5,15 @@ const TOKEN_URL = "https://app.asana.com/-/oauth_token";
 const REVOKE_URL = "https://app.asana.com/-/oauth_revoke";
 const API_BASE = "https://app.asana.com/api/1.0";
 
-/** Scopes pre-approved in the Asana developer console. */
-export const ASANA_OAUTH_SCOPES = "projects:read";
+/**
+ * Single source of truth for required Asana OAuth scopes.
+ * Add new scopes here when future features need them (e.g. tasks:read).
+ * Must match scopes enabled in the Asana developer console.
+ */
+export const ASANA_REQUIRED_SCOPES = ["projects:read", "workspaces:read"] as const;
+
+/** Space-delimited scope string for the OAuth authorize request. */
+export const ASANA_OAUTH_SCOPES = ASANA_REQUIRED_SCOPES.join(" ");
 
 export function asanaClientId(): string {
   const id = process.env.ASANA_CLIENT_ID;
@@ -97,6 +104,11 @@ export async function revokeAsanaToken(token: string): Promise<void> {
   });
 }
 
+import {
+  asanaInsufficientScopeError,
+  isAsanaInsufficientScopeMessage,
+} from "@/lib/asana/errors";
+
 export async function asanaApiGet<T>(
   path: string,
   accessToken: string,
@@ -109,6 +121,9 @@ export async function asanaApiGet<T>(
   const json = (await res.json()) as T & { errors?: { message: string }[] };
   if (!res.ok) {
     const msg = json.errors?.[0]?.message ?? `Asana API error (${res.status})`;
+    if (isAsanaInsufficientScopeMessage(msg)) {
+      throw asanaInsufficientScopeError(msg);
+    }
     throw new Error(msg);
   }
   return json;

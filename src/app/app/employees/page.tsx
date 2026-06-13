@@ -30,6 +30,7 @@ import { InviteMemberModal } from "./InviteMemberModal";
 import { CancelInviteButton } from "./CancelInviteButton";
 import { EmployeesListRefresh } from "./EmployeesListRefresh";
 import { RemoveMemberModal } from "./RemoveMemberModal";
+import { AssignMemberModal } from "./AssignMemberModal";
 import type { OrgInvite } from "@/lib/invites";
 
 export const metadata: Metadata = { title: "Employees" };
@@ -42,6 +43,7 @@ export default async function EmployeesPage() {
   let members: Profile[] = [];
   let pendingInvites: OrgInvite[] = [];
   const orgNames = new Map<string, string>();
+  let orgOptions: Pick<Organization, "id" | "name">[] = [];
   let orgName = "";
 
   if (isSuperadmin) {
@@ -51,7 +53,8 @@ export default async function EmployeesPage() {
       db.from("organizations").select("id, name"),
     ]);
     members = (profiles ?? []) as Profile[];
-    for (const o of (orgs ?? []) as Pick<Organization, "id" | "name">[]) {
+    orgOptions = (orgs ?? []) as Pick<Organization, "id" | "name">[];
+    for (const o of orgOptions) {
       orgNames.set(o.id, o.name);
     }
   } else {
@@ -196,6 +199,7 @@ export default async function EmployeesPage() {
                   <TH>Rate</TH>
                   <TH>Onboarding</TH>
                   <TH>Banking</TH>
+                  {isSuperadmin && <TH className="text-right">Actions</TH>}
                   {canManageMembers && <TH className="text-right">Actions</TH>}
                 </TR>
               </THead>
@@ -203,6 +207,7 @@ export default async function EmployeesPage() {
                 {team.map((m) => {
                   const isSelf = m.id === actor.id;
                   const isSuper = m.role === "superadmin";
+                  const isUnassigned = !m.org_id;
                   const locked = isSelf || isSuper;
                   const actorIsManager = actor.role === "admin";
                   const targetIsOwner = m.role === "owner";
@@ -210,7 +215,9 @@ export default async function EmployeesPage() {
                   const canRemove =
                     canManageMembers &&
                     !locked &&
+                    !isUnassigned &&
                     !(actorIsManager && (targetIsOwner || m.role === "admin"));
+                  const manageMemberFields = !isUnassigned;
 
                   return (
                     <TR key={m.id}>
@@ -223,7 +230,9 @@ export default async function EmployeesPage() {
                         </TD>
                       )}
                       <TD>
-                        {roleLocked ? (
+                        {!manageMemberFields ? (
+                          <span className="text-sm text-muted">—</span>
+                        ) : roleLocked ? (
                           <span className="text-sm text-muted">
                             {roleLabel(m.role)}
                           </span>
@@ -236,32 +245,40 @@ export default async function EmployeesPage() {
                         )}
                       </TD>
                       <TD>
-                        {locked ? (
+                        {!manageMemberFields ? (
+                          <span className="text-sm text-muted">—</span>
+                        ) : locked ? (
                           <StatusPill status={m.status} />
                         ) : (
                           <StatusSelect id={m.id} current={m.status} />
                         )}
                       </TD>
                       <TD>
-                        <div className="flex items-center gap-3">
-                          <span className="tnum text-sm text-ink">
-                            {formatMoney(m.rate, m.currency)}
-                            <span className="ml-1 text-muted">
-                              · {roleLabel(m.rate_type)}
+                        {!manageMemberFields ? (
+                          <span className="text-sm text-muted">Not in an org</span>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <span className="tnum text-sm text-ink">
+                              {formatMoney(m.rate, m.currency)}
+                              <span className="ml-1 text-muted">
+                                · {roleLabel(m.rate_type)}
+                              </span>
                             </span>
-                          </span>
-                          {(!isSuper || isSelf) && (
-                            <RateEditor
-                              id={m.id}
-                              rate={m.rate}
-                              rateType={m.rate_type}
-                              currency={m.currency}
-                            />
-                          )}
-                        </div>
+                            {(!isSuper || isSelf) && (
+                              <RateEditor
+                                id={m.id}
+                                rate={m.rate}
+                                rateType={m.rate_type}
+                                currency={m.currency}
+                              />
+                            )}
+                          </div>
+                        )}
                       </TD>
                       <TD>
-                        {onboardingByEmployee.get(m.id)?.label === "Complete" ? (
+                        {!manageMemberFields ? (
+                          <span className="text-sm text-muted">—</span>
+                        ) : onboardingByEmployee.get(m.id)?.label === "Complete" ? (
                           <span className="text-sm text-muted">Complete</span>
                         ) : m.role === "employee" ? (
                           <OnboardingCell
@@ -277,7 +294,9 @@ export default async function EmployeesPage() {
                         )}
                       </TD>
                       <TD>
-                        {(!isSuper || isSelf) && (
+                        {!manageMemberFields ? (
+                          <span className="text-sm text-muted">—</span>
+                        ) : (!isSuper || isSelf) ? (
                           <BankingEditor
                             id={m.id}
                             defaults={{
@@ -290,8 +309,22 @@ export default async function EmployeesPage() {
                             accountMasked={maskSensitive(m.bank_account_number)}
                             bsbMasked={maskSensitive(m.bank_bsb_swift)}
                           />
-                        )}
+                        ) : null}
                       </TD>
+                      {isSuperadmin && (
+                        <TD className="text-right">
+                          {isUnassigned && !isSuper ? (
+                            <AssignMemberModal
+                              memberId={m.id}
+                              memberName={m.full_name?.trim() || m.email}
+                              memberEmail={m.email}
+                              orgs={orgOptions}
+                            />
+                          ) : (
+                            <span className="text-sm text-muted">—</span>
+                          )}
+                        </TD>
+                      )}
                       {canManageMembers && (
                         <TD className="text-right">
                           {canRemove ? (

@@ -10,10 +10,24 @@ import {
 import { decryptAsanaToken } from "@/lib/asana-crypto";
 import { revokeAsanaToken } from "@/lib/asana/config";
 import { fetchAllAsanaProjects } from "@/lib/asana/projects";
+import {
+  ASANA_RECONNECT_MESSAGE,
+  isAsanaInsufficientScopeError,
+} from "@/lib/asana/errors";
 import { createClient } from "@/lib/supabase/server";
 import type { AsanaImportedProject } from "@/types/db";
 
-export type ActionResult = { ok: boolean; message: string };
+export type ActionResult = { ok: boolean; message: string; needsReconnect?: boolean };
+
+function asanaActionError(err: unknown): ActionResult {
+  if (isAsanaInsufficientScopeError(err)) {
+    return { ok: false, message: ASANA_RECONNECT_MESSAGE, needsReconnect: true };
+  }
+  return {
+    ok: false,
+    message: err instanceof Error ? err.message : "Asana request failed.",
+  };
+}
 
 export type AsanaProjectForImport = {
   gid: string;
@@ -49,11 +63,7 @@ export async function listAsanaProjectsForImport(): Promise<
     };
   } catch (err) {
     console.error("[asana] list projects failed:", err);
-    return {
-      ok: false,
-      message:
-        err instanceof Error ? err.message : "Couldn't load Asana projects.",
-    };
+    return asanaActionError(err);
   }
 }
 
@@ -104,11 +114,7 @@ export async function importAsanaProjects(
     };
   } catch (err) {
     console.error("[asana] import failed:", err);
-    return {
-      ok: false,
-      message:
-        err instanceof Error ? err.message : "Couldn't import projects.",
-    };
+    return asanaActionError(err);
   }
 }
 
@@ -182,11 +188,7 @@ export async function syncImportedAsanaProjectNames(): Promise<ActionResult> {
     };
   } catch (err) {
     console.error("[asana] sync names failed:", err);
-    return {
-      ok: false,
-      message:
-        err instanceof Error ? err.message : "Couldn't sync project names.",
-    };
+    return asanaActionError(err);
   }
 }
 

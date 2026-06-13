@@ -4,15 +4,17 @@ import { revalidatePath } from "next/cache";
 
 import { requireActiveProfile } from "@/lib/auth";
 import { bankingToDbPayload, parseBankingFormData } from "@/lib/banking";
+import { writeAudit } from "@/lib/audit";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { validateIsoDate, validateMaxLength } from "@/lib/validation";
+import { validateCurrency, validateIsoDate, validateMaxLength, validateRate } from "@/lib/validation";
+import { RATE_TYPES } from "@/types/db";
+import type { RateType } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string };
 
 /**
- * Updates the caller's OWN display name. This is the only profile field a user
- * may change about themselves — role, rate, and status are deliberately NOT
- * accepted here. Even if the client posts them, they are ignored.
+ * Updates the caller's OWN display name. Role and status are admin-managed only.
  */
 export async function updateOwnName(
   _prev: ActionResult | null,
@@ -97,6 +99,61 @@ export async function updateOwnEmployment(
 
   revalidatePath("/app/profile");
   return { ok: true, message: "Employment details saved." };
+}
+
+/** Employee self-service rate update — no approval gate. */
+export async function updateOwnRate(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+
+  const rate = validateRate(String(formData.get("rate") ?? ""));
+  if (!rate.ok) return { ok: false, message: rate.error };
+
+  const rateType = String(formData.get("rate_type") ?? "") as RateType;
+  if (!RATE_TYPES.includes(rateType))
+    return { ok: false, message: "Invalid rate type." };
+
+  const currency = validateCurrency(String(formData.get("currency") ?? ""));
+  if (!currency.ok) return { ok: false, message: currency.error };
+
+  const db = createAdminClient();
+  const { error } = await db
+    .from("profiles")
+    .update({
+      rate: rate.value,
+      rate_type: rateType,
+      currency: currency.value,
+    })
+    .eq("id", profile.id);
+
+  if (error) return { ok: false, message: "Couldn't save your rate." };
+
+  await writeAudit({
+    actorId: profile.id,
+    orgId: profile.org_id,
+    action: "profile.rate_change",
+    entity: profile.id,
+    payload: {
+      source: "self",
+      from: {
+        rate: profile.rate,
+        rate_type: profile.rate_type,
+        currency: profile.currency,
+      },
+      to: {
+        rate: rate.value,
+        rate_type: rateType,
+        currency: currency.value,
+      },
+    },
+  });
+
+  revalidatePath("/app/profile");
+  revalidatePath("/app/timesheets");
+  revalidatePath("/app/timesheets/log");
+  return { ok: true, message: "Rate updated." };
 }
 
 export async function updateOwnEmergency(
