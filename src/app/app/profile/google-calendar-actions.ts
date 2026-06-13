@@ -83,23 +83,44 @@ export async function disconnectGoogleCalendar(): Promise<GCalActionResult> {
 }
 
 export async function fetchUserCalendars(): Promise<
-  GCalActionResult & { calendars?: GCalCalendarOption[] }
+  GCalActionResult & { calendars?: GCalCalendarOption[]; email?: string | null }
 > {
   const profile = await requireActiveProfile();
 
   try {
-    const [remote, selectedRows] = await Promise.all([
+    const [remote, selectedRows, connection] = await Promise.all([
       listUserCalendars(profile.id),
       loadSelectedCalendars(profile.id),
+      getGCalConnection(profile.id),
     ]);
 
     const syncedIds = new Map(
       selectedRows.map((r) => [r.calendar_id, r.is_synced]),
     );
 
+    // The primary calendar id is the account email. Backfill the stored
+    // google_email when missing (legacy connections from before the email
+    // scope was requested) so the profile tile shows the real address.
+    let email = connection?.google_email ?? null;
+    const primaryEmail = remote.find((c) => c.primary)?.id ?? null;
+    if (!email && primaryEmail) {
+      email = primaryEmail;
+      const db = createAdminClient();
+      const { error } = await db
+        .from("google_calendar_connections")
+        .update({ google_email: primaryEmail, updated_at: new Date().toISOString() })
+        .eq("user_id", profile.id);
+      if (error) {
+        console.error("[gcal] backfill google_email failed:", error.message);
+      } else {
+        revalidatePath("/app/profile");
+      }
+    }
+
     return {
       ok: true,
       message: "Calendars loaded.",
+      email,
       calendars: remote.map((cal) => ({
         id: cal.id,
         summary: cal.summary,

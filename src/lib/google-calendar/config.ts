@@ -2,6 +2,9 @@ import "server-only";
 
 export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
+  // Lets the callback read the connected account email for display.
+  "openid",
+  "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 
 export const GOOGLE_CALENDAR_AUTH_URL =

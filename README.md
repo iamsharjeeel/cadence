@@ -117,6 +117,13 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 ### Light polish + dark mode (Stitch reference)
 Light mode polish pass + dark mode implementation: sharp corners, hairline borders, gold-on-black stat numbers, uppercase nav labels in dark, audit action badge chips, leave balance cards with progress bars, landing hero Playfair tagline as decorative background layer, sidebar org logo block at top with "PAYROLL & HR" subtitle.
 
+### Robustness pass — modals, dark dropdowns, profile, overnight fix
+- **App-wide modal flicker eliminated:** CSS-only body scroll lock (`.modal-open` + `scrollbar-gutter: stable` — no inline `body.style.overflow` reflow), ref-counted lock for stacked modals (`src/lib/body-scroll-lock.ts`), flex-centered `MotionModal` (no translate sub-pixel shake), motion props as constants.
+- **Profile → Connected accounts** moved to the top and rebuilt as inline expandable sub-sections (Asana + Google Calendar manage modals removed); inline disconnect confirm; Google account email now shown (backfilled from primary calendar).
+- **Time entries:** removed `is_overnight` from all Supabase write payloads (not a real column; `total_hours` is generated) — overnight is derived client-side only.
+- **Dark mode dropdowns:** native `<select>`/`<option>` and all custom listboxes respect surface tokens.
+- **Hardening:** per-route `error.tsx` boundaries, request-sequence guard on the time-log loader, trends empty states, fetch-once guards, verified interval/effect cleanup. `npm run typecheck` + `npm run build` pass clean.
+
 ## Getting started
 
 ```bash

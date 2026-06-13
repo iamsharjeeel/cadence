@@ -193,6 +193,9 @@ export async function upsertTimeEntry(
       ? payload.projectId
       : null;
 
+  // NOTE: `is_overnight` is NOT a live `time_entries` column. Overnight is
+  // derived locally (validated.overnight) for overlap skipping only — never
+  // written to the DB. `total_hours` is a GENERATED column and likewise omitted.
   const row = {
     org_id: profile.org_id,
     employee_id: profile.id,
@@ -201,7 +204,6 @@ export async function upsertTimeEntry(
     entry_date: payload.entryDate,
     start_time: validated.start,
     end_time: validated.end,
-    is_overnight: validated.overnight,
     description: payload.description?.trim() || null,
     billable: payload.billable ?? true,
   };
@@ -215,7 +217,6 @@ export async function upsertTimeEntry(
         entry_date: row.entry_date,
         start_time: row.start_time,
         end_time: row.end_time,
-        is_overnight: row.is_overnight,
         description: row.description,
         billable: row.billable,
       })

@@ -1288,6 +1288,55 @@ Six surgical fixes — no logic outside specified scope.
 #### Fix 6 — Connected accounts tiles layout
 - **`ConnectedAccountsSection.tsx`:** `grid grid-cols-1 sm:grid-cols-2 gap-4`; tiles `min-w-0`; Manage button inside each tile card.
 
+### Session — App-wide modal flicker fix, profile restructure, overnight fix, dark dropdowns, robustness ✅
+
+Six-part hardening pass. Branch `claude/dreamy-franklin-wlhqld`.
+
+#### Part 1 — App-wide modal flicker (root-cause fix)
+- **`globals.css`:** `body.modal-open { overflow: hidden; height: 100% }` (CSS-only lock — no inline `document.body.style.overflow` reflow anywhere in the codebase). Added `scrollbar-gutter: stable` on `html` so locking body scroll never shifts page content sideways (kills the classic scrollbar-width layout jump).
+- **`src/lib/body-scroll-lock.ts`:** ref-counted `lockBodyScroll()` / `unlockBodyScroll()` toggling `.modal-open` — stacked/nested modals don't prematurely unlock the body. Used by `MotionModal` + `OfficialDocSignModal`.
+- **`MotionModal.tsx` rewrite:** flex centering (`fixed inset-0 z-50 flex items-center justify-center` panel wrapper, `pointer-events-none`; inner panel `pointer-events-auto`) — replaces `top-1/2 left-1/2 -translate-*` which caused sub-pixel blur/shake during the scale animation. Backdrop `fixed inset-0 z-40 bg-black/50`. `AnimatePresence mode="wait"` with two keyed children (backdrop + panel) so both enter/exit animate. Motion props come from `MODAL_BACKDROP`/`MODAL_PANEL` constants (no inline literals). **Architecture note:** `AnimatePresence` is kept *inside* `MotionModal` (the shared primitive encapsulates presence, like Radix/HeadlessUI); call sites render it always-mounted with `open={…}`. Bespoke popups (NotificationsBell, RowActionsMenu, TimePicker, DatePicker, ProjectPicker) already wrap their conditional in `AnimatePresence` at the call site.
+- **Inline motion literals extracted to constants:** `NotificationsBell` (`BELL_PANEL_MOTION`, `BELL_ITEM_*`), `TimeEntryRow` (`SAVED_INDICATOR_MOTION`).
+- **Bespoke modals fixed:** `OnboardingCell` converted to `MotionModal`; `OfficialDocSignModal` (intentionally full-screen) gets the ref-counted body lock + a `useRef` fetch-once guard + button spinner.
+- Confirmed zero `document.body.style` mutations and zero translate-centered modals remain.
+
+#### Part 2 — Profile restructure
+- **Connected accounts moved to the very top** of `/app/profile` (above Personal details / Employment / Job details / Banking / Emergency).
+- **`AsanaManageModal.tsx` + `GoogleCalendarManageModal.tsx` deleted** — replaced by **inline expandable sub-sections** (`AsanaConnectionPanel.tsx`, `GoogleCalendarConnectionPanel.tsx`) inside the Connected accounts card. Framer Motion `height` expand/collapse (`INLINE_EXPAND` in `motion.ts`) — no z-index, no backdrop. Only one open at a time; Manage ↔ Close.
+- **Asana panel:** connection email + date, reconnect (on scope error), imported projects list (`max-h-48 overflow-y-auto`, per-row Remove), Import more (→ `AsanaImportModal`, kept), Sync names, inline Disconnect confirm.
+- **Google panel:** real account email + date, calendars-to-sync toggles (`max-h-40`), Sync events + last-synced, upcoming events (`max-h-48`, per-row refresh), inline Disconnect confirm.
+- **`InlineDisconnect.tsx`:** shared red-text → "Are you sure? Confirm / Cancel" (no modal).
+- **GCal email tile fix:** the tile showed "Connected account" because `google_calendar_connections.google_email` was `null` (the `calendar.readonly` scope never returned it). Fix: added `openid` + `userinfo.email` scopes (future connects), **and** `fetchUserCalendars` now backfills `google_email` from the primary calendar id (the email) for existing connections + `revalidatePath`. So the tile populates after first Manage-open and immediately on reconnect.
+
+#### Part 3 — `is_overnight` write error (regression fix)
+- Live `time_entries` has **no `is_overnight` column** (`total_hours` is `GENERATED ALWAYS`). The prior session re-added `is_overnight` to the write payload → `Could not find the 'is_overnight' column … in the schema cache`.
+- Removed from all insert/update payloads: `time-entry-client.ts` (build now returns `{ row, overnight }`; overnight stays local for overlap-skip), `time-actions.ts`, and the `time_entries` Row/Insert/Update types in `types/db.ts` (so TS catches future strays). Overnight detection (`end < start`) remains client-side only.
+
+#### Part 4 — Dropdown dark mode
+- `globals.css`: `.dark select`, `.dark select option`, `.dark select:focus` → surface tokens (the element selector out-specifies utility classes). Audited custom listboxes (ProjectPicker, TimePicker, DatePicker, RowActionsMenu, AsanaProjectPicker) — all already token-based; the dark `shadow→border` rule keeps panels visible.
+
+#### Part 5 — Robustness
+- **error.tsx** added for `/app/dashboard`, `/timesheets`, `/timesheets/log`, `/leave`, `/profile`, `/trends`, `/documents`, `/employees` (shared `RouteError`).
+- **Race conditions:** `TimeTrackingView.load()` now guarded by a request-sequence ref (rapid week-switching can't apply a stale response); GCal panel load uses a `cancelled` flag. NotificationsBell poll + EmployeesListRefresh interval already clean up; verified.
+- **Stale closures:** confirmed `TimeEntryRow`/`TimeTrackingView` autosave reads current state via refs (`timesheetIdRef`/`orgIdRef`/`employeeIdRef`/`entriesByDayRef`).
+- **Empty states:** added to `TrendsCharts` (employee + admin "no trend data yet"). Verified existing empty states on dashboard, documents, employees, leave, audit, projects, notifications.
+- typecheck + build clean (0 errors; only pre-existing `<img>` LCP warnings).
+
+#### Part 6 — Delete timesheet dialog
+- `DeleteTimesheetControl` now centers correctly via the rewritten `MotionModal` (was floating). Spec styling already present (Space Grotesk 600/18px heading, Inter body, red `bg-red-600` Delete); simplified redundant `panelClassName`.
+
+#### Key files
+- `src/lib/body-scroll-lock.ts`, `src/components/motion/MotionModal.tsx`, `src/lib/motion.ts`
+- `src/app/app/profile/{ConnectedAccountsSection,AsanaConnectionPanel,GoogleCalendarConnectionPanel,InlineDisconnect}.tsx`, `page.tsx`, `google-calendar-actions.ts`, `src/lib/google-calendar/config.ts`
+- `src/lib/time/time-entry-client.ts`, `src/app/app/timesheets/time-actions.ts`, `src/types/db.ts`
+- `src/app/globals.css`, `src/app/app/trends/TrendsCharts.tsx`
+- `src/app/app/{dashboard,timesheets,timesheets/log,leave,profile,trends,documents,employees}/error.tsx`
+- `src/app/app/employees/OnboardingCell.tsx`, `src/components/official-docs/OfficialDocSignModal.tsx`, `src/components/app/NotificationsBell.tsx`, `src/app/app/timesheets/TimeEntryRow.tsx`
+
+#### Owner notes
+- **Branch:** pushed to `claude/dreamy-franklin-wlhqld` (per branch policy — not directly to `main`). Promote/merge as desired.
+- **Google Calendar reconnect (optional):** existing connections get their email backfilled on first Manage-open. For email-at-connect on *new* sign-ins, no action needed (scopes added). No migration required this session.
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)

@@ -15,7 +15,12 @@ import {
   toRange,
 } from "@/lib/time/validation";
 
-/** Insert/update payload keys allowed by live `time_entries` schema. */
+/**
+ * Insert/update payload keys allowed by the live `time_entries` schema.
+ * NOTE: `is_overnight` is intentionally absent — it is NOT a real DB column.
+ * Overnight is derived locally (see `built.overnight`) for overlap logic and
+ * display only; it must never be written to Supabase.
+ */
 export type TimeEntryWriteRow = {
   org_id: string;
   employee_id: string;
@@ -27,10 +32,12 @@ export type TimeEntryWriteRow = {
   end_time: string;
   entry_mode: EntryMode;
   decimal_hours: number | null;
-  is_overnight: boolean;
   description: string | null;
   billable: boolean;
 };
+
+/** Build result — the DB row plus a locally-derived overnight flag (not persisted). */
+type BuiltWriteRow = { row: TimeEntryWriteRow; overnight: boolean };
 
 export type SaveTimeEntryInput = {
   id?: string;
@@ -52,7 +59,7 @@ export type SaveTimeEntryResult =
   | { ok: true; id: string; total_hours: number }
   | { ok: false; message: string };
 
-function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeEntryResult {
+function buildWriteRow(input: SaveTimeEntryInput): BuiltWriteRow | SaveTimeEntryResult {
   if (!input.orgId?.trim()) {
     return { ok: false, message: "Missing organization — sign in again." };
   }
@@ -82,19 +89,21 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
     }
     const synthetic = syntheticTimesForDecimalHours(hours);
     return {
-      org_id: input.orgId,
-      employee_id: input.employeeId,
-      timesheet_id: input.timesheetId,
-      project_id: projectId,
-      asana_project_id: asanaProjectId,
-      entry_date: input.entryDate,
-      start_time: synthetic.start_time,
-      end_time: synthetic.end_time,
-      entry_mode: "decimal_hours",
-      decimal_hours: hours,
-      is_overnight: false,
-      description: input.description?.trim() || null,
-      billable: input.billable ?? true,
+      overnight: false,
+      row: {
+        org_id: input.orgId,
+        employee_id: input.employeeId,
+        timesheet_id: input.timesheetId,
+        project_id: projectId,
+        asana_project_id: asanaProjectId,
+        entry_date: input.entryDate,
+        start_time: synthetic.start_time,
+        end_time: synthetic.end_time,
+        entry_mode: "decimal_hours",
+        decimal_hours: hours,
+        description: input.description?.trim() || null,
+        billable: input.billable ?? true,
+      },
     };
   }
 
@@ -109,19 +118,21 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
   }
 
   return {
-    org_id: input.orgId,
-    employee_id: input.employeeId,
-    timesheet_id: input.timesheetId,
-    project_id: projectId,
-    asana_project_id: asanaProjectId,
-    entry_date: input.entryDate,
-    start_time: start,
-    end_time: end,
-    entry_mode: "time_range",
-    decimal_hours: null,
-    is_overnight: overnight,
-    description: input.description?.trim() || null,
-    billable: input.billable ?? true,
+    overnight,
+    row: {
+      org_id: input.orgId,
+      employee_id: input.employeeId,
+      timesheet_id: input.timesheetId,
+      project_id: projectId,
+      asana_project_id: asanaProjectId,
+      entry_date: input.entryDate,
+      start_time: start,
+      end_time: end,
+      entry_mode: "time_range",
+      decimal_hours: null,
+      description: input.description?.trim() || null,
+      billable: input.billable ?? true,
+    },
   };
 }
 
@@ -179,14 +190,15 @@ export async function saveTimeEntryClient(
   input: SaveTimeEntryInput,
 ): Promise<SaveTimeEntryResult> {
   const built = buildWriteRow(input);
-  if (!("org_id" in built)) return built;
+  if (!("row" in built)) return built;
+  const { row, overnight } = built;
 
-  if (built.entry_mode === "time_range" && !built.is_overnight) {
+  if (row.entry_mode === "time_range" && !overnight) {
     const overlap = await checkOverlap(
       input.employeeId,
       input.entryDate,
-      built.start_time,
-      built.end_time,
+      row.start_time,
+      row.end_time,
       input.id,
     );
     if (overlap) return { ok: false, message: overlap };
@@ -198,17 +210,16 @@ export async function saveTimeEntryClient(
     const { data, error } = await supabase
       .from("time_entries")
       .update({
-        timesheet_id: built.timesheet_id,
-        project_id: built.project_id,
-        asana_project_id: built.asana_project_id,
-        entry_date: built.entry_date,
-        start_time: built.start_time,
-        end_time: built.end_time,
-        entry_mode: built.entry_mode,
-        decimal_hours: built.decimal_hours,
-        is_overnight: built.is_overnight,
-        description: built.description,
-        billable: built.billable,
+        timesheet_id: row.timesheet_id,
+        project_id: row.project_id,
+        asana_project_id: row.asana_project_id,
+        entry_date: row.entry_date,
+        start_time: row.start_time,
+        end_time: row.end_time,
+        entry_mode: row.entry_mode,
+        decimal_hours: row.decimal_hours,
+        description: row.description,
+        billable: row.billable,
       })
       .eq("id", input.id)
       .eq("employee_id", input.employeeId)
@@ -231,7 +242,7 @@ export async function saveTimeEntryClient(
 
   const { data, error } = await supabase
     .from("time_entries")
-    .insert(built)
+    .insert(row)
     .select("id, total_hours")
     .single();
 

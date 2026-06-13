@@ -47,6 +47,12 @@ const ROW_MOTION = {
   transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
 };
 
+const SAVED_INDICATOR_MOTION = {
+  initial: { opacity: 0, scale: 0.9 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0 },
+};
+
 function BillableToggle({
   checked,
   disabled,
@@ -97,9 +103,7 @@ function SaveIndicator({
   if (state === "saved") {
     return (
       <motion.span
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0 }}
+        {...SAVED_INDICATOR_MOTION}
         className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)]"
       >
         <Check className="h-3 w-3" aria-hidden />
@@ -156,8 +160,8 @@ function CreateProjectModal({
   }
 
   return (
-    <MotionModal open={open} onClose={onClose}>
-      <div className="w-full max-w-sm rounded-[var(--radius-card)] border bg-surface p-6 shadow-card">
+    <MotionModal open={open} onClose={onClose} panelClassName="max-w-sm">
+      <div>
         <h3 className="font-display text-base font-semibold tracking-tightest text-ink">
           New project
         </h3>

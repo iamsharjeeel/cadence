@@ -41,6 +41,15 @@ export const DROPDOWN_PANEL = {
   transition: { duration: 0.08, ease: "easeOut" as const },
 };
 
+/** Inline expand/collapse (e.g. profile connected-account sub-sections).
+   Animates height:auto — no z-index, no backdrop, not a modal. */
+export const INLINE_EXPAND = {
+  initial: { height: 0, opacity: 0 },
+  animate: { height: "auto" as const, opacity: 1 },
+  exit: { height: 0, opacity: 0 },
+  transition: { duration: 0.2, ease: "easeOut" as const },
+};
+
 /** Dashboard stat cards only — max 3 items, 40ms apart. */
 export const STAT_STAGGER_CONTAINER = {
   hidden: {},

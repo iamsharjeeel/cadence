@@ -77,6 +77,23 @@
   border: var(--border-hairline);
 }
 
+/* Dark mode native <select> + options — respect surface tokens (Part 4). */
+.dark select {
+  background-color: var(--surface-container);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.dark select option {
+  background-color: var(--surface-container);
+  color: var(--ink);
+}
+
+.dark select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 @layer base {
   * {
     border-color: var(--line);
@@ -84,6 +101,9 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    /* Reserve scrollbar gutter so opening a modal (which locks body scroll)
+       never shifts page content sideways. */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -91,6 +111,13 @@
     color: var(--ink);
     font-family: var(--font-inter);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* Modal-open body lock — CSS only, no inline style mutation / reflow.
+     Toggled via classList.add/remove("modal-open") from modal components. */
+  body.modal-open {
+    overflow: hidden;
+    height: 100%;
   }
 
   h1,

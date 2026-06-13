@@ -63,7 +63,27 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
       <ProfileCompleteness profile={profile} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <Card id="section-connected" className="mt-4 scroll-mt-20">
+        <CardHeader>
+          <CardTitle className="text-base">Connected accounts</CardTitle>
+          <CardDescription>
+            Link personal integrations — Asana for project tagging, Google Calendar for event sync.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={null}>
+            <ConnectedAccountsSection
+              asanaConnection={asanaConnection}
+              importedProjects={importedProjects}
+              gcalConnection={gcalConnection}
+              asanaFlash={asanaFlash}
+              gcalFlash={gcalFlash}
+            />
+          </Suspense>
+        </CardContent>
+      </Card>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card id="section-personal" className="scroll-mt-20">
           <CardHeader>
             <CardTitle className="text-base">Personal details</CardTitle>
@@ -134,26 +154,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             accountMasked={maskSensitive(profile.bank_account_number)}
             bsbMasked={maskSensitive(profile.bank_bsb_swift)}
           />
-        </CardContent>
-      </Card>
-
-      <Card id="section-connected" className="mt-4 scroll-mt-20">
-        <CardHeader>
-          <CardTitle className="text-base">Connected accounts</CardTitle>
-          <CardDescription>
-            Link personal integrations — Asana for project tagging, Google Calendar for event sync.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={null}>
-            <ConnectedAccountsSection
-              asanaConnection={asanaConnection}
-              importedProjects={importedProjects}
-              gcalConnection={gcalConnection}
-              asanaFlash={asanaFlash}
-              gcalFlash={gcalFlash}
-            />
-          </Suspense>
         </CardContent>
       </Card>
 

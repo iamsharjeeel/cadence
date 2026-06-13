@@ -3,16 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
 import { GoogleCalendarIcon } from "@/components/icons/GoogleCalendarIcon";
 import { Button, buttonStyles } from "@/components/ui/Button";
 import type { AsanaConnectionStatus } from "@/lib/asana/connection";
 import type { GCalConnectionStatus } from "@/lib/google-calendar/connection";
+import { INLINE_EXPAND } from "@/lib/motion";
 import type { AsanaImportedProject } from "@/types/db";
 import { cn } from "@/lib/utils";
-import { AsanaManageModal } from "./AsanaManageModal";
-import { GoogleCalendarManageModal } from "./GoogleCalendarManageModal";
+import { AsanaConnectionPanel } from "./AsanaConnectionPanel";
+import { GoogleCalendarConnectionPanel } from "./GoogleCalendarConnectionPanel";
+
+type OpenPanel = "asana" | "gcal" | null;
 
 function ConnectionBadge({ connected }: { connected: boolean }) {
   return (
@@ -45,14 +49,11 @@ export function ConnectedAccountsSection({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [toast, setToast] = useState<string | null>(null);
-  const [asanaManageOpen, setAsanaManageOpen] = useState(false);
-  const [gcalManageOpen, setGcalManageOpen] = useState(false);
-  const [asanaNeedsReconnect, setAsanaNeedsReconnect] = useState(false);
+  const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
 
   useEffect(() => {
     if (asanaFlash === "connected") {
       setToast("Asana connected successfully.");
-      setAsanaNeedsReconnect(false);
     } else if (asanaFlash === "error") {
       setToast("Couldn't connect Asana. Please try again.");
     } else if (gcalFlash === "connected") {
@@ -79,6 +80,10 @@ export function ConnectedAccountsSection({
     return () => clearTimeout(t);
   }, [toast]);
 
+  function toggle(panel: Exclude<OpenPanel, null>) {
+    setOpenPanel((prev) => (prev === panel ? null : panel));
+  }
+
   return (
     <>
       {toast ? (
@@ -91,29 +96,28 @@ export function ConnectedAccountsSection({
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Asana tile */}
         <div className="min-w-0 rounded-[12px] bg-surface p-5 shadow-card">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#F06A6A]/10">
-                <AsanaIcon size={22} />
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#F06A6A]/10">
+              <AsanaIcon size={22} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-ink">Asana</p>
+                <ConnectionBadge connected={asanaConnection.connected} />
               </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-ink">Asana</p>
-                  <ConnectionBadge connected={asanaConnection.connected} />
-                </div>
-                {asanaConnection.connected ? (
-                  <p className="mt-1 text-sm text-muted">
-                    {asanaConnection.asanaUserEmail ??
-                      asanaConnection.asanaUserName ??
-                      "Connected account"}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-sm text-muted">
-                    Import projects for time entry tagging.
-                  </p>
-                )}
-              </div>
+              {asanaConnection.connected ? (
+                <p className="mt-1 truncate text-sm text-muted">
+                  {asanaConnection.asanaUserEmail ??
+                    asanaConnection.asanaUserName ??
+                    "Connected account"}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted">
+                  Import projects for time entry tagging.
+                </p>
+              )}
             </div>
           </div>
 
@@ -123,9 +127,9 @@ export function ConnectedAccountsSection({
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => setAsanaManageOpen(true)}
+                onClick={() => toggle("asana")}
               >
-                Manage
+                {openPanel === "asana" ? "Close" : "Manage"}
               </Button>
             ) : (
               <Link
@@ -138,27 +142,26 @@ export function ConnectedAccountsSection({
           </div>
         </div>
 
+        {/* Google Calendar tile */}
         <div className="min-w-0 rounded-[12px] bg-surface p-5 shadow-card">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#4285F4]/10">
-                <GoogleCalendarIcon size={22} />
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#4285F4]/10">
+              <GoogleCalendarIcon size={22} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-ink">Google Calendar</p>
+                <ConnectionBadge connected={gcalConnection.connected} />
               </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-ink">Google Calendar</p>
-                  <ConnectionBadge connected={gcalConnection.connected} />
-                </div>
-                {gcalConnection.connected ? (
-                  <p className="mt-1 text-sm text-muted">
-                    {gcalConnection.googleEmail ?? "Connected account"}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-sm text-muted">
-                    Sync events to leave calendar and time log suggestions.
-                  </p>
-                )}
-              </div>
+              {gcalConnection.connected ? (
+                <p className="mt-1 truncate text-sm text-muted">
+                  {gcalConnection.googleEmail ?? "Connected account"}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted">
+                  Sync events to leave calendar and time log suggestions.
+                </p>
+              )}
             </div>
           </div>
 
@@ -168,9 +171,9 @@ export function ConnectedAccountsSection({
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => setGcalManageOpen(true)}
+                onClick={() => toggle("gcal")}
               >
-                Manage
+                {openPanel === "gcal" ? "Close" : "Manage"}
               </Button>
             ) : (
               <Link
@@ -184,35 +187,41 @@ export function ConnectedAccountsSection({
         </div>
       </div>
 
-      {asanaConnection.connected ? (
-        <AsanaManageModal
-          open={asanaManageOpen}
-          onClose={() => setAsanaManageOpen(false)}
-          connection={asanaConnection}
-          importedProjects={importedProjects}
-          onToast={setToast}
-          onNeedsReconnect={() => setAsanaNeedsReconnect(true)}
-        />
-      ) : null}
+      {/* Inline expandable sub-section — one at a time, no modal/backdrop */}
+      <AnimatePresence mode="wait">
+        {openPanel === "asana" && asanaConnection.connected && (
+          <motion.div
+            key="asana-panel"
+            {...INLINE_EXPAND}
+            className="overflow-hidden"
+          >
+            <div className="pt-4">
+              <AsanaConnectionPanel
+                connection={asanaConnection}
+                importedProjects={importedProjects}
+                onToast={setToast}
+                onDisconnected={() => setOpenPanel(null)}
+              />
+            </div>
+          </motion.div>
+        )}
 
-      {gcalConnection.connected ? (
-        <GoogleCalendarManageModal
-          open={gcalManageOpen}
-          onClose={() => setGcalManageOpen(false)}
-          connection={gcalConnection}
-          onToast={setToast}
-        />
-      ) : null}
-
-      {asanaConnection.connected && asanaNeedsReconnect ? (
-        <div
-          role="status"
-          className="mt-4 rounded-[12px] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]"
-        >
-          Your Asana connection needs additional permissions. Open Manage to
-          reconnect.
-        </div>
-      ) : null}
+        {openPanel === "gcal" && gcalConnection.connected && (
+          <motion.div
+            key="gcal-panel"
+            {...INLINE_EXPAND}
+            className="overflow-hidden"
+          >
+            <div className="pt-4">
+              <GoogleCalendarConnectionPanel
+                connection={gcalConnection}
+                onToast={setToast}
+                onDisconnected={() => setOpenPanel(null)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

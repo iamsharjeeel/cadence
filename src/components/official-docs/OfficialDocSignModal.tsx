@@ -5,6 +5,7 @@ import SignatureCanvas from "react-signature-canvas";
 
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/body-scroll-lock";
 import type { OfficialDocument } from "@/types/db";
 import {
   acknowledgeOfficialDocument,
@@ -24,12 +25,26 @@ export function OfficialDocSignModal({
   const [ack, setAck] = useState(false);
   const [busy, setBusy] = useState(false);
   const sigRef = useRef<SignatureCanvas>(null);
+  const fetched = useRef(false);
 
   useEffect(() => {
+    lockBodyScroll();
+    return () => unlockBodyScroll();
+  }, []);
+
+  useEffect(() => {
+    // Fetch the signed URL once per open — never re-fetch on re-render.
+    if (fetched.current) return;
+    fetched.current = true;
+    let cancelled = false;
     getOfficialDocumentUrl(document.id).then((r) => {
+      if (cancelled) return;
       if (r.ok && r.url) setUrl(r.url);
       else toast(r.message ?? "Couldn't load document.", "error");
     });
+    return () => {
+      cancelled = true;
+    };
   }, [document.id, toast]);
 
   async function submit() {
@@ -115,7 +130,7 @@ export function OfficialDocSignModal({
             </Button>
           </div>
         )}
-        <Button onClick={submit} disabled={busy}>
+        <Button onClick={submit} loading={busy} disabled={busy}>
           {document.signing_type === "e_signature"
             ? "Sign document"
             : "Acknowledge"}

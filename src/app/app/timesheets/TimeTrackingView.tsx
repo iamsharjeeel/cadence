@@ -196,6 +196,7 @@ export function TimeTrackingView({
   const prefillApplied = useRef(false);
   const ssrWeekMonday = initialWeekMonday ?? thisWeekMonday();
 
+  const loadSeq = useRef(0);
   const entriesByDayRef = useRef(entriesByDay);
   const timesheetIdRef = useRef(timesheetId);
   const orgIdRef = useRef(orgId);
@@ -263,8 +264,12 @@ export function TimeTrackingView({
   }
 
   const load = useCallback(async () => {
+    // Guard against out-of-order responses when the user switches weeks
+    // quickly — only the latest request is allowed to apply its result.
+    const seq = ++loadSeq.current;
     setLoading(true);
     const res = await getTimeTrackingData(weekMonday);
+    if (seq !== loadSeq.current) return;
     setLoading(false);
     if (!res.ok || !("entries" in res)) {
       toast(res.message || "Couldn't load time entries.", "error");

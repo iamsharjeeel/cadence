@@ -62,7 +62,7 @@ export function DeleteTimesheetControl({
       <MotionModal
         open={open}
         onClose={() => !loading && setOpen(false)}
-        panelClassName="max-w-md rounded-card bg-[var(--surface)] shadow-float dark:border dark:border-[var(--accent)]"
+        panelClassName="max-w-md"
       >
         <h3 className="font-display text-[18px] font-semibold tracking-tightest text-ink">
           Delete this timesheet?

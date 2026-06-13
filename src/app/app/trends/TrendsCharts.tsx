@@ -15,7 +15,10 @@ import {
   YAxis,
 } from "recharts";
 
+import { TrendingUp } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { CountUp } from "@/components/motion/CountUp";
 import { heatmapCellColor, useChartColors } from "@/lib/chart-colors";
 
@@ -33,6 +36,21 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const dark = resolvedTheme === "dark";
+
+  const hasData =
+    data.billableHours > 0 ||
+    data.nonBillableHours > 0 ||
+    (data.periodLine ?? []).some((p) => p.hours > 0);
+
+  if (!hasData) {
+    return (
+      <EmptyState
+        icon={<TrendingUp className="h-5 w-5" />}
+        title="No trend data yet"
+        description="Log and submit time entries to see your hours, projects, and activity trends here."
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -97,6 +115,19 @@ export function AdminTrendsView({
   const reducedMotion =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const hasOrgData =
+    adminData.totalHours > 0 || (adminData.stackedEmployees ?? []).length > 0;
+
+  if (!hasOrgData) {
+    return (
+      <EmptyState
+        icon={<TrendingUp className="h-5 w-5" />}
+        title="No team trend data yet"
+        description="Once your team logs and submits time, organisation-wide trends and per-employee breakdowns will appear here."
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

@@ -37,6 +37,16 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
   official_document_signed: CheckCircle2,
 };
 
+const BELL_PANEL_MOTION = {
+  initial: { opacity: 0, y: -8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+  transition: { duration: 0.12, ease: "easeOut" as const },
+};
+
+const BELL_ITEM_INITIAL = { opacity: 0 };
+const BELL_ITEM_ANIMATE = { opacity: 1 };
+
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -163,10 +173,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
             />
             <motion.div
               className="absolute right-0 top-full z-50 mt-2 w-[300px] overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-float"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.12, ease: "easeOut" }}
+              {...BELL_PANEL_MOTION}
             >
               <div className="flex items-center justify-between border-b px-4 py-3">
                 <span className="text-sm font-medium text-ink">Notifications</span>
@@ -197,8 +204,8 @@ export function NotificationsBell({ userId }: { userId: string }) {
                         key={n.id}
                         type="button"
                         onClick={() => handleClick(n)}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
+                        initial={BELL_ITEM_INITIAL}
+                        animate={BELL_ITEM_ANIMATE}
                         transition={{
                           duration: 0.12,
                           delay: i < 5 ? i * 0.03 : 0,
