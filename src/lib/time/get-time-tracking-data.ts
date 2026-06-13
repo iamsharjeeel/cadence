@@ -155,13 +155,17 @@ export async function getTimeTrackingDataForProfile(
   const projectMap = new Map(projects.map((p) => [p.id, p]));
   const asanaMap = new Map(asanaImportedProjects.map((p) => [p.id, p]));
   const entries: TimeEntryWithProject[] = ((entryRows ?? []) as TimeEntry[]).map(
-    (e) => ({
-      ...e,
-      project: e.project_id ? projectMap.get(e.project_id) ?? null : null,
-      asana_project: e.asana_project_id
+    (e) => {
+      const asanaProject = e.asana_project_id
         ? asanaMap.get(e.asana_project_id) ?? null
-        : null,
-    }),
+        : null;
+      return {
+        ...e,
+        project: e.project_id ? projectMap.get(e.project_id) ?? null : null,
+        asana_project: asanaProject,
+        asana_project_name: asanaProject?.asana_project_name ?? null,
+      };
+    },
   );
 
   const asanaProjectNamesSyncedAt = asanaConnected

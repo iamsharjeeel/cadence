@@ -336,7 +336,7 @@ function Stat({
         <p className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted dark:text-[var(--ink-muted)]">
           {label}
         </p>
-        <p className="py-4 font-display text-[42px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
+        <p className="py-4 font-display text-6xl font-bold leading-none tabular text-[var(--accent)]">
           {text ?? (
             <>
               <CountUp value={value} decimals={1} />

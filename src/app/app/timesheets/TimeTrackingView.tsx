@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { TimesheetStatusPill } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { CountUp } from "@/components/motion/CountUp";
+import { AsanaIcon } from "@/components/icons/AsanaIcon";
 import { isOvernightShift } from "@/lib/time/validation";
 import {
   canPersistDecimalEntry,
@@ -216,8 +217,23 @@ export function TimeTrackingView({
   );
 
   const byProject = useMemo(
-    () => groupHoursByProject(allEntries, projects),
-    [allEntries, projects],
+    () =>
+      groupHoursByProject(
+        allEntries.map((e) => ({
+          id: e.id,
+          entry_date: e.entry_date,
+          total_hours: e.total_hours,
+          billable: e.billable,
+          project_id: e.project_id,
+          asana_project_id: e.asana_project_id,
+          asana_project_name:
+            asanaImportedProjects.find((p) => p.id === e.asana_project_id)
+              ?.asana_project_name ?? null,
+        })),
+        projects,
+        asanaImportedProjects,
+      ),
+    [allEntries, projects, asanaImportedProjects],
   );
 
   const billableHours = useMemo(
@@ -711,10 +727,21 @@ export function TimeTrackingView({
                   >
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="flex min-w-0 items-center gap-2 text-ink">
-                        <span
-                          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: p.color }}
-                        />
+                        {p.source === "asana" ? (
+                          <AsanaIcon size={16} />
+                        ) : (
+                          <span
+                            className={cn(
+                              "inline-block h-2.5 w-2.5 shrink-0 rounded-full",
+                              p.source === "none" && "bg-muted",
+                            )}
+                            style={
+                              p.source === "cadence"
+                                ? { backgroundColor: p.color }
+                                : undefined
+                            }
+                          />
+                        )}
                         <span className="truncate">{p.name}</span>
                       </span>
                       <span className="tabular shrink-0 font-medium">

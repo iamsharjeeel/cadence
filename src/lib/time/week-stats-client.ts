@@ -11,6 +11,8 @@ export type PersistedEntrySlice = {
   total_hours?: number | null;
   billable: boolean;
   project_id: string | null;
+  asana_project_id?: string | null;
+  asana_project_name?: string | null;
 };
 
 export function computeWeekStatsFromPersisted(
@@ -38,15 +40,52 @@ export function computeWeekStatsFromPersisted(
 
 export type ProjectHoursRow = {
   projectId: string | null;
+  asanaProjectId: string | null;
   name: string;
   color: string;
   hours: number;
   billableHours: number;
+  source: "cadence" | "asana" | "none";
 };
+
+function entryGroupKey(e: PersistedEntrySlice & { id: string }): string {
+  if (e.project_id) return `cadence:${e.project_id}`;
+  if (e.asana_project_id) return `asana:${e.asana_project_id}`;
+  return "__none__";
+}
+
+function entryDisplayName(
+  e: PersistedEntrySlice,
+  projects: { id: string; name: string; color: string }[],
+  asanaProjects: { id: string; asana_project_name: string }[],
+): { name: string; color: string; source: ProjectHoursRow["source"] } {
+  if (e.project_id) {
+    const project = projects.find((p) => p.id === e.project_id);
+    return {
+      name: project?.name ?? "No project",
+      color: project?.color ?? "#6B6F76",
+      source: "cadence",
+    };
+  }
+  if (e.asana_project_id) {
+    const asana =
+      asanaProjects.find((p) => p.id === e.asana_project_id) ??
+      (e.asana_project_name
+        ? { id: e.asana_project_id, asana_project_name: e.asana_project_name }
+        : null);
+    return {
+      name: asana?.asana_project_name ?? "No project",
+      color: "#6B6F76",
+      source: "asana",
+    };
+  }
+  return { name: "No project", color: "#6B6F76", source: "none" };
+}
 
 export function groupHoursByProject(
   entries: PersistedEntrySlice[],
   projects: { id: string; name: string; color: string }[],
+  asanaProjects: { id: string; asana_project_name: string }[] = [],
 ): ProjectHoursRow[] {
   const persisted = entries.filter(
     (e): e is PersistedEntrySlice & { id: string; total_hours: number } =>
@@ -55,14 +94,16 @@ export function groupHoursByProject(
 
   const map = new Map<string, ProjectHoursRow>();
   for (const e of persisted) {
-    const key = e.project_id ?? "__none__";
-    const project = projects.find((p) => p.id === e.project_id);
+    const key = entryGroupKey(e);
+    const display = entryDisplayName(e, projects, asanaProjects);
     const cur = map.get(key) ?? {
       projectId: e.project_id,
-      name: project?.name ?? "No project",
-      color: project?.color ?? "#6B6F76",
+      asanaProjectId: e.asana_project_id ?? null,
+      name: display.name,
+      color: display.color,
       hours: 0,
       billableHours: 0,
+      source: display.source,
     };
     cur.hours += e.total_hours;
     if (e.billable) cur.billableHours += e.total_hours;

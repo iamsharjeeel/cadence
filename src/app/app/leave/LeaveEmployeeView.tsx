@@ -176,19 +176,22 @@ export function LeaveEmployeeView({
         </div>
       )}
 
-      <MotionCard className="mt-4">
+      <MotionCard className="mt-4 overflow-hidden">
         <CardHeader>
           <CardTitle className="text-base">Calendar — {monthLabel}</CardTitle>
         </CardHeader>
-        <CardContent className="bg-surface">
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted">
+        <CardContent className="bg-surface p-0">
+          <div className="grid grid-cols-7 gap-px bg-[var(--line)]">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-              <div key={d} className="py-1">
+              <div
+                key={d}
+                className="bg-surface py-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted"
+              >
                 {d}
               </div>
             ))}
             {Array.from({ length: offset }).map((_, i) => (
-              <div key={`pad-${i}`} />
+              <div key={`pad-${i}`} className="min-h-[72px] bg-surface" />
             ))}
             {Array.from({ length: days }).map((_, i) => {
               const day = i + 1;
@@ -198,16 +201,16 @@ export function LeaveEmployeeView({
                 <div
                   key={day}
                   className={cn(
-                    "flex aspect-square items-center justify-center rounded-[var(--radius-input)] text-sm transition-colors",
-                    !hit && "bg-surface-low text-muted hover:bg-container",
+                    "relative min-h-[72px] bg-surface p-2 transition-colors",
+                    !hit && "hover:bg-container",
                     hit?.status === "approved" &&
-                      "border border-[var(--accent)] bg-[var(--accent-soft)] font-medium text-ink",
+                      "bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]",
                     hit?.status === "pending" &&
-                      "border border-dashed border-[var(--line)] bg-container font-medium text-ink",
+                      "bg-container ring-1 ring-inset ring-dashed ring-[var(--line)]",
                     hit &&
                       hit.status !== "approved" &&
                       hit.status !== "pending" &&
-                      "border border-[var(--line)] bg-surface-low font-medium text-ink",
+                      "bg-surface-low ring-1 ring-inset ring-[var(--line)]",
                   )}
                   title={
                     hit
@@ -215,12 +218,12 @@ export function LeaveEmployeeView({
                       : undefined
                   }
                 >
-                  {day}
+                  <span className="text-[13px] text-muted">{day}</span>
                 </div>
               );
             })}
           </div>
-          <p className="mt-4 text-xs text-muted">
+          <p className="px-4 py-3 text-xs text-muted">
             Highlighted days show approved or pending leave.
           </p>
         </CardContent>

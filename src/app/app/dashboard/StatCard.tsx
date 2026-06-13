@@ -35,7 +35,7 @@ export function StatCard({
               decimals={decimals}
               prefix={prefix}
               suffix={suffix}
-              className="font-display text-[42px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]"
+              className="font-display text-6xl font-bold leading-none tabular text-ink dark:text-[var(--accent)]"
             />
           )}
         </div>

@@ -48,8 +48,8 @@ export type OrgSummaryCard = {
   approvedHoursPeriod: number;
 };
 
-function sumHours(rows: { hours: number }[]): number {
-  return rows.reduce((s, r) => s + Number(r.hours), 0);
+function sumEntryHours(rows: { total_hours: number | null }[]): number {
+  return rows.reduce((s, r) => s + Number(r.total_hours ?? 0), 0);
 }
 
 function monthRange() {
@@ -61,77 +61,101 @@ export async function getEmployeeDashboard(
   profile: Profile,
 ): Promise<EmployeeDashboardData> {
   const db = createAdminClient();
-  const { start, end } = monthRange();
+  const { start } = monthRange();
 
   const { data: timesheets } = await db
     .from("timesheets")
     .select("*")
     .eq("employee_id", profile.id)
+    .eq("status", "approved")
     .order("period_start", { ascending: false });
 
-  const all = (timesheets ?? []) as Timesheet[];
-  const approved = all.filter((t) => t.status === "approved");
-  const approvedThisMonth = approved.filter(
-    (t) => t.period_start <= end && t.period_end >= start,
-  );
-
-  const approvedIds = approvedThisMonth.map((t) => t.id);
-  let approvedHoursMonth = 0;
-  if (approvedIds.length > 0) {
-    const { data: rows } = await db
-      .from("timesheet_rows")
-      .select("hours")
-      .in("timesheet_id", approvedIds);
-    approvedHoursMonth = sumHours(rows ?? []);
-  }
+  const approved = (timesheets ?? []) as Timesheet[];
+  const approvedIds = approved.map((t) => t.id);
 
   const earningsByCurrency: CurrencyTotals = {};
-  for (const t of approvedThisMonth) {
+  for (const t of approved) {
     const cur = t.currency_snapshot ?? "USD";
     earningsByCurrency[cur] =
       (earningsByCurrency[cur] ?? 0) + (t.calculated_total ?? 0);
   }
 
+  const approvedThisMonth = approved.filter(
+    (t) => t.approved_at && t.approved_at >= start,
+  );
+  const approvedMonthIds = approvedThisMonth.map((t) => t.id);
+
+  let approvedHoursMonth = 0;
+  if (approvedMonthIds.length > 0) {
+    const { data: entries } = await db
+      .from("time_entries")
+      .select("total_hours")
+      .in("timesheet_id", approvedMonthIds);
+    approvedHoursMonth = sumEntryHours(entries ?? []);
+  }
+
   const hoursByPeriod = await Promise.all(
     approved.slice(0, 6).map(async (t) => {
-      const { data: rows } = await db
-        .from("timesheet_rows")
-        .select("hours")
+      const { data: entries } = await db
+        .from("time_entries")
+        .select("total_hours")
         .eq("timesheet_id", t.id);
       return {
         label: t.period_start.slice(5),
-        hours: sumHours(rows ?? []),
+        hours: sumEntryHours(entries ?? []),
       };
     }),
   );
   hoursByPeriod.reverse();
 
-  return {
-    approvedHoursMonth,
-    earningsByCurrency,
-    recentTimesheets: all.slice(0, 5),
-    hoursByPeriod,
-  };
-}
-
-/** Admin dashboard — scoped to one org. Superadmin passes target org_id. */
-export async function getAdminDashboard(orgId: string): Promise<AdminDashboardData> {
-  const db = createAdminClient();
-  const { start, end } = monthRange();
-
-  const { count: pendingCount } = await db
-    .from("timesheets")
-    .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId)
-    .eq("status", "submitted");
-
-  const { data: approvedSheets } = await db
+  const { data: recent } = await db
     .from("timesheets")
     .select("*")
-    .eq("org_id", orgId)
+    .eq("employee_id", profile.id)
+    .order("period_start", { ascending: false })
+    .limit(5);
+
+  const result: EmployeeDashboardData = {
+    approvedHoursMonth,
+    earningsByCurrency,
+    recentTimesheets: (recent ?? []) as Timesheet[],
+    hoursByPeriod,
+  };
+
+  console.log("[dashboard] employee query result", {
+    employeeId: profile.id,
+    approvedTimesheetCount: approved.length,
+    approvedThisMonthCount: approvedThisMonth.length,
+    approvedHoursMonth: result.approvedHoursMonth,
+    earningsByCurrency: result.earningsByCurrency,
+    monthStart: start,
+    approvedTimesheetIds: approvedIds,
+  });
+
+  return result;
+}
+
+/** Admin dashboard — scoped to one org, or all orgs when orgId is null (superadmin). */
+export async function getAdminDashboard(
+  orgId: string | null,
+): Promise<AdminDashboardData> {
+  const db = createAdminClient();
+  const { start } = monthRange();
+
+  let pendingQuery = db
+    .from("timesheets")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "submitted");
+  if (orgId) pendingQuery = pendingQuery.eq("org_id", orgId);
+  const { count: pendingCount } = await pendingQuery;
+
+  let approvedQuery = db
+    .from("timesheets")
+    .select("*")
     .eq("status", "approved")
-    .lte("period_start", end)
-    .gte("period_end", start);
+    .gte("approved_at", start);
+  if (orgId) approvedQuery = approvedQuery.eq("org_id", orgId);
+  const { data: approvedSheets } = await approvedQuery;
 
   const approved = (approvedSheets ?? []) as Timesheet[];
   const approvedIds = approved.map((t) => t.id);
@@ -141,15 +165,16 @@ export async function getAdminDashboard(orgId: string): Promise<AdminDashboardDa
   const weeklyMap = new Map<string, number>();
 
   if (approvedIds.length > 0) {
-    const { data: rows } = await db
-      .from("timesheet_rows")
-      .select("hours, row_date, timesheet_id")
+    const { data: entries } = await db
+      .from("time_entries")
+      .select("total_hours, entry_date, timesheet_id")
       .in("timesheet_id", approvedIds);
 
     const sheetById = new Map(approved.map((t) => [t.id, t]));
 
-    for (const row of rows ?? []) {
-      const hrs = Number(row.hours);
+    for (const row of entries ?? []) {
+      if (!row.timesheet_id) continue;
+      const hrs = Number(row.total_hours ?? 0);
       approvedHoursPeriod += hrs;
       const sheet = sheetById.get(row.timesheet_id);
       if (sheet) {
@@ -157,7 +182,7 @@ export async function getAdminDashboard(orgId: string): Promise<AdminDashboardDa
           sheet.employee_id,
           (hoursByEmployeeMap.get(sheet.employee_id) ?? 0) + hrs,
         );
-        const week = isoWeekKey(row.row_date);
+        const week = isoWeekKey(row.entry_date);
         weeklyMap.set(week, (weeklyMap.get(week) ?? 0) + hrs);
       }
     }
@@ -170,18 +195,21 @@ export async function getAdminDashboard(orgId: string): Promise<AdminDashboardDa
       (payrollByCurrency[cur] ?? 0) + (t.calculated_total ?? 0);
   }
 
-  const { data: profiles } = await db
+  let profilesQuery = db
     .from("profiles")
-    .select("id, full_name, email, role, rate, currency")
-    .eq("org_id", orgId)
+    .select("id, full_name, email, role, rate, currency, org_id")
     .neq("role", "superadmin");
+  if (orgId) {
+    profilesQuery = profilesQuery.eq("org_id", orgId);
+  } else {
+    profilesQuery = profilesQuery.not("org_id", "is", null);
+  }
+  const { data: profiles } = await profilesQuery;
 
-  const nameById = new Map<string, string>();
   const employeeBreakdown: EmployeeBreakdownRow[] = [];
 
   for (const p of profiles ?? []) {
     const name = p.full_name?.trim() || p.email;
-    nameById.set(p.id, name);
     const hrs = hoursByEmployeeMap.get(p.id) ?? 0;
     let estimatedTotal = 0;
     for (const t of approved) {
@@ -212,12 +240,13 @@ export async function getAdminDashboard(orgId: string): Promise<AdminDashboardDa
     currency: "mixed",
   }));
 
-  const { data: activity } = await db
+  let activityQuery = db
     .from("audit_log")
     .select("id, action, created_at, actor_id")
-    .eq("org_id", orgId)
     .order("created_at", { ascending: false })
     .limit(10);
+  if (orgId) activityQuery = activityQuery.eq("org_id", orgId);
+  const { data: activity } = await activityQuery;
 
   const actorIds = [
     ...new Set((activity ?? []).map((a) => a.actor_id).filter(Boolean)),
@@ -252,7 +281,7 @@ export async function getAdminDashboard(orgId: string): Promise<AdminDashboardDa
 /** Superadmin org overview cards. */
 export async function getSuperadminOrgSummaries(): Promise<OrgSummaryCard[]> {
   const db = createAdminClient();
-  const { start, end } = monthRange();
+  const { start } = monthRange();
 
   const { data: orgs } = await db
     .from("organizations")
@@ -279,17 +308,16 @@ export async function getSuperadminOrgSummaries(): Promise<OrgSummaryCard[]> {
       .select("id")
       .eq("org_id", org.id)
       .eq("status", "approved")
-      .lte("period_start", end)
-      .gte("period_end", start);
+      .gte("approved_at", start);
 
     let approvedHoursPeriod = 0;
     const ids = (approved ?? []).map((t) => t.id);
     if (ids.length > 0) {
-      const { data: rows } = await db
-        .from("timesheet_rows")
-        .select("hours")
+      const { data: entries } = await db
+        .from("time_entries")
+        .select("total_hours")
         .in("timesheet_id", ids);
-      approvedHoursPeriod = sumHours(rows ?? []);
+      approvedHoursPeriod = sumEntryHours(entries ?? []);
     }
 
     cards.push({

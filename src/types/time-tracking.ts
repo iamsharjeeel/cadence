@@ -15,6 +15,7 @@ export type TimeEntryWithProject = TimeEntry & {
     AsanaImportedProject,
     "id" | "asana_project_name" | "asana_project_gid"
   > | null;
+  asana_project_name?: string | null;
 };
 
 export type TimeTrackingData = {

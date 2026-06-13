@@ -1169,6 +1169,34 @@ Full visual polish for light mode and complete dark mode implementation. **No lo
 - `src/app/app/timesheets/TimesheetListTable.tsx`, `trends/{TrendsCharts,page}.tsx`
 - `src/lib/chart-colors.ts`, `src/components/marketing/LandingPage.tsx`
 
+### Session — Dashboard data, leave calendar, week summary, trends accent, dark dropdown ✅
+
+Five surgical UI + query fixes. No API routes, auth, or unrelated logic changed.
+
+#### Fix 1 — Dashboard stat data + number size
+- **`getEmployeeDashboard`** (`src/lib/dashboard/queries.ts`): approved timesheets only (`status = 'approved'`, `employee_id = profile.id`); total earnings sums `calculated_total` across all approved; approved hours this month from `time_entries.total_hours` where parent timesheet `approved_at >=` month start; chart periods use `time_entries` not legacy `timesheet_rows`.
+- **`getAdminDashboard`**: org-scoped `profiles.org_id`; optional `orgId: null` aggregates across all orgs (superadmin); month metrics use `approved_at` + `time_entries`.
+- **`getSuperadminOrgSummaries`**: approved hours from `time_entries` with `approved_at` month filter.
+- **Server log:** `console.log('[dashboard] employee query result', …)` left in for Vercel verification.
+- **Stat cards:** `StatCard.tsx` + `CurrencyTotals.tsx` — `text-6xl font-bold tabular` Space Grotesk; `dark:text-[var(--accent)]` on numbers.
+
+#### Fix 2 — Leave calendar compact
+- **`LeaveEmployeeView.tsx`**: day cells `min-h-[72px]`, day number `text-[13px] text-muted` top-left; header row `text-[11px] uppercase tracking-wide text-muted py-2`; calendar card `overflow-hidden`; balance cards unchanged above calendar (no min-height forcing scroll-off on ~900px viewport).
+
+#### Fix 3 — Week summary Asana project display
+- **`week-stats-client.ts`**: display precedence — Cadence `project_id` primary; Asana-only when no `project_id`; neither → "No project"; `asana_project_name` on slice.
+- **`get-time-tracking-data.ts`**: flattens `asana_project_name` onto entries.
+- **`TimeTrackingView.tsx`**: week summary shows `AsanaIcon` (16px) for Asana-sourced rows; Cadence color dot / muted dot for none.
+
+#### Fix 4 — Trends stat accent
+- **`TrendsCharts.tsx`**: stat number value uses `text-[var(--accent)]` (light + dark); label stays muted uppercase.
+
+#### Fix 5 — Cadence project dropdown dark mode
+- **`TimeEntryRow.tsx`**: native `<select>` replaced with `CadenceProjectListbox` (matches Asana picker pattern); panel `dark:bg-[var(--surface-container)]`, options `dark:hover:bg-[var(--surface-low)]`, selected `dark:bg-[var(--accent-soft)] dark:text-[var(--accent)]`, "+ New project" `dark:text-[var(--accent)]`.
+
+#### Owner verification (prod)
+- Deploy → open `/app/dashboard` as employee → Vercel logs should show `[dashboard] employee query result` with `approvedHoursMonth` / `earningsByCurrency`.
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)
