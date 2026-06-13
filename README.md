@@ -89,7 +89,7 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - **Asana scopes:** `ASANA_REQUIRED_SCOPES` in `src/lib/asana/config.ts` (`projects:read`, `workspaces:read`); reconnect prompt on insufficient scope; existing tokens need one reconnect
 - **Self-service rate:** Profile → Employment rate editable; audit `source: self|admin`
 - **Unassigned users:** org Team query already scoped; superadmin sees unassigned with Assign-to-org action
-- **Time entry collapse:** saved rows auto-collapse to summary; click to expand
+- **Time entry collapse:** explicit **Save** collapses saved rows to summary; autosave persists silently; click summary to expand
 
 ### Phase 9b — Asana picker polish
 - **Picker layout:** Asana project leads the row (same visual weight as Cadence dropdown); Cadence project second; picker hidden when not connected
@@ -100,6 +100,11 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - **Collapsed sync:** “Synced …” timestamp on collapsed entry summary when an Asana project is tagged
 - **Empty state:** “No projects imported” shows count of Asana projects available to import
 - **Disconnect confirm:** modal before disconnect (clears imported project list)
+
+### Phase 9c — Entry row alignment, collapse, summary
+- **Dropdown parity:** shared `PROJECT_SELECT_CLASSES` + fixed 18px leading slot; Asana sync metadata moved below grid (`AsanaProjectPickerMeta`)
+- **Collapse on Save only:** autosave no longer collapses; loaded entries still start collapsed; Save = persist + collapse
+- **Collapsed summary precedence:** Cadence-only, Asana-only (no erroneous "No project"), or both shown together; "Synced …" subordinate to Asana tag
 
 ## Getting started
 

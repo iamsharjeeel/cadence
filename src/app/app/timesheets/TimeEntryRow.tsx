@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Trash2 } from "lucide-react";
 
-import { AsanaProjectPicker } from "@/components/asana/AsanaProjectPicker";
+import { AsanaProjectPicker, AsanaProjectPickerMeta, PROJECT_LEADING_SLOT, PROJECT_SELECT_CLASSES } from "@/components/asana/AsanaProjectPicker";
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
 import { asanaProjectUrl, formatAsanaSyncedAt } from "@/lib/asana/urls";
 
@@ -291,6 +291,9 @@ export function TimeEntryRow({
   const isCollapsed = Boolean(entry.collapsed) && entry.id && entry.saveState !== "saving";
   const asanaSyncedLabel = formatAsanaSyncedAt(asanaProjectNamesSyncedAt);
 
+  const hasCadenceProject = Boolean(selectedProject);
+  const hasAsanaProject = Boolean(selectedAsanaProject);
+
   const timeSummary = isDecimalMode
     ? `${displayHours != null ? `${displayHours.toFixed(1)}h` : "—"} total`
     : entry.start_time && entry.end_time
@@ -315,14 +318,32 @@ export function TimeEntryRow({
           </span>
           <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />
           <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-ink">
-            {selectedProject ? (
+            {hasCadenceProject ? (
               <>
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: selectedProject.color }}
+                  style={{ backgroundColor: selectedProject!.color }}
                   aria-hidden
                 />
-                <span className="truncate">{selectedProject.name}</span>
+                <span className="truncate">{selectedProject!.name}</span>
+              </>
+            ) : hasAsanaProject ? (
+              <>
+                <a
+                  href={asanaProjectUrl(selectedAsanaProject!.asana_project_gid)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex min-w-0 items-center gap-1.5 transition-colors hover:text-[var(--accent-strong)]"
+                >
+                  <AsanaIcon size={14} />
+                  <span className="truncate">{selectedAsanaProject!.asana_project_name}</span>
+                </a>
+                {asanaSyncedLabel ? (
+                  <span className="hidden shrink-0 text-[10px] font-normal text-muted/80 sm:inline">
+                    · Synced {asanaSyncedLabel}
+                  </span>
+                ) : null}
               </>
             ) : (
               <span className="truncate text-muted">No project</span>
@@ -338,21 +359,21 @@ export function TimeEntryRow({
           >
             {entry.billable ? "Billable" : "Non-billable"}
           </span>
-          {selectedAsanaProject ? (
+          {hasCadenceProject && hasAsanaProject ? (
             <>
               <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />
               <a
-                href={asanaProjectUrl(selectedAsanaProject.asana_project_gid)}
+                href={asanaProjectUrl(selectedAsanaProject!.asana_project_gid)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="flex min-w-0 items-center gap-1.5 text-sm text-muted transition-colors hover:text-[var(--accent-strong)]"
               >
                 <AsanaIcon size={14} />
-                <span className="truncate">{selectedAsanaProject.asana_project_name}</span>
+                <span className="truncate">{selectedAsanaProject!.asana_project_name}</span>
               </a>
               {asanaSyncedLabel ? (
-                <span className="hidden shrink-0 text-[10px] text-muted sm:inline">
+                <span className="hidden shrink-0 text-[10px] font-normal text-muted/80 sm:inline">
                   Synced {asanaSyncedLabel}
                 </span>
               ) : null}
@@ -467,56 +488,65 @@ export function TimeEntryRow({
         )}
 
         {/* Row 2: Asana project (leading) + Cadence project */}
-        <div
-          className={cn(
-            "grid gap-3",
-            asanaConnected && "lg:grid-cols-2",
-          )}
-        >
-          <AsanaProjectPicker
+        <div className="flex flex-col gap-1.5">
+          <div
+            className={cn(
+              "grid gap-3",
+              asanaConnected && "lg:grid-cols-2",
+            )}
+          >
+            <AsanaProjectPicker
+              connected={asanaConnected}
+              importedProjects={asanaImportedProjects}
+              value={entry.asana_project_id}
+              disabled={!editable}
+              onChange={onAsanaProjectChange}
+            />
+
+            <div className="flex min-w-0 items-center gap-2">
+              <span className={PROJECT_LEADING_SLOT}>
+                {selectedProject ? (
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: selectedProject.color }}
+                    aria-hidden
+                  />
+                ) : null}
+              </span>
+              <select
+                value={entry.project_id ?? ""}
+                disabled={!editable}
+                onChange={async (e) => {
+                  if (e.target.value === "__new__") {
+                    e.target.value = entry.project_id ?? "";
+                    setCreateModalOpen(true);
+                    return;
+                  }
+                  onProjectChange(e.target.value === "" ? null : e.target.value);
+                }}
+                className={PROJECT_SELECT_CLASSES}
+              >
+                <option value="">Cadence project</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.is_org_wide ? "[Org] " : ""}
+                    {p.name}
+                  </option>
+                ))}
+                {editable && <option value="__new__">+ New project</option>}
+              </select>
+            </div>
+          </div>
+
+          <AsanaProjectPickerMeta
             connected={asanaConnected}
             importedProjects={asanaImportedProjects}
             value={entry.asana_project_id}
             lastSyncedAt={asanaProjectNamesSyncedAt}
             disabled={!editable}
             syncPending={asanaSyncPending}
-            onChange={onAsanaProjectChange}
             onSync={onAsanaSync}
           />
-
-          <div className="flex min-w-0 items-center gap-2">
-            {selectedProject ? (
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: selectedProject.color }}
-                aria-hidden
-              />
-            ) : (
-              <span className="h-2 w-2 shrink-0" aria-hidden />
-            )}
-            <select
-              value={entry.project_id ?? ""}
-              disabled={!editable}
-              onChange={async (e) => {
-                if (e.target.value === "__new__") {
-                  e.target.value = entry.project_id ?? "";
-                  setCreateModalOpen(true);
-                  return;
-                }
-                onProjectChange(e.target.value === "" ? null : e.target.value);
-              }}
-              className={cn(fieldBase, "h-9 min-w-0 flex-1 py-0 text-sm")}
-            >
-              <option value="">Cadence project</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.is_org_wide ? "[Org] " : ""}
-                  {p.name}
-                </option>
-              ))}
-              {editable && <option value="__new__">+ New project</option>}
-            </select>
-          </div>
         </div>
 
         <input

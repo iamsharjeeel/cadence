@@ -309,7 +309,12 @@ export function TimeTrackingView({
   }
 
   const persistEntry = useCallback(
-    async (date: string, clientId: string, overrides?: Partial<DraftEntry>) => {
+    async (
+      date: string,
+      clientId: string,
+      overrides?: Partial<DraftEntry>,
+      options?: { collapse?: boolean },
+    ) => {
       const existing = inFlightSaves.current.get(clientId);
       if (existing) {
         await existing;
@@ -388,7 +393,7 @@ export function TimeTrackingView({
           description: entry.description,
           billable: entry.billable,
           overnightConfirmed: overnight || entry.overnightConfirmed,
-          collapsed: true,
+          ...(options?.collapse ? { collapsed: true } : {}),
         });
 
         window.setTimeout(() => {
@@ -605,7 +610,11 @@ export function TimeTrackingView({
                           });
                         }
                       }}
-                      onSave={() => persistEntry(day.date, entry.clientId)}
+                      onSave={() =>
+                        persistEntry(day.date, entry.clientId, undefined, {
+                          collapse: true,
+                        })
+                      }
                       onDelete={() => removeEntry(entry)}
                       onBillableChange={(next) => {
                         updateEntry(day.date, entry.clientId, {

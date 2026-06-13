@@ -1090,6 +1090,28 @@ SELECT column_name FROM information_schema.columns
 WHERE table_name = 'asana_connections' AND column_name = 'project_names_synced_at';
 ```
 
+### Session — Entry row alignment, collapse behavior, summary fix ✅
+
+#### Item 1 — Asana/Cadence dropdown alignment
+- Shared `PROJECT_SELECT_CLASSES` / `PROJECT_LEADING_SLOT` in `AsanaProjectPicker.tsx` — both fields use identical `fieldBase` h-9 styling and chevron treatment
+- Sync / "Open in Asana" / Refresh moved to `AsanaProjectPickerMeta` below the grid (no longer inflates Asana cell height)
+- Empty-import state uses same h-9 field shell as the Cadence select
+
+#### Item 2 — Collapse only on explicit Save
+- `persistEntry(..., { collapse: true })` only from Save button; autosave paths omit `collapse`
+- Save button = same persist path + collapse on success (no separate persistence logic)
+- Rows loaded from DB still start collapsed (`entryToDraft` unchanged)
+
+#### Item 3 — Collapsed summary precedence
+- **Neither** → "No project"
+- **Cadence only** → Cadence dot + name
+- **Asana only** → Asana icon + name (primary slot; no "No project")
+- **Both** → Cadence in primary slot + Asana tag after billable pill
+- "Synced …" rendered smaller/muted (`text-[10px] text-muted/80`) relative to Asana tag
+
+#### Key files
+- `src/components/asana/AsanaProjectPicker.tsx`, `src/app/app/timesheets/TimeEntryRow.tsx`, `TimeTrackingView.tsx`
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)
