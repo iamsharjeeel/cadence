@@ -30,7 +30,9 @@ export function MotionModal({
   }, [open]);
 
   return (
-    <AnimatePresence mode="wait">
+    // Default (sync) mode: backdrop + panel are two keyed children that must
+    // animate in/out together. `mode="wait"` would serialize sibling exits.
+    <AnimatePresence>
       {open && (
         <motion.div
           key="cadence-modal-backdrop"
