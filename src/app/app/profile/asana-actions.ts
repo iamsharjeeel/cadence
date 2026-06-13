@@ -6,6 +6,7 @@ import { requireActiveProfile } from "@/lib/auth";
 import {
   deleteAsanaConnection,
   getAsanaConnection,
+  getValidAsanaAccessToken,
 } from "@/lib/asana/connection";
 import { decryptAsanaToken } from "@/lib/asana-crypto";
 import { revokeAsanaToken } from "@/lib/asana/config";
@@ -15,6 +16,8 @@ import {
   isAsanaInsufficientScopeError,
 } from "@/lib/asana/errors";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyUser } from "@/lib/notifications";
 import type { AsanaImportedProject } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string; needsReconnect?: boolean };
@@ -107,6 +110,8 @@ export async function importAsanaProjects(
       return { ok: false, message: "Couldn't import projects." };
     }
 
+    await markAsanaProjectNamesSynced(profile.id);
+
     revalidatePath("/app/profile");
     return {
       ok: true,
@@ -178,7 +183,11 @@ export async function syncImportedAsanaProjectNames(): Promise<ActionResult> {
       if (!error) updated += 1;
     }
 
+    await markAsanaProjectNamesSynced(profile.id);
+
     revalidatePath("/app/profile");
+    revalidatePath("/app/timesheets");
+    revalidatePath("/app/timesheets/log");
     return {
       ok: true,
       message:
@@ -234,4 +243,60 @@ async function listImportedAsanaProjects(
     return [];
   }
   return (data ?? []) as AsanaImportedProject[];
+}
+
+async function markAsanaProjectNamesSynced(userId: string): Promise<void> {
+  const db = createAdminClient();
+  const { error } = await db
+    .from("asana_connections")
+    .update({
+      project_names_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("[asana] project_names_synced_at update failed:", error.message);
+  }
+}
+
+/** Opportunistic health check — tries token refresh; notifies once if auth fails. */
+export async function checkAsanaConnectionHealth(): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  if (!profile.org_id) return { ok: true, message: "" };
+
+  const connection = await getAsanaConnection(profile.id);
+  if (!connection) return { ok: true, message: "" };
+
+  try {
+    await getValidAsanaAccessToken(profile.id);
+    return { ok: true, message: "" };
+  } catch (err) {
+    console.error("[asana] connection health check failed:", err);
+
+    const db = createAdminClient();
+    const { data: existing } = await db
+      .from("notifications")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("type", "asana_reconnect_required")
+      .eq("read", false)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      return { ok: true, message: "" };
+    }
+
+    await notifyUser({
+      orgId: profile.org_id,
+      userId: profile.id,
+      type: "asana_reconnect_required",
+      title: "Your Asana connection needs to be reconnected",
+      body: "Open Connected accounts on your profile to reconnect.",
+      entity: "profile",
+      entityId: profile.id,
+    });
+
+    return { ok: true, message: "Reconnect notification sent." };
+  }
 }

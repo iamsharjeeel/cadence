@@ -43,6 +43,7 @@ import {
   type WeekStats,
 } from "@/lib/time/week-constants";
 import type { TimesheetStatus } from "@/types/db";
+import type { AsanaImportedProject } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
 import type { TimeTrackingData } from "@/types/time-tracking";
 import {
@@ -50,6 +51,7 @@ import {
   submitTimesheetForApproval,
 } from "./time-actions";
 import { createProject } from "../projects/actions";
+import { syncImportedAsanaProjectNames } from "../profile/asana-actions";
 import { LogSummarySkeleton, LogWeekSkeleton } from "./LogWeekSkeleton";
 import { TimeEntryRow, type EntryRowData } from "./TimeEntryRow";
 import { cn } from "@/lib/utils";
@@ -69,6 +71,7 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
     end_time: lastEnd ? "" : "17:00",
     decimal_hours: "",
     project_id: null,
+    asana_project_id: null,
     description: "",
     billable: true,
     saveState: "idle",
@@ -92,6 +95,7 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
         ? String(e.decimal_hours)
         : "",
     project_id: e.project_id,
+    asana_project_id: e.asana_project_id ?? null,
     description: e.description ?? "",
     billable: e.billable,
     total_hours: Number(e.total_hours),
@@ -119,6 +123,9 @@ function applyTrackingData(
     setEmployeeId: (v: string) => void;
     setStatus: (v: TimesheetStatus) => void;
     setProjects: (v: Project[]) => void;
+    setAsanaConnected: (v: boolean) => void;
+    setAsanaImportedProjects: (v: AsanaImportedProject[]) => void;
+    setAsanaProjectNamesSyncedAt: (v: string | null) => void;
     setWeek: (v: PayPeriod) => void;
     setRate: (v: number | null) => void;
     setRateType: (v: string) => void;
@@ -131,6 +138,9 @@ function applyTrackingData(
   setters.setEmployeeId(data.employeeId);
   setters.setStatus(data.status);
   setters.setProjects(data.projects);
+  setters.setAsanaConnected(data.asanaConnected);
+  setters.setAsanaImportedProjects(data.asanaImportedProjects);
+  setters.setAsanaProjectNamesSyncedAt(data.asanaProjectNamesSyncedAt);
   setters.setWeek(data.week);
   setters.setRate(data.rate);
   setters.setRateType(data.rateType);
@@ -155,6 +165,14 @@ export function TimeTrackingView({
   const [employeeId, setEmployeeId] = useState("");
   const [status, setStatus] = useState<TimesheetStatus>("draft");
   const [projects, setProjects] = useState<Project[]>([]);
+  const [asanaConnected, setAsanaConnected] = useState(false);
+  const [asanaImportedProjects, setAsanaImportedProjects] = useState<
+    AsanaImportedProject[]
+  >([]);
+  const [asanaProjectNamesSyncedAt, setAsanaProjectNamesSyncedAt] = useState<
+    string | null
+  >(null);
+  const [asanaSyncPending, setAsanaSyncPending] = useState(false);
   const [entriesByDay, setEntriesByDay] = useState<Record<string, DraftEntry[]>>(
     {},
   );
@@ -211,6 +229,12 @@ export function TimeTrackingView({
   const showEarnings = rateType === "hourly" && rate != null;
   const showOvertimeNotice = totalHours > OVERTIME_HOURS_THRESHOLD;
 
+  function entryIsPersistable(entry: DraftEntry): boolean {
+    return entry.entry_mode === "decimal_hours"
+      ? canPersistDecimalEntry(entry.decimal_hours)
+      : canPersistTimeEntry(entry.start_time, entry.end_time);
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await getTimeTrackingData(weekMonday);
@@ -225,6 +249,9 @@ export function TimeTrackingView({
       setEmployeeId,
       setStatus,
       setProjects,
+      setAsanaConnected,
+      setAsanaImportedProjects,
+      setAsanaProjectNamesSyncedAt,
       setWeek,
       setRate,
       setRateType,
@@ -246,6 +273,9 @@ export function TimeTrackingView({
         setEmployeeId,
         setStatus,
         setProjects,
+        setAsanaConnected,
+        setAsanaImportedProjects,
+        setAsanaProjectNamesSyncedAt,
         setWeek,
         setRate,
         setRateType,
@@ -336,6 +366,7 @@ export function TimeTrackingView({
           endTime: entry.end_time,
           decimalHours: entry.decimal_hours,
           projectId: entry.project_id,
+          asanaProjectId: entry.asana_project_id,
           description: entry.description,
           billable: entry.billable,
         });
@@ -353,6 +384,7 @@ export function TimeTrackingView({
           id: res.id,
           total_hours: res.total_hours,
           project_id: entry.project_id,
+          asana_project_id: entry.asana_project_id,
           description: entry.description,
           billable: entry.billable,
           overnightConfirmed: overnight || entry.overnightConfirmed,
@@ -438,6 +470,27 @@ export function TimeTrackingView({
     }
     await load();
     return res.id ?? null;
+  }
+
+  async function handleAsanaSync() {
+    setAsanaSyncPending(true);
+    try {
+      const result = await syncImportedAsanaProjectNames();
+      if (!result.ok) {
+        toast(result.message, "error");
+        return;
+      }
+      if (
+        result.message &&
+        result.message !== "All project names are up to date."
+      ) {
+        toast(result.message, "success");
+      }
+      setAsanaProjectNamesSyncedAt(new Date().toISOString());
+      await load();
+    } finally {
+      setAsanaSyncPending(false);
+    }
   }
 
   return (
@@ -534,6 +587,10 @@ export function TimeTrackingView({
                       entry={entry}
                       editable={editable}
                       projects={projects}
+                      asanaConnected={asanaConnected}
+                      asanaImportedProjects={asanaImportedProjects}
+                      asanaProjectNamesSyncedAt={asanaProjectNamesSyncedAt}
+                      asanaSyncPending={asanaSyncPending}
                       onPatch={(patch) =>
                         updateEntry(day.date, entry.clientId, patch)
                       }
@@ -556,10 +613,7 @@ export function TimeTrackingView({
                           saveState: "idle",
                         });
                         const cur = getEntry(day.date, entry.clientId);
-                        if (
-                          cur &&
-                          canPersistTimeEntry(cur.start_time, cur.end_time)
-                        ) {
+                        if (cur && entryIsPersistable(cur)) {
                           void persistEntry(day.date, entry.clientId, {
                             billable: next,
                           });
@@ -579,15 +633,25 @@ export function TimeTrackingView({
                           saveState: "idle",
                         });
                         const cur = getEntry(day.date, entry.clientId);
-                        if (
-                          cur &&
-                          canPersistTimeEntry(cur.start_time, cur.end_time)
-                        ) {
+                        if (cur && entryIsPersistable(cur)) {
                           void persistEntry(day.date, entry.clientId, {
                             project_id: projectId,
                           });
                         }
                       }}
+                      onAsanaProjectChange={(asanaProjectId) => {
+                        updateEntry(day.date, entry.clientId, {
+                          asana_project_id: asanaProjectId,
+                          saveState: "idle",
+                        });
+                        const cur = getEntry(day.date, entry.clientId);
+                        if (cur && entryIsPersistable(cur)) {
+                          void persistEntry(day.date, entry.clientId, {
+                            asana_project_id: asanaProjectId,
+                          });
+                        }
+                      }}
+                      onAsanaSync={() => void handleAsanaSync()}
                       onCreateProject={handleCreateProject}
                       onExpand={() =>
                         updateEntry(day.date, entry.clientId, { collapsed: false })

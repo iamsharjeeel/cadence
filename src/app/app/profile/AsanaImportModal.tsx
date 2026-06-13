@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
+import { AsanaIcon } from "@/components/icons/AsanaIcon";
+
 import { MotionModal } from "@/components/motion/MotionModal";
 import { Button, buttonStyles } from "@/components/ui/Button";
 import {
@@ -105,14 +107,17 @@ export function AsanaImportModal({
   return (
     <MotionModal open={open} onClose={onClose} panelClassName="w-full max-w-2xl rounded-[18px] border border-line bg-surface p-6 shadow-xl">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-display text-xl font-semibold text-ink">
-            Import Asana projects
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            Choose projects from your Asana workspaces. This list is personal —
-            it does not change your organisation&apos;s Cadence projects yet.
-          </p>
+        <div className="flex items-start gap-3">
+          <AsanaIcon size={28} className="mt-0.5 shrink-0" />
+          <div>
+            <h2 className="font-display text-xl font-semibold text-ink">
+              Import Asana projects
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Choose projects from your Asana workspaces. This list is personal —
+              it does not change your organisation&apos;s Cadence projects yet.
+            </p>
+          </div>
         </div>
       </div>
 

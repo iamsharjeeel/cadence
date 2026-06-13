@@ -4,6 +4,9 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Trash2 } from "lucide-react";
 
+import { AsanaProjectPicker } from "@/components/asana/AsanaProjectPicker";
+import { AsanaIcon } from "@/components/icons/AsanaIcon";
+
 import { Button } from "@/components/ui/Button";
 import { fieldBase } from "@/components/ui/Input";
 import { TimePicker } from "@/components/ui/TimePicker";
@@ -13,6 +16,7 @@ import { parseDecimalHours, type EntryMode } from "@/lib/time/decimal-hours";
 import { hoursBetween, isOvernightShift } from "@/lib/time/validation";
 import { PROJECT_PRESET_COLORS } from "@/types/time-tracking";
 import type { Project } from "@/types/time-tracking";
+import type { AsanaImportedProject } from "@/types/db";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -25,6 +29,7 @@ export type EntryRowData = {
   end_time: string;
   decimal_hours: string;
   project_id: string | null;
+  asana_project_id: string | null;
   description: string;
   billable: boolean;
   total_hours?: number | null;
@@ -224,12 +229,18 @@ export function TimeEntryRow({
   entry,
   editable,
   projects,
+  asanaConnected,
+  asanaImportedProjects,
+  asanaProjectNamesSyncedAt,
+  asanaSyncPending,
   onPatch,
   onBlurField,
   onSave,
   onDelete,
   onBillableChange,
   onProjectChange,
+  onAsanaProjectChange,
+  onAsanaSync,
   onCreateProject,
   onConfirmOvernight,
   onExpand,
@@ -237,12 +248,18 @@ export function TimeEntryRow({
   entry: EntryRowData;
   editable: boolean;
   projects: Project[];
+  asanaConnected: boolean;
+  asanaImportedProjects: AsanaImportedProject[];
+  asanaProjectNamesSyncedAt: string | null;
+  asanaSyncPending?: boolean;
   onPatch: (patch: Partial<EntryRowData>) => void;
   onBlurField: (field: keyof EntryRowData, value: string) => void;
   onSave: () => void;
   onDelete: () => void;
   onBillableChange: (billable: boolean) => void;
   onProjectChange: (projectId: string | null) => void;
+  onAsanaProjectChange: (asanaProjectId: string | null) => void;
+  onAsanaSync?: () => void;
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onConfirmOvernight: () => void;
   onExpand?: () => void;
@@ -267,6 +284,9 @@ export function TimeEntryRow({
   const displayHours =
     entry.id && entry.total_hours != null ? entry.total_hours : previewHours;
   const selectedProject = projects.find((p) => p.id === entry.project_id);
+  const selectedAsanaProject = asanaImportedProjects.find(
+    (p) => p.id === entry.asana_project_id,
+  );
   const isCollapsed = Boolean(entry.collapsed) && entry.id && entry.saveState !== "saving";
 
   const timeSummary = isDecimalMode
@@ -316,6 +336,15 @@ export function TimeEntryRow({
           >
             {entry.billable ? "Billable" : "Non-billable"}
           </span>
+          {selectedAsanaProject ? (
+            <>
+              <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />
+              <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted">
+                <AsanaIcon size={14} />
+                <span className="truncate">{selectedAsanaProject.asana_project_name}</span>
+              </span>
+            </>
+          ) : null}
         </button>
       </motion.div>
     );
@@ -424,8 +453,8 @@ export function TimeEntryRow({
           </div>
         )}
 
-        {/* Row 2: project + description */}
-        <div className="grid gap-3 sm:grid-cols-2">
+        {/* Row 2: Cadence project + Asana picker (separate metadata) */}
+        <div className="grid gap-3 lg:grid-cols-2">
           <div className="flex min-w-0 items-center gap-2">
             {selectedProject ? (
               <span
@@ -441,7 +470,6 @@ export function TimeEntryRow({
               disabled={!editable}
               onChange={async (e) => {
                 if (e.target.value === "__new__") {
-                  /* Reset to previous value while modal is open */
                   e.target.value = entry.project_id ?? "";
                   setCreateModalOpen(true);
                   return;
@@ -450,7 +478,7 @@ export function TimeEntryRow({
               }}
               className={cn(fieldBase, "h-9 min-w-0 flex-1 py-0 text-sm")}
             >
-              <option value="">No project</option>
+              <option value="">Cadence project</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.is_org_wide ? "[Org] " : ""}
@@ -461,7 +489,19 @@ export function TimeEntryRow({
             </select>
           </div>
 
-          <input
+          <AsanaProjectPicker
+            connected={asanaConnected}
+            importedProjects={asanaImportedProjects}
+            value={entry.asana_project_id}
+            lastSyncedAt={asanaProjectNamesSyncedAt}
+            disabled={!editable}
+            syncPending={asanaSyncPending}
+            onChange={onAsanaProjectChange}
+            onSync={onAsanaSync}
+          />
+        </div>
+
+        <input
             type="text"
             placeholder="What did you work on?"
             value={entry.description}
@@ -470,9 +510,8 @@ export function TimeEntryRow({
               onPatch({ description: e.target.value, saveState: "idle" })
             }
             onBlur={(e) => onBlurField("description", e.target.value)}
-            className={cn(fieldBase, "h-9 min-w-0 text-sm")}
+            className={cn(fieldBase, "h-9 min-w-0 w-full text-sm")}
           />
-        </div>
 
         {/* Row 3: actions */}
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-3">

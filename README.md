@@ -80,8 +80,10 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - **Profile → Connected accounts:** Connect / Disconnect Asana; tokens encrypted at rest (AES-256-GCM via `DOCUMENT_ENCRYPTION_KEY`)
 - **OAuth callback:** `GET /api/asana/callback` (registered redirect URI in Asana + Vercel)
 - **Project import:** browse workspaces/projects from Asana, import into personal `asana_imported_projects` list
+- **Entry tagging:** optional Asana project picker on each time entry row (separate from Cadence `projects`)
+- **Dashboard connect banner** when Asana is not connected; official Asana logo mark across UI
+- **Reconnect notification:** opportunistic token health check on dashboard load
 - **Token refresh:** automatic refresh when access token expires (5-minute buffer)
-- **Deferred:** linking imported Asana projects to timesheet entries (next session)
 
 ### Stabilization — scopes, rate, team, collapse
 - **Asana scopes:** `ASANA_REQUIRED_SCOPES` in `src/lib/asana/config.ts` (`projects:read`, `workspaces:read`); reconnect prompt on insufficient scope; existing tokens need one reconnect
@@ -129,6 +131,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 8. `supabase/migrations/20260619000000_org_invites_owner_role.sql` — **required for invite flow**
 9. `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` — **required for decimal-hours entry mode**
 10. `supabase/migrations/20260621000000_asana_oauth.sql` — **required for Asana OAuth + import**
+11. `supabase/migrations/20260622000000_time_entry_asana_project.sql` — **required for Asana entry picker**
 
 ## License
 

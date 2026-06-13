@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink, Loader2, RefreshCw, Unplug } from "lucide-react";
 
+import { AsanaIcon } from "@/components/icons/AsanaIcon";
+
 import { MotionModal } from "@/components/motion/MotionModal";
 import { Button, buttonStyles } from "@/components/ui/Button";
 import type { AsanaConnectionStatus } from "@/lib/asana/connection";
@@ -98,8 +100,8 @@ export function ConnectedAccountsSection({
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent-soft)] font-display text-lg font-semibold text-[var(--accent)]">
-            A
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F06A6A]/10">
+            <AsanaIcon size={24} />
           </div>
           <div>
             <p className="font-medium text-ink">Asana</p>
@@ -179,7 +181,7 @@ export function ConnectedAccountsSection({
             <div>
               <h3 className="text-sm font-medium text-ink">Imported projects</h3>
               <p className="text-xs text-muted">
-                Personal list — linking to timesheet entries is coming next session.
+                Personal list — tag time entries from the log view.
               </p>
             </div>
             <Button

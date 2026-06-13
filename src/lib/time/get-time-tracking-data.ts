@@ -3,6 +3,10 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchProjectsForTimeEntry } from "@/app/app/projects/actions";
 import {
+  getAsanaConnection,
+  hasAsanaConnection,
+} from "@/lib/asana/connection";
+import {
   addDays,
   isoWeekLabel,
   weekPeriodFromMonday,
@@ -10,6 +14,7 @@ import {
 import type { WeekStats } from "@/lib/time/week-constants";
 import { weekStatsFromEntries } from "@/lib/time/week-stats-from-entries";
 import type { Profile, TimesheetStatus } from "@/types/db";
+import type { AsanaImportedProject } from "@/types/db";
 import type {
   TimeEntry,
   TimeEntryWithProject,
@@ -123,9 +128,11 @@ export async function getTimeTrackingDataForProfile(
   const week = weekPeriodFromMonday(weekMonday);
   const db = createAdminClient();
 
-  const [ensured, projects] = await Promise.all([
+  const [ensured, projects, asanaConnected, asanaImportedProjects] = await Promise.all([
     ensureTimesheetForWeekForProfile(profile, weekMonday),
     fetchProjectsForTimeEntry(profile.org_id, profile.id),
+    hasAsanaConnection(profile.id),
+    loadAsanaImportedProjects(profile.id),
   ]);
   if (!ensured.ok) return ensured;
 
@@ -146,12 +153,20 @@ export async function getTimeTrackingDataForProfile(
     .order("start_time");
 
   const projectMap = new Map(projects.map((p) => [p.id, p]));
+  const asanaMap = new Map(asanaImportedProjects.map((p) => [p.id, p]));
   const entries: TimeEntryWithProject[] = ((entryRows ?? []) as TimeEntry[]).map(
     (e) => ({
       ...e,
       project: e.project_id ? projectMap.get(e.project_id) ?? null : null,
+      asana_project: e.asana_project_id
+        ? asanaMap.get(e.asana_project_id) ?? null
+        : null,
     }),
   );
+
+  const asanaProjectNamesSyncedAt = asanaConnected
+    ? ((await getAsanaConnection(profile.id))?.project_names_synced_at ?? null)
+    : null;
 
   const weekStats = weekStatsFromEntries(entries);
 
@@ -163,6 +178,9 @@ export async function getTimeTrackingDataForProfile(
     status: ensured.status,
     entries,
     projects,
+    asanaConnected,
+    asanaImportedProjects,
+    asanaProjectNamesSyncedAt,
     week,
     isoWeek: isoWeekLabel(weekMonday),
     weekStats,
@@ -170,4 +188,21 @@ export async function getTimeTrackingDataForProfile(
     rateType: profile.rate_type,
     currency: profile.currency,
   };
+}
+
+async function loadAsanaImportedProjects(
+  userId: string,
+): Promise<AsanaImportedProject[]> {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("asana_imported_projects")
+    .select("*")
+    .eq("user_id", userId)
+    .order("asana_project_name");
+
+  if (error) {
+    console.error("[time-tracking] asana imported projects:", error.message);
+    return [];
+  }
+  return (data ?? []) as AsanaImportedProject[];
 }

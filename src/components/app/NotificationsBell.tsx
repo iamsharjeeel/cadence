@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  Link2,
   XCircle,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
   timesheet_approved: CheckCircle2,
   timesheet_rejected: XCircle,
   time_log_reminder: Clock,
+  asana_reconnect_required: Link2,
   leave_requested: Calendar,
   leave_approved: CheckCircle2,
   leave_rejected: XCircle,
@@ -50,6 +52,7 @@ function entityHref(n: NotificationRow): string | null {
   if (n.entity === "timesheets") return `/app/timesheets/${n.entity_id}`;
   if (n.entity === "leave_requests") return "/app/leave";
   if (n.entity === "official_documents") return "/app/documents?tab=official";
+  if (n.entity === "profile") return "/app/profile#section-connected";
   return null;
 }
 

@@ -1,4 +1,9 @@
-import type { Project, TimeEntry, TimesheetStatus } from "@/types/db";
+import type {
+  AsanaImportedProject,
+  Project,
+  TimeEntry,
+  TimesheetStatus,
+} from "@/types/db";
 import type { PayPeriod } from "@/lib/time/periods";
 import type { WeekStats } from "@/lib/time/week-constants";
 
@@ -6,6 +11,10 @@ export type { Project, TimeEntry };
 
 export type TimeEntryWithProject = TimeEntry & {
   project?: Pick<Project, "id" | "name" | "color"> | null;
+  asana_project?: Pick<
+    AsanaImportedProject,
+    "id" | "asana_project_name" | "asana_project_gid"
+  > | null;
 };
 
 export type TimeTrackingData = {
@@ -16,6 +25,9 @@ export type TimeTrackingData = {
   status: TimesheetStatus;
   entries: TimeEntryWithProject[];
   projects: Project[];
+  asanaConnected: boolean;
+  asanaImportedProjects: AsanaImportedProject[];
+  asanaProjectNamesSyncedAt: string | null;
   week: PayPeriod;
   isoWeek: string;
   weekStats: WeekStats;

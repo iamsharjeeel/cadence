@@ -23,6 +23,7 @@ export type AsanaConnectionRow = {
   asana_user_email: string | null;
   connected_at: string;
   updated_at: string;
+  project_names_synced_at: string | null;
 };
 
 export type AsanaConnectionStatus = {
@@ -30,6 +31,7 @@ export type AsanaConnectionStatus = {
   asanaUserName: string | null;
   asanaUserEmail: string | null;
   connectedAt: string | null;
+  projectNamesSyncedAt: string | null;
 };
 
 export type AsanaConnectionTokens = {
@@ -65,6 +67,7 @@ export async function getAsanaConnectionStatus(
       asanaUserName: null,
       asanaUserEmail: null,
       connectedAt: null,
+      projectNamesSyncedAt: null,
     };
   }
   return {
@@ -72,7 +75,13 @@ export async function getAsanaConnectionStatus(
     asanaUserName: row.asana_user_name,
     asanaUserEmail: row.asana_user_email,
     connectedAt: row.connected_at,
+    projectNamesSyncedAt: row.project_names_synced_at,
   };
+}
+
+export async function hasAsanaConnection(userId: string): Promise<boolean> {
+  const row = await getAsanaConnection(userId);
+  return row !== null;
 }
 
 export async function upsertAsanaConnection(

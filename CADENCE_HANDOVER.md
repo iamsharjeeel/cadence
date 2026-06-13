@@ -63,11 +63,11 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), has_overtime, overtime_hours, raw_file_path (legacy upload path), rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, created_at, updated_at
 - `timesheet_rows`: id, timesheet_id, org_id, row_date, hours, project, description, billable, created_at — **legacy** (pre–Phase 7 uploads); kept for historical rows
 - `projects`: id, org_id, owner_id, name, color, is_org_wide, is_active, created_at — org-wide or personal projects for time entry
-- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, entry_date, start_time, end_time, entry_mode (`time_range`|`decimal_hours`), decimal_hours, is_overnight, total_hours (generated column — never written from client), description, billable, created_at, updated_at — in-app time logging (replaces upload flow)
+- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, asana_project_id (FK → asana_imported_projects), entry_date, start_time, end_time, entry_mode (`time_range`|`decimal_hours`), decimal_hours, is_overnight, total_hours (generated column — never written from client), description, billable, created_at, updated_at — in-app time logging (replaces upload flow)
 - `webhook_deliveries`: id, org_id, timesheet_id, payload jsonb, status (pending|delivered|failed), attempts, last_attempted_at, delivered_at, created_at
 - `documents`: id, org_id, timesheet_id, employee_id, type (pay_advice|invoice), status (draft|in_progress|verified|corrections_needed), document_number, gst_enabled, gst_rate, subtotal, gst_amount, total, currency, file_path, emailed_at, generated_by, status_changed_by, status_changed_at, created_at, updated_at
 - `org_invites`: id, org_id, email, role, invited_by, created_at, expires_at, accepted_at — pending email invites
-- `asana_connections`: id, user_id (unique), access_token_enc, refresh_token_enc, expires_at, asana_user_gid/name/email, connected_at, updated_at — per-user OAuth tokens (encrypted)
+- `asana_connections`: id, user_id (unique), access_token_enc, refresh_token_enc, expires_at, asana_user_gid/name/email, project_names_synced_at, connected_at, updated_at — per-user OAuth tokens (encrypted)
 - `asana_imported_projects`: id, user_id, asana_project_gid, asana_project_name, asana_workspace_gid/name, imported_at — personal imported project list (not org `projects`)
 
 ### Helper functions (SECURITY DEFINER)
@@ -965,8 +965,8 @@ Run migration `20260619000000_org_invites_owner_role.sql` in Supabase SQL editor
 #### Manual step required
 Run `supabase/migrations/20260621000000_asana_oauth.sql` in Supabase SQL editor before testing Asana connect/import in production.
 
-#### Next session — linking to timesheet entries (NOT built)
-Design decision needed: should an imported Asana project map to/create an org-scoped Cadence `projects` row (color dot in Trends) or remain a per-user reference on the entry "What did you work on?" field? Hook point: `asana_imported_projects` + `time_entries.project_id` / description field.
+#### Next session — linking to timesheet entries
+**Built** — see “Session — Asana entry picker…” above. Imported projects tag entries via `asana_project_id` without mapping to org `projects`.
 
 #### Token refresh — owner verification (later)
 If access token expiry can't be observed in one session: run in Supabase SQL editor:
@@ -1009,9 +1009,40 @@ Then open Import projects — should succeed without re-OAuth (refresh happens s
 - `src/app/app/employees/assign-actions.ts`, `AssignMemberModal.tsx`, updated `page.tsx`
 - `src/app/app/timesheets/TimeEntryRow.tsx`, `TimeTrackingView.tsx`
 
+### Session — Asana entry picker, connect toast, branding, reconnect notifications ✅
+
+#### Item 1 — Asana project picker on time entry rows
+- **Schema:** `time_entries.asana_project_id` nullable FK → `asana_imported_projects.id` (`ON DELETE SET NULL`); migration `20260622000000_time_entry_asana_project.sql`
+- **UI:** `AsanaProjectPicker` alongside Cadence project dropdown (visually distinct — coral-tinted select + Asana icon); both Time range and Total hours modes
+- **Persistence:** `saveTimeEntryClient` writes `asana_project_id`; collapsed summary shows Asana icon + project name when set
+- **Empty states:** no connection → picker hidden; connected + zero imports → “No projects imported” link to Profile → Connected accounts
+- **Sync:** `project_names_synced_at` on `asana_connections`; entry-row “Synced … / Refresh” calls `syncImportedAsanaProjectNames`
+
+#### Item 2 — Dashboard connect toast
+- `AsanaConnectBanner` on `/app/dashboard` when user has `org_id` but no `asana_connections` row
+- CTA → `/app/profile#section-connected`; per-session dismiss (reappears on next load if still disconnected)
+
+#### Item 3 — Asana branding
+- Official three-pebble mark: `src/components/icons/AsanaIcon.tsx` (Asana brand coral `#F06A6A`)
+- Used in Connected Accounts, entry picker, dashboard banner, Import projects modal
+
+#### Item 4 — Proactive reconnect notification
+- **Approach:** opportunistic check on dashboard load (`AsanaConnectionHealthCheck` → `checkAsanaConnectionHealth`); no new cron/edge infrastructure
+- Attempts `getValidAsanaAccessToken()`; on failure inserts one unread `asana_reconnect_required` notification (deduped while unread)
+- Bell navigates to `/app/profile#section-connected`
+
+#### Key files
+- `supabase/migrations/20260622000000_time_entry_asana_project.sql`
+- `src/components/icons/AsanaIcon.tsx`, `src/components/asana/*`
+- `src/app/app/timesheets/TimeEntryRow.tsx`, `TimeTrackingView.tsx`, `time-entry-client.ts`
+- `src/lib/time/get-time-tracking-data.ts`, `src/app/app/profile/asana-actions.ts`
+- `src/app/app/dashboard/page.tsx`, `src/lib/notifications.ts`, `NotificationsBell.tsx`
+
+#### Manual step required
+Run `supabase/migrations/20260622000000_time_entry_asana_project.sql` in Supabase SQL editor before testing entry picker in production.
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
-- Linking imported Asana projects to timesheet entries (foundation ships this session)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)
 - DOCX → PDF server-side conversion on Vercel (DOCX shows download + acknowledge flow)

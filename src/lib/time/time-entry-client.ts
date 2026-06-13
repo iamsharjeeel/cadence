@@ -21,6 +21,7 @@ export type TimeEntryWriteRow = {
   employee_id: string;
   timesheet_id: string;
   project_id: string | null;
+  asana_project_id: string | null;
   entry_date: string;
   start_time: string;
   end_time: string;
@@ -41,6 +42,7 @@ export type SaveTimeEntryInput = {
   endTime: string;
   decimalHours?: string;
   projectId?: string | null;
+  asanaProjectId?: string | null;
   description?: string;
   billable?: boolean;
 };
@@ -65,6 +67,11 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
       ? String(input.projectId)
       : null;
 
+  const asanaProjectId =
+    input.asanaProjectId && String(input.asanaProjectId).trim() !== ""
+      ? String(input.asanaProjectId)
+      : null;
+
   const mode: EntryMode = input.entryMode ?? "time_range";
 
   if (mode === "decimal_hours") {
@@ -78,6 +85,7 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
       employee_id: input.employeeId,
       timesheet_id: input.timesheetId,
       project_id: projectId,
+      asana_project_id: asanaProjectId,
       entry_date: input.entryDate,
       start_time: synthetic.start_time,
       end_time: synthetic.end_time,
@@ -103,6 +111,7 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
     employee_id: input.employeeId,
     timesheet_id: input.timesheetId,
     project_id: projectId,
+    asana_project_id: asanaProjectId,
     entry_date: input.entryDate,
     start_time: start,
     end_time: end,
@@ -188,6 +197,7 @@ export async function saveTimeEntryClient(
       .update({
         timesheet_id: built.timesheet_id,
         project_id: built.project_id,
+        asana_project_id: built.asana_project_id,
         entry_date: built.entry_date,
         start_time: built.start_time,
         end_time: built.end_time,

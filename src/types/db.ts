@@ -75,6 +75,7 @@ export type Database = {
           asana_user_email: string | null
           connected_at: string
           updated_at: string
+          project_names_synced_at: string | null
         }
         Insert: {
           id?: string
@@ -87,6 +88,7 @@ export type Database = {
           asana_user_email?: string | null
           connected_at?: string
           updated_at?: string
+          project_names_synced_at?: string | null
         }
         Update: {
           id?: string
@@ -99,6 +101,7 @@ export type Database = {
           asana_user_email?: string | null
           connected_at?: string
           updated_at?: string
+          project_names_synced_at?: string | null
         }
         Relationships: [
           {
@@ -815,6 +818,7 @@ export type Database = {
           employee_id: string
           timesheet_id: string | null
           project_id: string | null
+          asana_project_id: string | null
           entry_date: string
           start_time: string
           end_time: string
@@ -833,6 +837,7 @@ export type Database = {
           employee_id: string
           timesheet_id?: string | null
           project_id?: string | null
+          asana_project_id?: string | null
           entry_date: string
           start_time: string
           end_time: string
@@ -852,6 +857,7 @@ export type Database = {
           employee_id?: string
           timesheet_id?: string | null
           project_id?: string | null
+          asana_project_id?: string | null
           entry_date?: string
           start_time?: string
           end_time?: string

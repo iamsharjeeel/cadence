@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { hasAsanaConnection } from "@/lib/asana/connection";
+import { AsanaConnectBanner } from "@/components/asana/AsanaConnectBanner";
+import { AsanaConnectionHealthCheck } from "@/components/asana/AsanaConnectionHealthCheck";
 import { PageHeader } from "@/components/app/PageHeader";
 import { OrgLogo } from "@/components/brand/OrgLogo";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -21,6 +24,15 @@ export default async function DashboardPage({
 }) {
   const profile = await requireActiveProfile();
   const firstName = profile.full_name?.split(" ")[0] ?? "there";
+  const showAsanaConnectBanner =
+    profile.org_id ? !(await hasAsanaConnection(profile.id)) : false;
+
+  const dashboardPrompts = profile.org_id ? (
+    <>
+      <AsanaConnectBanner show={showAsanaConnectBanner} />
+      <AsanaConnectionHealthCheck />
+    </>
+  ) : null;
 
   // Legacy ?org=<uuid> links → slug-based drill-down route.
   if (profile.role === "superadmin" && searchParams.org) {
@@ -38,6 +50,7 @@ export default async function DashboardPage({
   if (profile.role === "employee" && profile.org_id) {
     return (
       <div>
+        {dashboardPrompts}
         <EmployeeDashboardContent profile={profile} firstName={firstName} />
       </div>
     );
@@ -49,6 +62,7 @@ export default async function DashboardPage({
     if (profile.org_id) {
       return (
         <div className="flex flex-col gap-10">
+          {dashboardPrompts}
           <EmployeeDashboardContent
             profile={profile}
             firstName={firstName}
@@ -112,6 +126,7 @@ export default async function DashboardPage({
 
     return (
       <div>
+        {dashboardPrompts}
         <PageHeader
           title={`Good to see you, ${firstName}.`}
           description="Platform overview across all organizations."
@@ -185,13 +200,16 @@ export default async function DashboardPage({
     .single();
   const data = await getAdminDashboard(profile.org_id!);
   return (
-    <AdminDashboardView
-      data={data}
-      title="Team dashboard"
-      description="Approved hours and payroll estimates for this month."
-      orgName={orgRow?.name}
-      orgLogoUrl={orgRow?.logo_url}
-      timesheetsFilterHref="/app/timesheets?status=submitted"
-    />
+    <div>
+      {dashboardPrompts}
+      <AdminDashboardView
+        data={data}
+        title="Team dashboard"
+        description="Approved hours and payroll estimates for this month."
+        orgName={orgRow?.name}
+        orgLogoUrl={orgRow?.logo_url}
+        timesheetsFilterHref="/app/timesheets?status=submitted"
+      />
+    </div>
   );
 }
