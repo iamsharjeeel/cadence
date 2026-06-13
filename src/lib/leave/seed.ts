@@ -39,6 +39,7 @@ export async function seedLeaveTypesForOrg(orgId: string): Promise<void> {
     default_days_per_year: t.default_days_per_year,
     color: t.color,
     is_active: true,
+    unit: "days" as const,
   }));
   await db.from("leave_types").insert(rows);
 }

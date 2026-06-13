@@ -653,27 +653,17 @@ export function TimeTrackingView({
                           overnightConfirmed: true,
                         });
                       }}
-                      onProjectChange={(projectId) => {
+                      onProjectPick={(pick) => {
                         updateEntry(day.date, entry.clientId, {
-                          project_id: projectId,
+                          project_id: pick.projectId,
+                          asana_project_id: pick.asanaProjectId,
                           saveState: "idle",
                         });
                         const cur = getEntry(day.date, entry.clientId);
                         if (cur && entryIsPersistable(cur)) {
                           void persistEntry(day.date, entry.clientId, {
-                            project_id: projectId,
-                          });
-                        }
-                      }}
-                      onAsanaProjectChange={(asanaProjectId) => {
-                        updateEntry(day.date, entry.clientId, {
-                          asana_project_id: asanaProjectId,
-                          saveState: "idle",
-                        });
-                        const cur = getEntry(day.date, entry.clientId);
-                        if (cur && entryIsPersistable(cur)) {
-                          void persistEntry(day.date, entry.clientId, {
-                            asana_project_id: asanaProjectId,
+                            project_id: pick.projectId,
+                            asana_project_id: pick.asanaProjectId,
                           });
                         }
                       }}

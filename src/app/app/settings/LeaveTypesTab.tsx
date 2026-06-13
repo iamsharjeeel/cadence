@@ -82,6 +82,7 @@ export function LeaveTypesTab({
           <TR>
             <TH>Name</TH>
             <TH>Category</TH>
+            <TH>Unit</TH>
             <TH>Default days</TH>
             <TH>Color</TH>
             <TH>Active</TH>
@@ -93,6 +94,9 @@ export function LeaveTypesTab({
               <TD className="text-sm font-medium">{t.name}</TD>
               <TD className="text-sm capitalize text-muted">
                 {t.category.replace(/_/g, " ")}
+              </TD>
+              <TD className="text-sm capitalize text-muted">
+                {t.unit === "hours" ? "Hours" : "Days"}
               </TD>
               <TD className="tabular text-sm">
                 {t.default_days_per_year ?? "—"}
@@ -135,6 +139,26 @@ export function LeaveTypesTab({
           type="number"
           step="0.5"
         />
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">Unit</span>
+          <div className="inline-flex rounded-full border border-[var(--line)] p-0.5">
+            {(["days", "hours"] as const).map((u) => (
+              <label
+                key={u}
+                className="cursor-pointer rounded-full px-3 py-1.5 text-xs font-medium has-[:checked]:bg-[var(--accent-soft)] has-[:checked]:text-[var(--accent)]"
+              >
+                <input
+                  type="radio"
+                  name="unit"
+                  value={u}
+                  defaultChecked={u === "days"}
+                  className="sr-only"
+                />
+                {u === "days" ? "Days" : "Hours"}
+              </label>
+            ))}
+          </div>
+        </label>
         <Input label="Color" name="color" defaultValue="#B8862F" />
         <label className="flex items-center gap-2 text-sm sm:col-span-2">
           <input

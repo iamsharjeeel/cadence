@@ -6,6 +6,10 @@ import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { requireActiveProfile, requireRole } from "@/lib/auth";
 import { countBusinessDays } from "@/lib/leave/days";
+import {
+  formatLeaveRemaining,
+  type LeaveUnit,
+} from "@/lib/leave/types";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -22,39 +26,67 @@ export async function requestLeave(input: {
   startDate: string;
   endDate: string;
   halfDay: boolean;
+  hoursRequested?: number;
   note?: string;
 }): Promise<ActionResult> {
   const profile = await requireActiveProfile();
   if (!profile.org_id) return { ok: false, message: "No organization." };
 
-  const dates = validateDateRange(input.startDate, input.endDate);
-  if (!dates.ok) return { ok: false, message: dates.error };
+  const db = createAdminClient();
+
+  const { data: lt } = await db
+    .from("leave_types")
+    .select("id, category, org_id, unit")
+    .eq("id", input.leaveTypeId)
+    .single();
+  if (!lt || lt.org_id !== profile.org_id) {
+    return { ok: false, message: "Invalid leave type." };
+  }
+
+  const unit: LeaveUnit = lt.unit === "hours" ? "hours" : "days";
+  let days: number;
+  let start: string;
+  let end: string;
+  let halfDay = false;
+
+  if (unit === "hours") {
+    if (!input.startDate) {
+      return { ok: false, message: "Select a date for leave." };
+    }
+    const hoursV = validateNonNegativeNumber(
+      input.hoursRequested ?? 0,
+      "Hours requested",
+    );
+    if (!hoursV.ok) return { ok: false, message: hoursV.error };
+    if (hoursV.value <= 0) {
+      return { ok: false, message: "Enter hours requested." };
+    }
+    days = hoursV.value;
+    start = input.startDate;
+    end = input.startDate;
+  } else {
+    const dates = validateDateRange(input.startDate, input.endDate);
+    if (!dates.ok) return { ok: false, message: dates.error };
+
+    days = countBusinessDays(
+      dates.value.start,
+      dates.value.end,
+      input.halfDay,
+    );
+    if (days <= 0) {
+      return { ok: false, message: "Select valid weekdays for leave." };
+    }
+    start = dates.value.start;
+    end = dates.value.end;
+    halfDay = input.halfDay;
+  }
 
   const noteV = input.note
     ? validateMaxLength(input.note, 500, "Note")
     : { ok: true as const, value: "" };
   if (!noteV.ok) return { ok: false, message: noteV.error };
 
-  const days = countBusinessDays(
-    dates.value.start,
-    dates.value.end,
-    input.halfDay,
-  );
-  if (days <= 0) {
-    return { ok: false, message: "Select valid weekdays for leave." };
-  }
-
-  const db = createAdminClient();
-  const year = new Date(dates.value.start).getFullYear();
-
-  const { data: lt } = await db
-    .from("leave_types")
-    .select("id, category, org_id")
-    .eq("id", input.leaveTypeId)
-    .single();
-  if (!lt || lt.org_id !== profile.org_id) {
-    return { ok: false, message: "Invalid leave type." };
-  }
+  const year = new Date(start).getFullYear();
 
   const { data: bal } = await db
     .from("leave_balances")
@@ -76,7 +108,7 @@ export async function requestLeave(input: {
   ) {
     return {
       ok: false,
-      message: `Insufficient balance. ${remaining} day(s) remaining.`,
+      message: `Insufficient balance. ${formatLeaveRemaining(remaining, unit)} remaining.`,
     };
   }
 
@@ -101,10 +133,10 @@ export async function requestLeave(input: {
     org_id: profile.org_id,
     employee_id: profile.id,
     leave_type_id: input.leaveTypeId,
-    start_date: dates.value.start,
-    end_date: dates.value.end,
+    start_date: start,
+    end_date: end,
     days_requested: days,
-    half_day: input.halfDay,
+    half_day: halfDay,
     note: noteV.value || null,
     status: "pending",
   });
@@ -115,7 +147,7 @@ export async function requestLeave(input: {
     orgId: profile.org_id,
     type: "leave_requested",
     title: `Leave request from ${employeeName}`,
-    body: `${dates.value.start} – ${dates.value.end}`,
+    body: `${start} – ${end}`,
     entity: "leave_requests",
     excludeUserId: profile.id,
   });

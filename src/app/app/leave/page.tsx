@@ -57,24 +57,33 @@ async function loadAdminBalances(orgId: string) {
       ? db.from("profiles").select("id, full_name, email").in("id", employeeIds)
       : Promise.resolve({ data: [] }),
     typeIds.length
-      ? db.from("leave_types").select("id, name").in("id", typeIds)
+      ? db.from("leave_types").select("id, name, unit").in("id", typeIds)
       : Promise.resolve({ data: [] }),
   ]);
 
   const nameById = new Map(
     (people ?? []).map((p) => [p.id, p.full_name?.trim() || p.email]),
   );
-  const typeById = new Map((types ?? []).map((t) => [t.id, t.name]));
+  const typeById = new Map(
+    (types ?? []).map((t) => [
+      t.id,
+      { name: t.name, unit: t.unit === "hours" ? "hours" as const : "days" as const },
+    ]),
+  );
 
-  return (balRows ?? []).map((b) => ({
-    id: b.id,
-    employee_name: nameById.get(b.employee_id) ?? "—",
-    type_name: typeById.get(b.leave_type_id) ?? "—",
-    allocated_days: Number(b.allocated_days),
-    used_days: Number(b.used_days),
-    pending_days: Number(b.pending_days),
-    year: b.year,
-  }));
+  return (balRows ?? []).map((b) => {
+    const typeMeta = typeById.get(b.leave_type_id);
+    return {
+      id: b.id,
+      employee_name: nameById.get(b.employee_id) ?? "—",
+      type_name: typeMeta?.name ?? "—",
+      unit: typeMeta?.unit ?? "days",
+      allocated_days: Number(b.allocated_days),
+      used_days: Number(b.used_days),
+      pending_days: Number(b.pending_days),
+      year: b.year,
+    };
+  });
 }
 
 export default async function LeavePage({

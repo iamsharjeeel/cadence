@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import { fieldBase } from "@/components/ui/Input";
+import { formatLeaveAmount, type LeaveUnit } from "@/lib/leave/types";
 import { cn, formatDate } from "@/lib/utils";
 import type { RequestWithMeta } from "@/lib/leave/queries";
 import { approveLeaveRequest, rejectLeaveRequest } from "./actions";
@@ -20,6 +21,7 @@ export function LeaveAdminView({
     id: string;
     employee_name: string;
     type_name: string;
+    unit: LeaveUnit;
     allocated_days: number;
     used_days: number;
     pending_days: number;
@@ -70,53 +72,64 @@ export function LeaveAdminView({
             <p className="px-6 py-8 text-sm text-muted">No pending requests.</p>
           ) : (
             <ul className="divide-y">
-              {pending.map((r) => (
-                <li key={r.id} className="px-6 py-4">
-                  <p className="text-sm font-medium">{r.employee_name}</p>
-                  <p className="text-sm text-muted">
-                    {r.leave_type.name} · {formatDate(r.start_date)} –{" "}
-                    {formatDate(r.end_date)} · {r.days_requested} day(s)
-                  </p>
-                  {r.note && (
-                    <p className="mt-1 text-xs text-muted">{r.note}</p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => approve(r.id)}
-                      disabled={actingId === r.id}
-                    >
-                      {actingId === r.id ? "Approving…" : "Approve"}
-                    </Button>
-                    {rejectId !== r.id ? (
+              {pending.map((r) => {
+                const unit: LeaveUnit =
+                  r.leave_type.unit === "hours" ? "hours" : "days";
+                const amountLabel = formatLeaveAmount(
+                  Number(r.days_requested),
+                  unit,
+                );
+                const dateLabel =
+                  unit === "hours"
+                    ? formatDate(r.start_date)
+                    : `${formatDate(r.start_date)} – ${formatDate(r.end_date)}`;
+                return (
+                  <li key={r.id} className="px-6 py-4">
+                    <p className="text-sm font-medium">{r.employee_name}</p>
+                    <p className="text-sm text-muted">
+                      {r.leave_type.name} · {dateLabel} · {amountLabel}
+                    </p>
+                    {r.note && (
+                      <p className="mt-1 text-xs text-muted">{r.note}</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
                       <Button
                         size="sm"
-                        variant="ghost"
-                        onClick={() => setRejectId(r.id)}
+                        onClick={() => approve(r.id)}
+                        disabled={actingId === r.id}
                       >
-                        Reject
+                        {actingId === r.id ? "Approving…" : "Approve"}
                       </Button>
-                    ) : (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          value={rejectNote}
-                          onChange={(e) => setRejectNote(e.target.value)}
-                          placeholder="Rejection note"
-                          className={cn(fieldBase, "h-9 w-48 text-sm")}
-                        />
+                      {rejectId !== r.id ? (
                         <Button
                           size="sm"
-                          variant="danger"
-                          onClick={() => reject(r.id)}
-                          disabled={actingId === r.id}
+                          variant="ghost"
+                          onClick={() => setRejectId(r.id)}
                         >
-                          {actingId === r.id ? "Rejecting…" : "Confirm"}
+                          Reject
                         </Button>
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            value={rejectNote}
+                            onChange={(e) => setRejectNote(e.target.value)}
+                            placeholder="Rejection note"
+                            className={cn(fieldBase, "h-9 w-48 text-sm")}
+                          />
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => reject(r.id)}
+                            disabled={actingId === r.id}
+                          >
+                            {actingId === r.id ? "Rejecting…" : "Confirm"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>
@@ -139,20 +152,30 @@ export function LeaveAdminView({
               </TR>
             </THead>
             <TBody>
-              {balances.map((b) => (
-                <TR key={b.id}>
-                  <TD className="text-sm">{b.employee_name}</TD>
-                  <TD className="text-sm text-muted">{b.type_name}</TD>
-                  <TD className="tabular text-sm">{b.allocated_days}</TD>
-                  <TD className="tabular text-sm">{b.used_days}</TD>
-                  <TD className="tabular text-sm">{b.pending_days}</TD>
-                  <TD className="tabular text-sm">
-                    {Number(b.allocated_days) -
-                      Number(b.used_days) -
-                      Number(b.pending_days)}
-                  </TD>
-                </TR>
-              ))}
+              {balances.map((b) => {
+                const remaining =
+                  Number(b.allocated_days) -
+                  Number(b.used_days) -
+                  Number(b.pending_days);
+                return (
+                  <TR key={b.id}>
+                    <TD className="text-sm">{b.employee_name}</TD>
+                    <TD className="text-sm text-muted">{b.type_name}</TD>
+                    <TD className="tabular text-sm">
+                      {formatLeaveAmount(b.allocated_days, b.unit)}
+                    </TD>
+                    <TD className="tabular text-sm">
+                      {formatLeaveAmount(b.used_days, b.unit)}
+                    </TD>
+                    <TD className="tabular text-sm">
+                      {formatLeaveAmount(b.pending_days, b.unit)}
+                    </TD>
+                    <TD className="tabular text-sm">
+                      {formatLeaveAmount(remaining, b.unit)}
+                    </TD>
+                  </TR>
+                );
+              })}
             </TBody>
           </Table>
         </CardContent>

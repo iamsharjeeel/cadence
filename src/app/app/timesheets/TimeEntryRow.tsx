@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Trash2 } from "lucide-react";
 
-import { AsanaProjectPicker, AsanaProjectPickerMeta, PROJECT_LEADING_SLOT, PROJECT_SELECT_CLASSES } from "@/components/asana/AsanaProjectPicker";
+import { AsanaProjectPickerMeta } from "@/components/asana/AsanaProjectPicker";
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
+import { ProjectPicker } from "@/components/time/ProjectPicker";
 import { asanaProjectUrl, formatAsanaSyncedAt } from "@/lib/asana/urls";
 
 import { Button } from "@/components/ui/Button";
@@ -126,158 +127,6 @@ function SaveIndicator({
   return null;
 }
 
-const LISTBOX_MOTION = {
-  initial: { opacity: 0, y: 4, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: 4, scale: 0.98 },
-  transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
-};
-
-const SELECT_CHEVRON = {
-  backgroundImage:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%236B6F76' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
-  backgroundRepeat: "no-repeat",
-  backgroundPosition: "right 0.85rem center",
-} as const;
-
-function CadenceProjectListbox({
-  projects,
-  value,
-  disabled,
-  editable,
-  onChange,
-  onNewProject,
-}: {
-  projects: Project[];
-  value: string | null;
-  disabled?: boolean;
-  editable: boolean;
-  onChange: (projectId: string | null) => void;
-  onNewProject: () => void;
-}) {
-  const listboxId = useId();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-
-  const selected = projects.find((p) => p.id === value);
-  const displayLabel = selected
-    ? `${selected.is_org_wide ? "[Org] " : ""}${selected.name}`
-    : "Cadence project";
-
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  function pick(id: string | null) {
-    onChange(id);
-    setOpen(false);
-  }
-
-  return (
-    <div ref={rootRef} className="relative min-w-0 flex-1">
-      <button
-        type="button"
-        id={listboxId}
-        role="combobox"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-controls={`${listboxId}-list`}
-        aria-label="Cadence project"
-        disabled={disabled}
-        onClick={() => !disabled && setOpen((v) => !v)}
-        className={cn(
-          PROJECT_SELECT_CLASSES,
-          "flex w-full items-center text-left",
-          "dark:bg-[var(--surface)] dark:text-[var(--ink)] dark:border dark:border-[var(--line)]",
-          disabled && "cursor-not-allowed opacity-60",
-        )}
-        style={SELECT_CHEVRON}
-      >
-        <span className={cn("min-w-0 truncate", !selected && "text-muted")}>
-          {displayLabel}
-        </span>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.ul
-            id={`${listboxId}-list`}
-            role="listbox"
-            aria-labelledby={listboxId}
-            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-[calc(var(--radius-card)-4px)] border border-[var(--line)] bg-surface py-1 shadow-card dark:bg-[var(--surface-container)] dark:border-[var(--line)] dark:shadow-none"
-            {...LISTBOX_MOTION}
-          >
-            <li role="presentation">
-              <button
-                type="button"
-                role="option"
-                aria-selected={value === null}
-                onClick={() => pick(null)}
-                className={cn(
-                  "flex w-full px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--accent-soft)]/40 dark:hover:bg-[var(--surface-low)] dark:text-[var(--ink)]",
-                  value === null &&
-                    "bg-[var(--accent-soft)]/30 font-medium text-[var(--accent-strong)] dark:bg-[var(--accent-soft)] dark:text-[var(--accent)]",
-                  value !== null && "text-muted dark:text-[var(--ink)]",
-                )}
-              >
-                Cadence project
-              </button>
-            </li>
-            {projects.map((p) => (
-              <li key={p.id} role="presentation">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={value === p.id}
-                  onClick={() => pick(p.id)}
-                  className={cn(
-                    "flex w-full px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--accent-soft)]/40 dark:hover:bg-[var(--surface-low)] dark:text-[var(--ink)]",
-                    value === p.id &&
-                      "bg-[var(--accent-soft)]/30 font-medium text-ink dark:bg-[var(--accent-soft)] dark:text-[var(--accent)]",
-                  )}
-                >
-                  <span className="truncate">
-                    {p.is_org_wide ? "[Org] " : ""}
-                    {p.name}
-                  </span>
-                </button>
-              </li>
-            ))}
-            {editable && (
-              <li role="presentation">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  onClick={() => {
-                    setOpen(false);
-                    onNewProject();
-                  }}
-                  className="flex w-full px-3 py-2 text-left text-sm font-medium text-[var(--accent-strong)] transition-colors hover:bg-[var(--accent-soft)]/40 dark:text-[var(--accent)] dark:hover:bg-[var(--surface-low)]"
-                >
-                  + New project
-                </button>
-              </li>
-            )}
-          </motion.ul>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 function CreateProjectModal({
   open,
   onClose,
@@ -391,8 +240,7 @@ export function TimeEntryRow({
   onSave,
   onDelete,
   onBillableChange,
-  onProjectChange,
-  onAsanaProjectChange,
+  onProjectPick,
   onAsanaSync,
   onCreateProject,
   onConfirmOvernight,
@@ -410,8 +258,10 @@ export function TimeEntryRow({
   onSave: () => void;
   onDelete: () => void;
   onBillableChange: (billable: boolean) => void;
-  onProjectChange: (projectId: string | null) => void;
-  onAsanaProjectChange: (asanaProjectId: string | null) => void;
+  onProjectPick: (pick: {
+    projectId: string | null;
+    asanaProjectId: string | null;
+  }) => void;
   onAsanaSync?: () => void;
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onConfirmOvernight: () => void;
@@ -639,52 +489,30 @@ export function TimeEntryRow({
           </div>
         )}
 
-        {/* Row 2: Asana project (leading) + Cadence project */}
         <div className="flex flex-col gap-1.5">
-          <div
-            className={cn(
-              "grid gap-3",
-              asanaConnected && "lg:grid-cols-2",
-            )}
-          >
-            <AsanaProjectPicker
+          <ProjectPicker
+            hasAsana={asanaConnected}
+            asanaProjects={asanaImportedProjects}
+            cadenceProjects={projects}
+            projectId={entry.project_id}
+            asanaProjectId={entry.asana_project_id}
+            disabled={!editable}
+            editable={editable}
+            onChange={onProjectPick}
+            onNewProject={() => setCreateModalOpen(true)}
+          />
+
+          {entry.asana_project_id ? (
+            <AsanaProjectPickerMeta
               connected={asanaConnected}
               importedProjects={asanaImportedProjects}
               value={entry.asana_project_id}
+              lastSyncedAt={asanaProjectNamesSyncedAt}
               disabled={!editable}
-              onChange={onAsanaProjectChange}
+              syncPending={asanaSyncPending}
+              onSync={onAsanaSync}
             />
-
-            <div className="flex min-w-0 items-center gap-2">
-              <span className={PROJECT_LEADING_SLOT}>
-                {selectedProject ? (
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: selectedProject.color }}
-                    aria-hidden
-                  />
-                ) : null}
-              </span>
-              <CadenceProjectListbox
-                projects={projects}
-                value={entry.project_id}
-                disabled={!editable}
-                editable={editable}
-                onChange={onProjectChange}
-                onNewProject={() => setCreateModalOpen(true)}
-              />
-            </div>
-          </div>
-
-          <AsanaProjectPickerMeta
-            connected={asanaConnected}
-            importedProjects={asanaImportedProjects}
-            value={entry.asana_project_id}
-            lastSyncedAt={asanaProjectNamesSyncedAt}
-            disabled={!editable}
-            syncPending={asanaSyncPending}
-            onSync={onAsanaSync}
-          />
+          ) : null}
         </div>
 
         <input
@@ -749,7 +577,7 @@ export function TimeEntryRow({
         onClose={() => setCreateModalOpen(false)}
         onCreate={async (name, color) => {
           const id = await onCreateProject(name, color);
-          if (id) onProjectChange(id);
+          if (id) onProjectPick({ projectId: id, asanaProjectId: null });
         }}
       />
     </motion.div>

@@ -12,6 +12,7 @@ import {
   validateYear,
 } from "@/lib/validation";
 import type { LeaveCategory } from "@/types/db";
+import { LEAVE_UNITS, type LeaveUnit } from "@/lib/leave/types";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -65,6 +66,11 @@ export async function upsertLeaveType(
   }
   const isActive = formData.get("is_active") === "on";
 
+  const unitRaw = String(formData.get("unit") ?? "days");
+  const unitV = validateEnum(unitRaw, LEAVE_UNITS, "unit");
+  if (!unitV.ok) return { ok: false, message: unitV.error };
+  const unit: LeaveUnit = unitV.value;
+
   const db = createAdminClient();
   const insertPayload = {
     org_id: orgId,
@@ -73,6 +79,7 @@ export async function upsertLeaveType(
     color,
     default_days_per_year: defaultDaysPerYear,
     is_active: isActive,
+    unit,
   };
 
   if (id) {
@@ -84,6 +91,7 @@ export async function upsertLeaveType(
         color,
         default_days_per_year: defaultDaysPerYear,
         is_active: isActive,
+        unit,
       })
       .eq("id", id)
       .eq("org_id", orgId);

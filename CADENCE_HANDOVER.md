@@ -1197,6 +1197,27 @@ Five surgical UI + query fixes. No API routes, auth, or unrelated logic changed.
 #### Owner verification (prod)
 - Deploy → open `/app/dashboard` as employee → Vercel logs should show `[dashboard] employee query result` with `approvedHoursMonth` / `earningsByCurrency`.
 
+### Session — Leave unit system + unified project picker ✅
+
+#### Manual step required
+Run `supabase/migrations/20260623000000_leave_types_unit.sql` in Supabase SQL editor **before** deploying.
+
+#### Item 1 — Leave unit system (days / hours)
+- **Migration:** `leave_types.unit` (`days` | `hours`, default `days`).
+- **`src/lib/leave/types.ts`:** `LeaveUnit`, `formatLeaveAmount()`, `formatLeaveRemaining()`.
+- **`src/lib/leave/queries.ts`:** balance/request meta includes `leave_type.unit`.
+- **`RequestLeaveModal.tsx`:** days mode = date range + half-day; hours mode = single date + hours input; unit-aware summary + balance validation.
+- **`actions.ts` `requestLeave`:** branches on leave type unit; stores hours in `days_requested`; error copy uses `formatLeaveRemaining`.
+- **`LeaveEmployeeView.tsx`:** balance cards + history table use unit-aware formatting.
+- **`LeaveAdminView.tsx`:** pending queue + team balance table show unit-aware amounts.
+- **`LeaveTypesTab.tsx`:** Days/Hours segmented control on add form; unit column in table.
+- **`leave-actions.ts`:** persists `unit` on create/update.
+
+#### Item 2 — Unified project picker
+- **`src/components/time/ProjectPicker.tsx`:** single dropdown — Asana section (when connected + imports) + Cadence projects + “+ New project”; mutual exclusion (`project_id` XOR `asana_project_id`); placeholder “Project”; dark mode tokens.
+- **`TimeEntryRow.tsx`:** replaces `AsanaProjectPicker` + `CadenceProjectListbox` with `<ProjectPicker />`; `AsanaProjectPickerMeta` only when Asana project selected.
+- **`TimeTrackingView.tsx`:** `onProjectPick` clears the other ID on save.
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)

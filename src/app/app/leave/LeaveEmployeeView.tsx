@@ -12,6 +12,10 @@ import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { cn, formatDate } from "@/lib/utils";
+import {
+  formatLeaveAmount,
+  type LeaveUnit,
+} from "@/lib/leave/types";
 import type { LeaveType } from "@/types/db";
 import type { BalanceWithType, RequestWithMeta } from "@/lib/leave/queries";
 import { cancelLeaveRequest } from "./actions";
@@ -48,6 +52,7 @@ function buildDisplayBalances(
           name: lt.name,
           category: lt.category,
           color: lt.color ?? "var(--accent-mid)",
+          unit: (lt.unit === "hours" ? "hours" : "days") as LeaveUnit,
         },
       } as BalanceWithType;
     });
@@ -147,7 +152,8 @@ export function LeaveEmployeeView({
               allocated > 0
                 ? Math.min(100, ((allocated - remaining) / allocated) * 100)
                 : 0;
-            const unit = b.leave_type.category === "hours" ? "hrs" : "days";
+            const unit: LeaveUnit =
+              b.leave_type.unit === "hours" ? "hours" : "days";
             return (
               <MotionCard
                 key={b.leave_type_id}
@@ -160,7 +166,11 @@ export function LeaveEmployeeView({
                   <p className="mt-3 font-display text-[48px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
                     <CountUp value={remaining} decimals={1} />
                     <span className="ml-1.5 font-body text-[16px] font-normal text-muted">
-                      {unit}
+                      {unit === "hours"
+                        ? "h"
+                        : remaining === 1
+                          ? "day"
+                          : "days"}
                     </span>
                   </p>
                   <div className="mt-4 h-[3px] w-full overflow-hidden rounded-[var(--radius-chip)] bg-surface-low">
@@ -242,7 +252,7 @@ export function LeaveEmployeeView({
                 <TR>
                   <TH>Type</TH>
                   <TH>Dates</TH>
-                  <TH>Days</TH>
+                  <TH>Amount</TH>
                   <TH>Status</TH>
                   <TH className="text-right">Action</TH>
                 </TR>
@@ -254,7 +264,12 @@ export function LeaveEmployeeView({
                     <TD className="tabular text-sm text-muted">
                       {formatDate(r.start_date)} – {formatDate(r.end_date)}
                     </TD>
-                    <TD className="tabular text-sm">{r.days_requested}</TD>
+                    <TD className="tabular text-sm">
+                      {formatLeaveAmount(
+                        Number(r.days_requested),
+                        r.leave_type.unit === "hours" ? "hours" : "days",
+                      )}
+                    </TD>
                     <TD className={`text-sm capitalize ${statusTone(r.status)}`}>
                       {r.status}
                     </TD>

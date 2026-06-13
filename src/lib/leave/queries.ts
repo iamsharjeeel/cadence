@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { LeaveUnit } from "@/lib/leave/types";
 import type {
   LeaveBalance,
   LeaveRequest,
@@ -9,13 +10,27 @@ import type {
 } from "@/types/db";
 
 export type BalanceWithType = LeaveBalance & {
-  leave_type: Pick<LeaveType, "name" | "category" | "color">;
+  leave_type: {
+    name: string;
+    category: string;
+    color: string;
+    unit: LeaveUnit;
+  };
 };
 
 export type RequestWithMeta = LeaveRequest & {
-  leave_type: Pick<LeaveType, "name" | "color" | "category">;
+  leave_type: {
+    name: string;
+    color: string;
+    category: string;
+    unit: LeaveUnit;
+  };
   employee_name?: string;
 };
+
+function leaveTypeUnit(lt: LeaveType | undefined): LeaveUnit {
+  return lt?.unit === "hours" ? "hours" : "days";
+}
 
 async function typesById(ids: string[]) {
   if (!ids.length) return new Map<string, LeaveType>();
@@ -39,14 +54,18 @@ export async function getLeaveBalancesForEmployee(
   const rows = (data ?? []) as LeaveBalance[];
   const typeMap = await typesById(rows.map((r) => r.leave_type_id));
 
-  return rows.map((r) => ({
-    ...r,
-    leave_type: {
-      name: typeMap.get(r.leave_type_id)?.name ?? "—",
-      category: typeMap.get(r.leave_type_id)?.category ?? "custom",
-      color: typeMap.get(r.leave_type_id)?.color ?? "#B8862F",
-    },
-  }));
+  return rows.map((r) => {
+    const lt = typeMap.get(r.leave_type_id);
+    return {
+      ...r,
+      leave_type: {
+        name: lt?.name ?? "—",
+        category: lt?.category ?? "custom",
+        color: lt?.color ?? "#B8862F",
+        unit: leaveTypeUnit(lt),
+      },
+    };
+  });
 }
 
 export async function getLeaveRequestsForEmployee(
@@ -70,6 +89,7 @@ export async function getLeaveRequestsForEmployee(
         name: lt?.name ?? "—",
         color: lt?.color ?? "#B8862F",
         category: lt?.category ?? "custom",
+        unit: leaveTypeUnit(lt),
       },
     };
   });
@@ -119,6 +139,7 @@ export async function getPendingLeaveRequests(
         name: lt?.name ?? "—",
         color: lt?.color ?? "#B8862F",
         category: lt?.category ?? "custom",
+        unit: leaveTypeUnit(lt),
       },
       employee_name: nameById.get(r.employee_id),
     };
