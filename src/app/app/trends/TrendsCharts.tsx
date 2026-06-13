@@ -17,6 +17,7 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { CountUp } from "@/components/motion/CountUp";
+import { heatmapCellColor, useChartColors } from "@/lib/chart-colors";
 
 type EmployeeTrends = Awaited<
   ReturnType<typeof import("@/lib/time/trends").getEmployeeTrends>
@@ -25,24 +26,13 @@ type AdminTrends = Awaited<
   ReturnType<typeof import("@/lib/time/trends").getAdminTrends>
 >;
 
-const CHART_COLORS = [
-  "#B8862F",
-  "#6B6F76",
-  "#A0751F",
-  "#C9973F",
-  "#D4A84A",
-  "#E8C87A",
-  "#8C6520",
-  "#5C636A",
-];
-
 export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
   const { resolvedTheme } = useTheme();
-  const primary = resolvedTheme === "dark" ? "#C9973F" : "#B8862F";
-  const secondary = "#6B6F76";
+  const colors = useChartColors();
   const reducedMotion =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const dark = resolvedTheme === "dark";
 
   return (
     <div className="flex flex-col gap-4">
@@ -53,14 +43,22 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
         <Stat label="Non-billable" value={data.nonBillableHours} suffix="h" />
       </div>
 
-      <TrendLineChart data={data.periodLine} primary={primary} animate={!reducedMotion} />
+      <TrendLineChart
+        data={data.periodLine}
+        primary={colors.primary}
+        grid={colors.grid}
+        tick={colors.tick}
+        animate={!reducedMotion}
+      />
       <div className="grid gap-4 lg:grid-cols-2">
         <TrendBarChart
           title="Hours by project"
           data={data.projectBars}
           dataKey="hours"
           nameKey="name"
-          fill={primary}
+          fill={colors.primary}
+          grid={colors.grid}
+          tick={colors.tick}
           animate={!reducedMotion}
         />
         <TrendBarChart
@@ -68,7 +66,9 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
           data={data.dayOfWeek}
           dataKey="hours"
           nameKey="day"
-          fill={secondary}
+          fill={colors.primary}
+          grid={colors.grid}
+          tick={colors.tick}
           animate={!reducedMotion}
         />
       </div>
@@ -78,7 +78,7 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
           <CardTitle>Activity heatmap</CardTitle>
         </CardHeader>
         <CardContent>
-          <HeatmapGrid data={data.heatmap} dark={resolvedTheme === "dark"} />
+          <HeatmapGrid data={data.heatmap} dark={dark} />
         </CardContent>
       </Card>
     </div>
@@ -92,8 +92,7 @@ export function AdminTrendsView({
   orgData: EmployeeTrends;
   adminData: AdminTrends;
 }) {
-  const { resolvedTheme } = useTheme();
-  const primary = resolvedTheme === "dark" ? "#C9973F" : "#B8862F";
+  const colors = useChartColors();
   const reducedMotion =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -109,9 +108,9 @@ export function AdminTrendsView({
         <CardContent className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={adminData.stackedBar}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(20,21,26,0.08)" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: colors.tick }} />
+              <YAxis tick={{ fontSize: 11, fill: colors.tick }} />
               <Tooltip />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {adminData.stackedEmployees.map((name, i) => (
@@ -119,7 +118,7 @@ export function AdminTrendsView({
                   key={name}
                   dataKey={name}
                   stackId="hours"
-                  fill={CHART_COLORS[i % CHART_COLORS.length]}
+                  fill={colors.palette[i % colors.palette.length]}
                   radius={i === adminData.stackedEmployees.length - 1 ? [4, 4, 0, 0] : undefined}
                   isAnimationActive={!reducedMotion}
                 />
@@ -147,10 +146,14 @@ export function AdminTrendsView({
 function TrendLineChart({
   data,
   primary,
+  grid,
+  tick,
   animate,
 }: {
   data: { label: string; hours: number }[];
   primary: string;
+  grid: string;
+  tick: string;
   animate: boolean;
 }) {
   return (
@@ -161,9 +164,9 @@ function TrendLineChart({
       <CardContent className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(20,21,26,0.08)" />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={grid} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: tick }} />
+            <YAxis tick={{ fontSize: 11, fill: tick }} />
             <Tooltip />
             <Line
               type="monotone"
@@ -186,6 +189,8 @@ function TrendBarChart({
   dataKey,
   nameKey,
   fill,
+  grid,
+  tick,
   animate,
 }: {
   title: string;
@@ -193,6 +198,8 @@ function TrendBarChart({
   dataKey: string;
   nameKey: string;
   fill: string;
+  grid: string;
+  tick: string;
   animate: boolean;
 }) {
   return (
@@ -203,9 +210,9 @@ function TrendBarChart({
       <CardContent className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(20,21,26,0.08)" />
-            <XAxis dataKey={nameKey} tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={grid} />
+            <XAxis dataKey={nameKey} tick={{ fontSize: 11, fill: tick }} />
+            <YAxis tick={{ fontSize: 11, fill: tick }} />
             <Tooltip />
             <Bar
               dataKey={dataKey}
@@ -253,12 +260,7 @@ function HeatmapGrid({
                 title={`${d.date}: ${d.hours.toFixed(1)}h`}
                 className="h-3 w-3 rounded-sm"
                 style={{
-                  backgroundColor:
-                    d.hours === 0
-                      ? "var(--line)"
-                      : dark
-                        ? `rgba(42,166,166,${Math.min(1, 0.15 + d.hours / 10)})`
-                        : `rgba(31,138,138,${Math.min(1, 0.2 + d.hours / 10)})`,
+                  backgroundColor: heatmapCellColor(d.hours, dark),
                 }}
               />
             ))}

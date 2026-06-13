@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requireActiveProfile } from "@/lib/auth";
+import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
 import { thisWeekMonday } from "@/lib/time/periods";
 import { TimeTrackingView } from "../TimeTrackingView";
 import { TimeLogReminder } from "../TimeLogReminder";
@@ -32,6 +33,8 @@ export default async function LogTimePage() {
   }
 
   const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const weekMonday = thisWeekMonday();
+  const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
 
   return (
     <div>
@@ -49,7 +52,10 @@ export default async function LogTimePage() {
           ) : undefined
         }
       />
-      <TimeTrackingView initialWeekMonday={thisWeekMonday()} />
+      <TimeTrackingView
+        initialWeekMonday={weekMonday}
+        initialData={initialData.ok ? initialData : null}
+      />
     </div>
   );
 }

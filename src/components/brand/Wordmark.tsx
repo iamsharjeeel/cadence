@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** Cadence wordmark — Space Grotesk, tight tracking, teal cadence dot. */
+/** Cadence wordmark — Space Grotesk, tight tracking, gold cadence dot. */
 export function Wordmark({
   className,
   showDot = true,

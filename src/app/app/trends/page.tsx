@@ -72,7 +72,7 @@ export default async function TrendsPage({
             href={`?range=${r}${orgId ? `&org=${orgId}` : ""}`}
             className={`rounded-full px-3 py-1 text-sm ${
               range === r
-                ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                 : "border text-muted hover:text-ink"
             }`}
           >

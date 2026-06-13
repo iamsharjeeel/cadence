@@ -11,7 +11,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **Frontend/host:** Next.js 14 (App Router, TypeScript, `src/`) on Vercel
 - **Backend:** Supabase (Postgres + Auth + Storage + RLS) via `@supabase/ssr`
 - **Motion:** GSAP (Three.js dropped — premium feel achieved with CSS + GSAP)
-- **Charts:** recharts (teal primary series, muted secondary)
+- **Charts:** `recharts`. Gold via `--accent-rgb` / `useChartColors()` — primary series Warm Gold, muted `#6B6F76` secondary.
 - **Build agents:** Cursor Composer (primary going forward), Claude Code (used for Phases 1–2)
 - **Package manager:** npm
 
@@ -21,13 +21,13 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **GitHub repo:** `cadence` (private, `iamsharjeeel/cadence`)
 - **Google OAuth:** configured — redirect URI `https://irybkcryeywmwpcmhlaa.supabase.co/auth/v1/callback`, JS origin `https://cadence-eta-five.vercel.app`
 - **Supabase Auth URL config:** Site URL = Vercel URL; Redirect URLs include `https://cadence-eta-five.vercel.app/**`
-- **Env vars (set in Vercel):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `SUPERADMIN_EMAIL` (server-only), `DOCUMENT_ENCRYPTION_KEY` (server-only), `RESEND_API_KEY` (server-only), `RESEND_FROM_EMAIL` (server-only)
+- **Env vars (set in Vercel):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `SUPERADMIN_EMAIL` (server-only), `DOCUMENT_ENCRYPTION_KEY` (server-only), `RESEND_API_KEY` (server-only), `RESEND_FROM_EMAIL` (server-only), `ASANA_CLIENT_ID` (server-only), `ASANA_CLIENT_SECRET` (server-only), `ASANA_REDIRECT_URI` (server-only — `https://cadence-eta-five.vercel.app/api/asana/callback`)
 
 ## Key product decisions (all locked)
 - **Multi-tenant** from day one. Every table scoped by `org_id`.
-- **Three roles:** `superadmin` (platform — creates orgs, sees all) / `admin` (manages own org) / `employee` (own data only).
+- **Three roles:** `superadmin` (platform — creates orgs, sees all) / `owner` (org owner) / `admin` (manager — manages own org) / `employee` (own data only). UI shows `admin` as “Manager”.
 - **Auth:** Google OAuth only. Domain-gated — user email domain matched against org `allowed_domains`.
-- **Account creation:** admin invite + self-signup, both gated by admin approval. New users land `pending`.
+- **Account creation:** admin invite (email link) or self-signup via matching org domain. New users land **active** — no pending approval gate. Invite redemption assigns org + role on first OAuth sign-in.
 - **Org creation:** superadmin creates orgs manually.
 - **Rates:** admin sets/edits employee rate; employee views own rate read-only.
 - **Rate types:** hourly (hours×rate), salaried (period slice, hours informational), fixed (flat, hours informational).
@@ -42,7 +42,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **Accent:** Warm Gold `#B8862F` (soft `rgba(184,134,47,0.12)`, strong/hover `#A0751F`). Dark mode: `#C9973F`.
 - **Light tokens:** bg `#FBFBF9`, surface `#FFFFFF`, ink `#14151A`, muted `#6B6F76`, line `rgba(20,21,26,0.08)`, radius 16px.
 - **Dark tokens:** bg `#000000` (true black), surface `#0D0D0D`, ink `#EDEDEA`, muted `#6B6F76`, line `rgba(237,237,234,0.08)`.
-- **CSS vars:** `--accent`, `--accent-soft`, `--accent-strong` (= hover); dark overrides in `.dark`.
+- **CSS vars:** `--accent`, `--accent-soft`, `--accent-strong` (= hover), `--accent-rgb` (for rgba chart fills); dark overrides in `.dark`.
 - **Type:** Space Grotesk for headings + ALL numbers (`tabular-nums`); Inter for body/UI.
 - **Motion:** Framer Motion in app shell; GSAP for landing hero only.
 - **Charts:** `recharts`. Gold `#B8862F` primary series, muted `#6B6F76` secondary. Dark mode: `#C9973F`.
@@ -51,7 +51,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 ## Database schema (all live in Supabase)
 
 ### Enums
-- `user_role`: superadmin | admin | employee
+- `user_role`: superadmin | owner | admin | employee
 - `user_status`: pending | active | suspended
 - `rate_type`: hourly | salaried | fixed
 - `period_cadence`: weekly | biweekly | monthly
@@ -63,9 +63,12 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), has_overtime, overtime_hours, raw_file_path (legacy upload path), rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, created_at, updated_at
 - `timesheet_rows`: id, timesheet_id, org_id, row_date, hours, project, description, billable, created_at — **legacy** (pre–Phase 7 uploads); kept for historical rows
 - `projects`: id, org_id, owner_id, name, color, is_org_wide, is_active, created_at — org-wide or personal projects for time entry
-- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, entry_date, start_time, end_time, is_overnight, total_hours (generated column — never written from client), description, billable, created_at, updated_at — in-app time logging (replaces upload flow)
+- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, entry_date, start_time, end_time, entry_mode (`time_range`|`decimal_hours`), decimal_hours, is_overnight, total_hours (generated column — never written from client), description, billable, created_at, updated_at — in-app time logging (replaces upload flow)
 - `webhook_deliveries`: id, org_id, timesheet_id, payload jsonb, status (pending|delivered|failed), attempts, last_attempted_at, delivered_at, created_at
 - `documents`: id, org_id, timesheet_id, employee_id, type (pay_advice|invoice), status (draft|in_progress|verified|corrections_needed), document_number, gst_enabled, gst_rate, subtotal, gst_amount, total, currency, file_path, emailed_at, generated_by, status_changed_by, status_changed_at, created_at, updated_at
+- `org_invites`: id, org_id, email, role, invited_by, created_at, expires_at, accepted_at — pending email invites
+- `asana_connections`: id, user_id (unique), access_token_enc, refresh_token_enc, expires_at, asana_user_gid/name/email, connected_at, updated_at — per-user OAuth tokens (encrypted)
+- `asana_imported_projects`: id, user_id, asana_project_gid, asana_project_name, asana_workspace_gid/name, imported_at — personal imported project list (not org `projects`)
 
 ### Helper functions (SECURITY DEFINER)
 `auth_role()`, `auth_org()`, `is_active()`, `next_document_number(org_id, type)`
@@ -854,7 +857,129 @@ Run migration `20260616000000_phase7_time_tracking.sql` against Supabase before 
 #### A3 — Duration chip layout (already clean)
 - `TimeEntryRow.tsx` chip is a sibling flex item outside the time-inputs container — never overlapping. Confirmed no change needed.
 
+### Session — Build fix, gold accent verify, pickers, perf, invites, pending removal ✅
+
+#### Item 0 — Build fix
+- Added missing `AuditAction` values: `timesheet_recalled`, `timesheet_returned_to_draft` in `src/lib/audit.ts` + summarize entries in `src/lib/audit/summarize.ts`.
+- `documents.timesheet_id?: string | null` on Update type in `src/types/db.ts` (deleteTimesheet orphan flow).
+- PDF `Image` alt: `@react-pdf/renderer` has no `alt` prop — eslint-disable in `InvoicePdf.tsx` / `PayAdvicePdf.tsx`.
+
+#### Item 1 — Teal → gold (verify)
+- `--accent-rgb` in `globals.css`; charts via `useChartColors()` in `src/lib/chart-colors.ts`.
+- `TrendsCharts.tsx`, `DashboardCharts.tsx`, sidebar/topbar pills, `MeshBackground.tsx` all token-driven.
+
+#### Item 2 — Custom TimePicker
+- `src/components/ui/TimePicker.tsx` — gold accent, 160ms Framer Motion popover, hour/minute columns.
+- `TimeEntryRow.tsx` — replaced native `<input type="time">`.
+
+#### Item 3 — Custom DatePicker
+- `src/components/ui/DatePicker.tsx` — branded calendar popover, gold selected state.
+- Replaced native `type="date"` in: leave modal, audit log, timesheet export/controls, documents controls, profile employment form, onboarding wizard.
+
+#### Item 4 — Timesheet load speed
+- **Root cause:** client-only `getTimeTrackingData` on mount + redundant `computeWeekStats` DB query + duplicate auth.
+- **Fix:** `src/lib/time/get-time-tracking-data.ts` — single auth pass, `weekStatsFromEntries` (no extra query).
+- `TimeTrackingData` type in `src/types/time-tracking.ts` (client-safe).
+- SSR prefetch in `timesheets/log/page.tsx` and employee path in `timesheets/page.tsx`.
+- `TimeTrackingView.tsx` accepts `initialData`, skips initial client fetch when SSR data present.
+
+#### Item 5 — Invite flow
+- Migration: `supabase/migrations/20260619000000_org_invites_owner_role.sql` — `owner` enum value, `org_invites` table + RLS, `documents.timesheet_id` nullable.
+- `src/lib/invites.ts` (`redeemOrgInvite`), `InviteMemberModal.tsx`, `invite-actions.ts` (Resend email).
+- `/app/employees` — Invite button; owner/manager hierarchy (manager can only invite/assign Employee).
+- Audit: `member_invited`; `roleLabel()` shows admin as “Manager”.
+
+#### Item 6 — Remove pending gate
+- `runOnboarding()` — new users land **active**; invite redemption first; domain match attaches org; no admin approval step.
+- `/auth/callback` → `/app/onboarding` or `/app/dashboard`; suspended → `/login?error=suspended`.
+- Middleware — only `suspended` blocked; `/pending` redirects away; page deleted.
+- Login copy updated; error banner for suspended/OAuth failures.
+- Removed unused `ApproveButton` (legacy pending UI).
+
+#### Manual step required
+Run migration `20260619000000_org_invites_owner_role.sql` in Supabase SQL editor before testing invites in production.
+
+### Session — Unstick test account, remove from org, list refresh, decimal hours ✅
+
+**Branch:** `cursor/unstick-test-account-edab` (continues open PR #8 `cursor/teal-to-gold-accent-f09b`, not yet merged to `main`).
+
+#### Item 1 — Unstick owner test account
+- **SQL script:** `supabase/scripts/unstick_owner_test_account.sql` — preview SELECTs then DELETE pending `org_invites` + UPDATE `profiles` (`org_id = null`, keep account).
+- **Node runner:** `scripts/unstick-test-account.mjs` — same cleanup via service-role (`node scripts/unstick-test-account.mjs <email>`).
+- **Default target email:** `iamsharjeeel@gmail.com` (replace in script if a `+alias` test address was used).
+- **Agent note:** Cadence Supabase project (`irybkcryeywmwpcmhlaa`) was not reachable via MCP in this environment — owner should run the script/SQL in Supabase SQL editor or locally with Vercel env vars. No `auth.users` deletion required for typical stuck-invite cases.
+
+#### Item 2 — Remove from org (membership only)
+- `removeMemberFromOrg` + `cancelOrgInvite` in `src/app/app/employees/remove-actions.ts`.
+- `RemoveMemberModal.tsx` / `CancelInviteButton.tsx` — gold-accent `MotionModal` confirmations.
+- Clears `profiles.org_id` and deletes pending `org_invites` for that email in the org. **Does not** delete `profiles` or `auth.users`. Full account deletion remains deferred (GDPR).
+- Hierarchy: owners remove managers + employees; managers remove employees only; cannot remove self, owners (as manager), or superadmins.
+- Audit: `member_removed`, `member_invite_cancelled`.
+
+#### Item 3 — Employees list refresh after mutations
+- **Root cause (invites):** sent invites lived only in `org_invites`, not `profiles` — list had no pending-invites section.
+- **Fix:** Pending invites table on `/app/employees`; `revalidatePath('/app/employees')` in server actions + `router.refresh()` in client modals after invite send / removal / cancel.
+- **Signup completion:** `EmployeesListRefresh.tsx` polls `router.refresh()` every 30s while pending invites exist (no Realtime subscription).
+
+#### Item 4 — Decimal hours entry mode
+- Migration: `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` — `entry_mode` (`time_range` | `decimal_hours`) + nullable `decimal_hours`.
+- `src/lib/time/decimal-hours.ts` — synthetic times: `start_time = 00:00`, `end_time = 00:00 + N hours`.
+- **Generated `total_hours` validation:** live column is `GENERATED ALWAYS` from `(end_time - start_time)` in hours; `00:00` → `07:30` yields exactly `7.5`. Overlap check skipped for decimal mode (synthetic times are not real clock ranges).
+- `TimeEntryRow.tsx` mode toggle; `time-entry-client.ts` writes `entry_mode` + `decimal_hours`; existing rows default to `time_range`.
+
+#### Manual steps required
+1. Run `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` before decimal-hours testing.
+2. Run Item 1 cleanup SQL/script for stuck test email if not already done.
+
+### Session — Asana OAuth + project import ✅
+
+**Branch:** `cursor/asana-oauth-integration-894a` (branched from PR #9 `cursor/unstick-test-account-edab`, which is still open — not merged to `main`).
+
+**PR #9 status:** Open on `cursor/unstick-test-account-edab`; 4 commits ahead of `main`. This session continues that branch lineage.
+
+#### Architecture
+- **Per-user OAuth** — each Cadence user connects their own Asana account; not org-scoped.
+- **Entry point:** Profile → **Connected accounts** (`/app/profile#section-connected`).
+- **OAuth flow:**
+  - `GET /api/asana/connect` — sets httpOnly state cookie, redirects to `https://app.asana.com/-/oauth_authorize`
+  - `GET /api/asana/callback` — exchanges code, stores tokens, redirects to `/app/profile?asana=connected`
+  - Scope: `projects:read` (list workspaces + projects)
+- **Token encryption:** AES-256-GCM via existing `DOCUMENT_ENCRYPTION_KEY`, scrypt salt `cadence-asana-v1` (`src/lib/asana-crypto.ts`). Same pattern as bank fields; tokens never sent to client.
+- **Token refresh:** `getValidAsanaAccessToken()` refreshes when expired or within 5 minutes of expiry (`src/lib/asana/connection.ts`).
+- **Disconnect:** revokes access token via Asana `/-/oauth_revoke`, deletes `asana_connections` row + all `asana_imported_projects` for user (clean slate — user can reconnect and re-import).
+
+#### Database (`supabase/migrations/20260621000000_asana_oauth.sql`)
+- **`asana_connections`** — `user_id` (unique FK → profiles), `access_token_enc`, `refresh_token_enc`, `expires_at`, `asana_user_gid/name/email`, timestamps. RLS: user SELECT/DELETE own row; INSERT/UPDATE via service role only.
+- **`asana_imported_projects`** — `user_id`, `asana_project_gid`, `asana_project_name`, `asana_workspace_gid/name`, `imported_at`. Unique `(user_id, asana_project_gid)`. RLS: user CRUD own rows only.
+- **Intentionally separate** from org-scoped `projects` table — personal reference layer until entry linking is designed.
+
+#### UI
+- `ConnectedAccountsSection.tsx` — connect button, connected state, disconnect modal, imported list + remove, sync names.
+- `AsanaImportModal.tsx` — workspace-grouped checkbox list, gold-accent MotionModal.
+
+#### Key files
+- `src/lib/asana/config.ts`, `connection.ts`, `projects.ts`, `asana-crypto.ts`
+- `src/app/api/asana/connect/route.ts`, `callback/route.ts`
+- `src/app/app/profile/asana-actions.ts`, `ConnectedAccountsSection.tsx`, `AsanaImportModal.tsx`
+
+#### Manual step required
+Run `supabase/migrations/20260621000000_asana_oauth.sql` in Supabase SQL editor before testing Asana connect/import in production.
+
+#### Next session — linking to timesheet entries (NOT built)
+Design decision needed: should an imported Asana project map to/create an org-scoped Cadence `projects` row (color dot in Trends) or remain a per-user reference on the entry "What did you work on?" field? Hook point: `asana_imported_projects` + `time_entries.project_id` / description field.
+
+#### Token refresh — owner verification (later)
+If access token expiry can't be observed in one session: run in Supabase SQL editor:
+```sql
+UPDATE asana_connections
+SET expires_at = now() - interval '1 minute'
+WHERE user_id = '<your-user-uuid>';
+```
+Then open Import projects — should succeed without re-OAuth (refresh happens server-side).
+
 ## Deferred (do not build yet)
+- Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
+- Linking imported Asana projects to timesheet entries (foundation ships this session)
 - FX conversion layer (cross-currency summing)
 - CFO Claude Agent webhook activation (seam exists, just dormant)
 - DOCX → PDF server-side conversion on Vercel (DOCX shows download + acknowledge flow)

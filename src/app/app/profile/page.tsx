@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import {
@@ -10,6 +11,10 @@ import {
 } from "@/components/ui/Card";
 import { RolePill, StatusPill } from "@/components/ui/Badge";
 import { requireActiveProfile } from "@/lib/auth";
+import { getAsanaConnectionStatus } from "@/lib/asana/connection";
+import { createClient } from "@/lib/supabase/server";
+import type { AsanaImportedProject } from "@/types/db";
+import { ConnectedAccountsSection } from "./ConnectedAccountsSection";
 import { formatMoney, titleCase } from "@/lib/utils";
 import { maskSensitive } from "@/lib/bank-crypto";
 import { ProfileBankingForm } from "./ProfileBankingForm";
@@ -20,8 +25,23 @@ import { ProfileCompleteness } from "./ProfileCompleteness";
 
 export const metadata: Metadata = { title: "Profile" };
 
-export default async function ProfilePage() {
+type ProfilePageProps = {
+  searchParams?: { asana?: string };
+};
+
+export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const profile = await requireActiveProfile();
+  const [connection, importedProjects] = await Promise.all([
+    getAsanaConnectionStatus(profile.id),
+    loadImportedAsanaProjects(profile.id),
+  ]);
+
+  const asanaFlash =
+    searchParams?.asana === "connected"
+      ? "connected"
+      : searchParams?.asana === "error"
+        ? "error"
+        : null;
 
   return (
     <div>
@@ -107,6 +127,24 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
+      <Card id="section-connected" className="mt-4">
+        <CardHeader>
+          <CardTitle>Connected accounts</CardTitle>
+          <CardDescription>
+            Link personal integrations. Each user connects their own Asana account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={null}>
+            <ConnectedAccountsSection
+              connection={connection}
+              importedProjects={importedProjects}
+              flash={asanaFlash}
+            />
+          </Suspense>
+        </CardContent>
+      </Card>
+
       <Card id="section-emergency" className="mt-4">
         <CardHeader>
           <CardTitle>Emergency contact</CardTitle>
@@ -124,6 +162,23 @@ export default async function ProfilePage() {
       </Card>
     </div>
   );
+}
+
+async function loadImportedAsanaProjects(
+  userId: string,
+): Promise<AsanaImportedProject[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("asana_imported_projects")
+    .select("*")
+    .eq("user_id", userId)
+    .order("asana_project_name");
+
+  if (error) {
+    console.error("[profile] asana imported projects:", error.message);
+    return [];
+  }
+  return (data ?? []) as AsanaImportedProject[];
 }
 
 function Field({

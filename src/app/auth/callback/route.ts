@@ -4,11 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { runOnboarding } from "@/lib/onboarding";
 
 /**
- * OAuth callback. Exchanges the `code` for a session, runs domain-gating /
- * superadmin backstop, then redirects by status:
- *   - active  → /app/dashboard
- *   - pending / suspended → /pending
- * Errors fall back to /login with a flag.
+ * OAuth callback. Exchanges code, runs onboarding, routes by status/onboarding.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -37,8 +33,13 @@ export async function GET(request: NextRequest) {
 
   const profile = await runOnboarding(user.id, user.email);
 
-  const destination =
-    profile?.status === "active" ? "/app/dashboard" : "/pending";
+  if (profile?.status === "suspended") {
+    return NextResponse.redirect(`${origin}/login?error=suspended`);
+  }
+
+  const destination = profile?.onboarding_complete
+    ? "/app/dashboard"
+    : "/app/onboarding";
 
   return NextResponse.redirect(`${origin}${destination}`);
 }

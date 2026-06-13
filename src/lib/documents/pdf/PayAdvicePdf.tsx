@@ -10,7 +10,12 @@ export function PayAdvicePdf({ data }: { data: PayAdvicePdfData }) {
         <View style={s.row}>
           <View>
             {data.orgLogoUrl ? (
-              <Image src={data.orgLogoUrl} style={{ width: 48, height: 48, marginBottom: 8 }} />
+              // @react-pdf Image has no alt prop — logo is decorative in PDF layout
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image
+                src={data.orgLogoUrl}
+                style={{ width: 48, height: 48, marginBottom: 8 }}
+              />
             ) : null}
             <Text style={{ fontSize: 14, fontWeight: 700 }}>{data.orgName}</Text>
           </View>

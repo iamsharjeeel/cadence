@@ -1,6 +1,5 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import {
   Bar,
   BarChart,
@@ -13,27 +12,14 @@ import {
   YAxis,
 } from "recharts";
 
-const TEAL_LIGHT = "#B8862F";
-const TEAL_DARK = "#C9973F";
-const MUTED = "#6B6F76";
-
-function chartColors(resolvedTheme: string | undefined) {
-  const isDark = resolvedTheme === "dark";
-  return {
-    primary: isDark ? TEAL_DARK : TEAL_LIGHT,
-    secondary: MUTED,
-    grid: isDark ? "rgba(255,255,255,0.06)" : "rgba(20,21,26,0.06)",
-    tick: MUTED,
-  };
-}
+import { useChartColors } from "@/lib/chart-colors";
 
 export function HoursBarChart({
   data,
 }: {
   data: { name: string; hours: number }[];
 }) {
-  const { resolvedTheme } = useTheme();
-  const colors = chartColors(resolvedTheme);
+  const colors = useChartColors();
 
   if (data.length === 0) {
     return (
@@ -83,8 +69,7 @@ export function HoursLineChart({
   dataKey?: string;
   xKey?: string;
 }) {
-  const { resolvedTheme } = useTheme();
-  const colors = chartColors(resolvedTheme);
+  const colors = useChartColors();
 
   if (data.length === 0) {
     return (

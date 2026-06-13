@@ -8,7 +8,22 @@ export const metadata: Metadata = {
   title: "Sign in",
 };
 
-export default function LoginPage() {
+const ERROR_COPY: Record<string, string> = {
+  suspended:
+    "Your access has been suspended. Contact your organization's administrator if you believe this is a mistake.",
+  oauth: "Google sign-in was cancelled or failed. Please try again.",
+  exchange: "We couldn't complete sign-in. Please try again.",
+  session: "Your session couldn't be established. Please try again.",
+};
+
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string };
+}) {
+  const errorKey = searchParams?.error;
+  const errorMessage = errorKey ? ERROR_COPY[errorKey] : null;
+
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
       <MeshBackground />
@@ -22,11 +37,21 @@ export default function LoginPage() {
 
           <div className="my-8 h-px bg-[var(--line)]" />
 
+          {errorMessage ? (
+            <p
+              className="mb-6 rounded-[var(--radius)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm leading-relaxed text-red-700 dark:text-red-300"
+              role="alert"
+            >
+              {errorMessage}
+            </p>
+          ) : null}
+
           <GoogleButton />
 
           <p className="mt-6 text-center text-xs leading-relaxed text-muted">
             Sign in with your organization&rsquo;s Google account. New members
-            land in a holding area until an admin grants access.
+            are guided through onboarding — invite links or matching email
+            domains join your team automatically.
           </p>
         </div>
 

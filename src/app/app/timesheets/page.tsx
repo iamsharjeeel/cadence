@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { getProfile, requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
 import { thisWeekMonday } from "@/lib/time/periods";
 import type { Organization, Profile, Timesheet, TimesheetStatus } from "@/types/db";
 import { TimesheetFilters } from "./controls";
@@ -49,6 +50,9 @@ export default async function TimesheetsPage({
   const isSuperadmin = profile.role === "superadmin";
 
   if (!isManager && profile.org_id) {
+    const weekMonday = thisWeekMonday();
+    const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
+
     return (
       <div>
         <TimeLogReminder />
@@ -56,7 +60,10 @@ export default async function TimesheetsPage({
           title="Timesheets"
           description="Log your hours for the week (Mon–Sun), then submit for approval."
         />
-        <TimeTrackingView initialWeekMonday={thisWeekMonday()} />
+        <TimeTrackingView
+          initialWeekMonday={weekMonday}
+          initialData={initialData.ok ? initialData : null}
+        />
       </div>
     );
   }

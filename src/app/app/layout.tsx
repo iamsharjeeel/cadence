@@ -11,7 +11,9 @@ export default async function AppLayout({
 }) {
   const profile = await getProfile();
   if (!profile) redirect("/login");
-  if (profile.status !== "active") redirect("/pending");
+  if (profile.status === "suspended") {
+    redirect("/login?error=suspended");
+  }
 
   let orgName: string | null = null;
   let orgLogoUrl: string | null = null;

@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
 import type { OfficialDocument, Profile } from "@/types/db";
 import {
@@ -40,6 +41,9 @@ export function OnboardingWizard({
   const [done, setDone] = useState(false);
   const [signDoc, setSignDoc] = useState<OfficialDocument | null>(null);
   const [pending, setPending] = useState(false);
+  const [employmentStartDate, setEmploymentStartDate] = useState(
+    profile.start_date ?? "",
+  );
   const { toast } = useToast();
   const router = useRouter();
 
@@ -171,12 +175,12 @@ export function OnboardingWizard({
                 name="job_title"
                 defaultValue={profile.job_title ?? ""}
               />
-              <Input
+              <DatePicker
                 label="Start date"
                 name="start_date"
-                type="date"
-                defaultValue={profile.start_date ?? ""}
-                readOnly={!!profile.start_date}
+                value={employmentStartDate}
+                onChange={setEmploymentStartDate}
+                disabled={!!profile.start_date}
               />
               {profile.start_date && (
                 <p className="text-xs text-muted">

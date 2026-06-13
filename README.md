@@ -59,7 +59,29 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 - Weekly submission (Mon–Sun): log time at `/app/timesheets/log` with auto-save via Supabase browser client (RLS-scoped)
 - Seven-day view (weekends optional); submit gate: 5 days logged or 40 hours; overtime flagged for manager review
 - Draft rows persist only with valid start/end; overlap guard excludes self and invalid DB rows
+- Branded **TimePicker** and **DatePicker** components (gold accent, Framer Motion popovers) replace native time/date inputs app-wide
+- SSR prefetch on timesheet log pages for near-instant first paint (no client waterfall on load)
 - Projects, trends, admin live draft visibility, time-log reminders
+
+### Phase 8 — Invites, roles & onboarding
+- **Owner** role (`owner | admin | employee | superadmin`); UI labels `admin` as “Manager”
+- **Invite flow:** owners/managers send email invites from `/app/employees`; Resend delivery; invite redeemed on Google OAuth sign-in
+- **Pending invites panel** on Employees — sent invites appear immediately; 30s poll while invites are pending
+- **Remove from org:** owners/managers remove membership (clears `profiles.org_id` + pending invites; does not delete accounts)
+- **No pending gate:** new sign-ups land **active** immediately (invite redemption or domain match); onboarding wizard when incomplete
+- **Suspended-only block:** middleware and auth redirect suspended users to login with an error banner
+
+### Phase 8b — Decimal hours & test-account tooling
+- **Decimal hours entry:** per-row toggle (Time range vs Total hours) on weekly log grid; synthetic `00:00` + offset times feed generated `total_hours`
+- **Test-account cleanup:** `supabase/scripts/unstick_owner_test_account.sql` and `scripts/unstick-test-account.mjs`
+
+### Phase 9 — Asana OAuth + project import
+- **Per-user OAuth:** each Cadence user connects their own Asana account (not org-level)
+- **Profile → Connected accounts:** Connect / Disconnect Asana; tokens encrypted at rest (AES-256-GCM via `DOCUMENT_ENCRYPTION_KEY`)
+- **OAuth callback:** `GET /api/asana/callback` (registered redirect URI in Asana + Vercel)
+- **Project import:** browse workspaces/projects from Asana, import into personal `asana_imported_projects` list
+- **Token refresh:** automatic refresh when access token expires (5-minute buffer)
+- **Deferred:** linking imported Asana projects to timesheet entries (next session)
 
 ## Getting started
 
@@ -83,6 +105,9 @@ npm run dev                        # http://localhost:3000
 | `DOCUMENT_ENCRYPTION_KEY` | server-only | AES-256-GCM for bank field encryption |
 | `RESEND_API_KEY` | server-only | Resend API key |
 | `RESEND_FROM_EMAIL` | server-only | Sender address for document emails |
+| `ASANA_CLIENT_ID` | server-only | Asana OAuth app client ID |
+| `ASANA_CLIENT_SECRET` | server-only | Asana OAuth app client secret |
+| `ASANA_REDIRECT_URI` | server-only | Must match Asana app registration (`…/api/asana/callback`) |
 
 ## Database migrations
 
@@ -91,6 +116,13 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 1. `supabase/migrations/20260611000000_phase4_documents.sql`
 2. `supabase/migrations/20260612000000_phase5_leave_onboarding_docs.sql`
 3. `supabase/migrations/20260613000000_phase6_notifications_org_logos.sql`
+4. `supabase/migrations/20260614000000_security_rls_storage.sql`
+5. `supabase/migrations/20260615000000_org_logos_bucket.sql`
+6. `supabase/migrations/20260616000000_phase7_time_tracking.sql`
+7. `supabase/migrations/20260617000000_time_entries_perf_index.sql` (optional perf index)
+8. `supabase/migrations/20260619000000_org_invites_owner_role.sql` — **required for invite flow**
+9. `supabase/migrations/20260620000000_time_entry_decimal_mode.sql` — **required for decimal-hours entry mode**
+10. `supabase/migrations/20260621000000_asana_oauth.sql` — **required for Asana OAuth + import**
 
 ## License
 

@@ -2,6 +2,12 @@
 
 import { createClient } from "@/lib/supabase/client";
 import {
+  canPersistDecimalEntry,
+  parseDecimalHours,
+  syntheticTimesForDecimalHours,
+  type EntryMode,
+} from "@/lib/time/decimal-hours";
+import {
   hoursBetween,
   isOvernightShift,
   parseTime,
@@ -18,6 +24,8 @@ export type TimeEntryWriteRow = {
   entry_date: string;
   start_time: string;
   end_time: string;
+  entry_mode: EntryMode;
+  decimal_hours: number | null;
   description: string | null;
   billable: boolean;
 };
@@ -28,8 +36,10 @@ export type SaveTimeEntryInput = {
   employeeId: string;
   timesheetId: string;
   entryDate: string;
+  entryMode?: EntryMode;
   startTime: string;
   endTime: string;
+  decimalHours?: string;
   projectId?: string | null;
   description?: string;
   billable?: boolean;
@@ -50,6 +60,34 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
     return { ok: false, message: "Timesheet not ready — refresh and try again." };
   }
 
+  const projectId =
+    input.projectId && String(input.projectId).trim() !== ""
+      ? String(input.projectId)
+      : null;
+
+  const mode: EntryMode = input.entryMode ?? "time_range";
+
+  if (mode === "decimal_hours") {
+    const hours = parseDecimalHours(input.decimalHours ?? "");
+    if (hours === null) {
+      return { ok: false, message: "Enter total hours (e.g. 7.5), up to 24." };
+    }
+    const synthetic = syntheticTimesForDecimalHours(hours);
+    return {
+      org_id: input.orgId,
+      employee_id: input.employeeId,
+      timesheet_id: input.timesheetId,
+      project_id: projectId,
+      entry_date: input.entryDate,
+      start_time: synthetic.start_time,
+      end_time: synthetic.end_time,
+      entry_mode: "decimal_hours",
+      decimal_hours: hours,
+      description: input.description?.trim() || null,
+      billable: input.billable ?? true,
+    };
+  }
+
   const start = parseTime(input.startTime);
   const end = parseTime(input.endTime);
   if (!start) return { ok: false, message: "Start time is required." };
@@ -60,11 +98,6 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
     return { ok: false, message: "End time must be after start time." };
   }
 
-  const projectId =
-    input.projectId && String(input.projectId).trim() !== ""
-      ? String(input.projectId)
-      : null;
-
   return {
     org_id: input.orgId,
     employee_id: input.employeeId,
@@ -73,6 +106,8 @@ function buildWriteRow(input: SaveTimeEntryInput): TimeEntryWriteRow | SaveTimeE
     entry_date: input.entryDate,
     start_time: start,
     end_time: end,
+    entry_mode: "time_range",
+    decimal_hours: null,
     description: input.description?.trim() || null,
     billable: input.billable ?? true,
   };
@@ -134,14 +169,16 @@ export async function saveTimeEntryClient(
   const built = buildWriteRow(input);
   if (!("org_id" in built)) return built;
 
-  const overlap = await checkOverlap(
-    input.employeeId,
-    input.entryDate,
-    built.start_time,
-    built.end_time,
-    input.id,
-  );
-  if (overlap) return { ok: false, message: overlap };
+  if (built.entry_mode === "time_range") {
+    const overlap = await checkOverlap(
+      input.employeeId,
+      input.entryDate,
+      built.start_time,
+      built.end_time,
+      input.id,
+    );
+    if (overlap) return { ok: false, message: overlap };
+  }
 
   const supabase = createClient();
 
@@ -154,6 +191,8 @@ export async function saveTimeEntryClient(
         entry_date: built.entry_date,
         start_time: built.start_time,
         end_time: built.end_time,
+        entry_mode: built.entry_mode,
+        decimal_hours: built.decimal_hours,
         description: built.description,
         billable: built.billable,
       })

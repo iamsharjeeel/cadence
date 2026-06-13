@@ -6,8 +6,10 @@ import { Check, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { fieldBase } from "@/components/ui/Input";
+import { TimePicker } from "@/components/ui/TimePicker";
 import { MotionModal } from "@/components/motion/MotionModal";
 import { cn } from "@/lib/utils";
+import { parseDecimalHours, type EntryMode } from "@/lib/time/decimal-hours";
 import { hoursBetween, isOvernightShift } from "@/lib/time/validation";
 import { PROJECT_PRESET_COLORS } from "@/types/time-tracking";
 import type { Project } from "@/types/time-tracking";
@@ -18,8 +20,10 @@ export type EntryRowData = {
   clientId: string;
   id?: string;
   entry_date: string;
+  entry_mode: EntryMode;
   start_time: string;
   end_time: string;
+  decimal_hours: string;
   project_id: string | null;
   description: string;
   billable: boolean;
@@ -35,11 +39,6 @@ const ROW_MOTION = {
   exit: { opacity: 0, height: 0 },
   transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
 };
-
-const timeInputClass = cn(
-  fieldBase,
-  "h-9 w-[7.5rem] flex-none px-2.5 text-sm tnum",
-);
 
 function BillableToggle({
   checked,
@@ -130,7 +129,9 @@ function CreateProjectModal({
   onCreate: (name: string, color: string) => Promise<void>;
 }) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState(PROJECT_PRESET_COLORS[0]);
+  const [color, setColor] = useState<(typeof PROJECT_PRESET_COLORS)[number]>(
+    PROJECT_PRESET_COLORS[0],
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleCreate() {
@@ -245,12 +246,15 @@ export function TimeEntryRow({
 }) {
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
+  const isDecimalMode = entry.entry_mode === "decimal_hours";
   const overnight =
+    !isDecimalMode &&
     entry.start_time &&
     entry.end_time &&
     isOvernightShift(entry.start_time, entry.end_time);
-  const previewHours =
-    entry.start_time && entry.end_time
+  const previewHours = isDecimalMode
+    ? parseDecimalHours(entry.decimal_hours)
+    : entry.start_time && entry.end_time
       ? hoursBetween(
           entry.start_time,
           entry.end_time,
@@ -269,46 +273,100 @@ export function TimeEntryRow({
           "flex flex-col gap-3",
         )}
       >
-        {/*
-          Row 1: flat flex — start · dash · end · duration chip.
-          All four are direct siblings; chip cannot overlap the inputs.
-        */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-          <input
-            type="time"
-            value={entry.start_time}
-            disabled={!editable}
-            onChange={(e) =>
-              onPatch({ start_time: e.target.value, saveState: "idle" })
-            }
-            onBlur={(e) => onBlurField("start_time", e.target.value)}
-            className={timeInputClass}
-            aria-label="Start time"
-          />
-          <span className="flex-none select-none text-sm text-muted" aria-hidden>
-            –
-          </span>
-          <input
-            type="time"
-            value={entry.end_time}
-            disabled={!editable}
-            onChange={(e) =>
-              onPatch({ end_time: e.target.value, saveState: "idle" })
-            }
-            onBlur={(e) => onBlurField("end_time", e.target.value)}
-            className={timeInputClass}
-            aria-label="End time"
-          />
-          {/* Duration chip — explicit sibling, never nested inside time inputs */}
-          <span
-            className={cn(
-              "tnum inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-medium",
-              "bg-[var(--line)] text-muted",
-            )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className="inline-flex rounded-full border border-[var(--line)] p-0.5"
+            role="group"
+            aria-label="Entry mode"
           >
-            {displayHours != null ? `${displayHours.toFixed(1)}h` : "—"}
-          </span>
+            {(["time_range", "decimal_hours"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                disabled={!editable}
+                onClick={() =>
+                  onPatch({
+                    entry_mode: mode,
+                    saveState: "idle",
+                    error: undefined,
+                  })
+                }
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                  entry.entry_mode === mode
+                    ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                    : "text-muted hover:text-ink",
+                  !editable && "cursor-not-allowed opacity-60",
+                )}
+              >
+                {mode === "time_range" ? "Time range" : "Total hours"}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {isDecimalMode ? (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+            <div className="flex min-w-[8rem] flex-col gap-1">
+              <label className="text-xs font-medium text-muted">Total hours</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.25"
+                min="0.25"
+                max="24"
+                placeholder="7.5"
+                value={entry.decimal_hours}
+                disabled={!editable}
+                onChange={(e) =>
+                  onPatch({ decimal_hours: e.target.value, saveState: "idle" })
+                }
+                onBlur={() => onBlurField("decimal_hours", entry.decimal_hours)}
+                className={cn(fieldBase, "h-9 w-[8rem] text-sm")}
+              />
+            </div>
+            <span
+              className={cn(
+                "tnum mt-5 inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                "bg-[var(--line)] text-muted",
+              )}
+            >
+              {displayHours != null ? `${displayHours.toFixed(1)}h` : "—"}
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+            <TimePicker
+              value={entry.start_time}
+              disabled={!editable}
+              onChange={(value) =>
+                onPatch({ start_time: value, saveState: "idle" })
+              }
+              onBlur={() => onBlurField("start_time", entry.start_time)}
+              aria-label="Start time"
+            />
+            <span className="flex-none select-none text-sm text-muted" aria-hidden>
+              –
+            </span>
+            <TimePicker
+              value={entry.end_time}
+              disabled={!editable}
+              onChange={(value) =>
+                onPatch({ end_time: value, saveState: "idle" })
+              }
+              onBlur={() => onBlurField("end_time", entry.end_time)}
+              aria-label="End time"
+            />
+            <span
+              className={cn(
+                "tnum inline-flex flex-none items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                "bg-[var(--line)] text-muted",
+              )}
+            >
+              {displayHours != null ? `${displayHours.toFixed(1)}h` : "—"}
+            </span>
+          </div>
+        )}
 
         {/* Row 2: project + description */}
         <div className="grid gap-3 sm:grid-cols-2">

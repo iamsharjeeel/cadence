@@ -8,6 +8,15 @@ export function cn(
   return classes.filter(Boolean).join(" ");
 }
 
+/** Display label for org roles (admin → Manager). */
+export function roleLabel(role: string): string {
+  if (role === "admin") return "Manager";
+  if (role === "owner") return "Owner";
+  if (role === "superadmin") return "Superadmin";
+  if (role === "employee") return "Employee";
+  return titleCase(role);
+}
+
 /** Title-cases an enum-ish token, e.g. "biweekly" → "Biweekly". */
 export function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);

@@ -17,6 +17,10 @@ import { useToast } from "@/components/ui/Toast";
 import { CountUp } from "@/components/motion/CountUp";
 import { isOvernightShift } from "@/lib/time/validation";
 import {
+  canPersistDecimalEntry,
+  type EntryMode,
+} from "@/lib/time/decimal-hours";
+import {
   canPersistTimeEntry,
   deleteTimeEntryClient,
   saveTimeEntryClient,
@@ -40,6 +44,7 @@ import {
 } from "@/lib/time/week-constants";
 import type { TimesheetStatus } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
+import type { TimeTrackingData } from "@/types/time-tracking";
 import {
   getTimeTrackingData,
   submitTimesheetForApproval,
@@ -59,8 +64,10 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
   return {
     clientId: crypto.randomUUID(),
     entry_date: date,
+    entry_mode: "time_range",
     start_time: lastEnd ?? "09:00",
     end_time: lastEnd ? "" : "17:00",
+    decimal_hours: "",
     project_id: null,
     description: "",
     billable: true,
@@ -69,27 +76,72 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
 }
 
 function entryToDraft(e: TimeEntryWithProject): DraftEntry {
+  const mode = (e.entry_mode ?? "time_range") as EntryMode;
   const start = formatTime(e.start_time);
   const end = formatTime(e.end_time);
   return {
     clientId: e.id,
     id: e.id,
     entry_date: e.entry_date,
+    entry_mode: mode,
     start_time: start,
     end_time: end,
+    decimal_hours:
+      mode === "decimal_hours" && e.decimal_hours != null
+        ? String(e.decimal_hours)
+        : "",
     project_id: e.project_id,
     description: e.description ?? "",
     billable: e.billable,
     total_hours: Number(e.total_hours),
-    overnightConfirmed: isOvernightShift(start, end),
+    overnightConfirmed:
+      mode === "time_range" ? isOvernightShift(start, end) : false,
     saveState: "saved",
   };
 }
 
+function entriesGrouped(entries: TimeEntryWithProject[]): Record<string, DraftEntry[]> {
+  const grouped: Record<string, DraftEntry[]> = {};
+  for (const e of entries) {
+    grouped[e.entry_date] = grouped[e.entry_date] ?? [];
+    grouped[e.entry_date]!.push(entryToDraft(e));
+  }
+  return grouped;
+}
+
+function applyTrackingData(
+  data: TimeTrackingData,
+  setters: {
+    setTimesheetId: (v: string) => void;
+    setOrgId: (v: string) => void;
+    setEmployeeId: (v: string) => void;
+    setStatus: (v: TimesheetStatus) => void;
+    setProjects: (v: Project[]) => void;
+    setWeek: (v: PayPeriod) => void;
+    setRate: (v: number | null) => void;
+    setRateType: (v: string) => void;
+    setCurrency: (v: string | null) => void;
+    setEntriesByDay: (v: Record<string, DraftEntry[]>) => void;
+  },
+) {
+  setters.setTimesheetId(data.timesheetId);
+  setters.setOrgId(data.orgId);
+  setters.setEmployeeId(data.employeeId);
+  setters.setStatus(data.status);
+  setters.setProjects(data.projects);
+  setters.setWeek(data.week);
+  setters.setRate(data.rate);
+  setters.setRateType(data.rateType);
+  setters.setCurrency(data.currency);
+  setters.setEntriesByDay(entriesGrouped(data.entries));
+}
+
 export function TimeTrackingView({
   initialWeekMonday,
+  initialData,
 }: {
   initialWeekMonday?: string;
+  initialData?: TimeTrackingData | null;
 }) {
   const { toast } = useToast();
   const [weekMonday, setWeekMonday] = useState(
@@ -108,7 +160,9 @@ export function TimeTrackingView({
   const [rateType, setRateType] = useState("hourly");
   const [currency, setCurrency] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
+  const skipInitialFetch = useRef(Boolean(initialData));
+  const ssrWeekMonday = initialWeekMonday ?? thisWeekMonday();
 
   const entriesByDayRef = useRef(entriesByDay);
   const timesheetIdRef = useRef(timesheetId);
@@ -163,27 +217,44 @@ export function TimeTrackingView({
       toast(res.message || "Couldn't load time entries.", "error");
       return;
     }
-    setTimesheetId(res.timesheetId);
-    setOrgId(res.orgId);
-    setEmployeeId(res.employeeId);
-    setStatus(res.status);
-    setProjects(res.projects);
-    setWeek(res.week);
-    setRate(res.rate);
-    setRateType(res.rateType);
-    setCurrency(res.currency);
-
-    const grouped: Record<string, DraftEntry[]> = {};
-    for (const e of res.entries) {
-      grouped[e.entry_date] = grouped[e.entry_date] ?? [];
-      grouped[e.entry_date]!.push(entryToDraft(e));
-    }
-    setEntriesByDay(grouped);
+    applyTrackingData(res, {
+      setTimesheetId,
+      setOrgId,
+      setEmployeeId,
+      setStatus,
+      setProjects,
+      setWeek,
+      setRate,
+      setRateType,
+      setCurrency,
+      setEntriesByDay,
+    });
   }, [weekMonday, toast]);
 
   useEffect(() => {
+    if (
+      skipInitialFetch.current &&
+      initialData &&
+      weekMonday === ssrWeekMonday
+    ) {
+      skipInitialFetch.current = false;
+      applyTrackingData(initialData, {
+        setTimesheetId,
+        setOrgId,
+        setEmployeeId,
+        setStatus,
+        setProjects,
+        setWeek,
+        setRate,
+        setRateType,
+        setCurrency,
+        setEntriesByDay,
+      });
+      setLoading(false);
+      return;
+    }
     load();
-  }, [load]);
+  }, [load, weekMonday, initialData, ssrWeekMonday]);
 
   useEffect(() => {
     const timers = debounceTimers.current;
@@ -231,11 +302,17 @@ export function TimeTrackingView({
           return;
         }
 
-        if (!canPersistTimeEntry(entry.start_time, entry.end_time)) {
+        const isDecimal = entry.entry_mode === "decimal_hours";
+        if (
+          isDecimal
+            ? !canPersistDecimalEntry(entry.decimal_hours)
+            : !canPersistTimeEntry(entry.start_time, entry.end_time)
+        ) {
           return;
         }
 
-        const overnight = isOvernightShift(entry.start_time, entry.end_time);
+        const overnight =
+          !isDecimal && isOvernightShift(entry.start_time, entry.end_time);
         if (overnight && !entry.overnightConfirmed) {
           updateEntry(date, clientId, {
             saveState: "error",
@@ -252,8 +329,10 @@ export function TimeTrackingView({
           employeeId: empId,
           timesheetId: tsId,
           entryDate: entry.entry_date,
+          entryMode: entry.entry_mode,
           startTime: entry.start_time,
           endTime: entry.end_time,
+          decimalHours: entry.decimal_hours,
           projectId: entry.project_id,
           description: entry.description,
           billable: entry.billable,
@@ -299,7 +378,11 @@ export function TimeTrackingView({
       const entry = getEntry(date, clientId);
       if (!entry) return;
       const merged = { ...entry, ...overrides };
-      if (!canPersistTimeEntry(merged.start_time, merged.end_time)) return;
+      const persistable =
+        merged.entry_mode === "decimal_hours"
+          ? canPersistDecimalEntry(merged.decimal_hours)
+          : canPersistTimeEntry(merged.start_time, merged.end_time);
+      if (!persistable) return;
 
       const key = clientId;
       const existing = debounceTimers.current.get(key);
