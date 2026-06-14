@@ -1372,7 +1372,32 @@ Branch `claude/dreamy-franklin-wlhqld`. Three items; Item 1 was misdiagnosed twi
 
 #### Notes / not changed
 - Kept client-side per instruction (no DB migration; `total_hours` stays generated; `is_overnight` not reintroduced).
-- Branch pushed to `claude/dreamy-franklin-wlhqld` only (not `main`).
+- Branch was pushed to `claude/dreamy-franklin-wlhqld`. **Since merged (fast-forwarded) into `main`** — see "Modal flicker RESOLVED + anchored to `main`" below.
+
+### Session — Modal flicker RESOLVED + anchored to `main`, build marker, branch reconciliation ✅
+
+**Status: the app-wide modal flicker + off-center dialog is RESOLVED.** The owner re-tested the live production deploy (`cadence-eta-five.vercel.app`, commit `097d991`): modal is centered, backdrop dims evenly, no flicker on pointer-move over the backdrop, no scroll/hover flicker. No further `MotionModal` changes were needed — this session was **reconciliation + deploy-verifiability only** (no reproduction, no modal code change).
+
+#### Root cause (confirmed, for the record)
+`position: fixed` modals were rendering *inside* `PageTransition`'s `<motion.div {...PAGE_TRANSITION}>` (animates `y` → a `transform`). A transformed ancestor becomes the **containing block** for `fixed` descendants, so the backdrop/panel resolved against the main-content box (offset by the sidebar, only as tall as content) instead of the viewport → off-center + partial dimming; a re-render/hover toggled the transform → the containing block flipped → flicker. **Fix = `createPortal` to `document.body`** (escapes every transformed ancestor → `fixed` is viewport-relative) + a single flex-centered child carrying the width constraint + ref-counted CSS body-scroll-lock (`.modal-open` + `scrollbar-gutter: stable`, no inline `body.style.overflow` reflow). Shipped in `097d991` (built on `b9d0135` / `e56da56`).
+
+#### Why the two prior "attempts" looked like failures (they weren't)
+They were **not** code-only failures and were **not** un-deployed. They shipped to production on branch `claude/dreamy-franklin-wlhqld` (portal commit `097d991` promoted 2026-06-13 22:07 UTC, ~20 h before the bug was re-reported). The confusion was **git topology**, not code: the fix branch was **never merged to `main`**, and `main` — plus a throwaway branch `claude/sweet-mayer-d9xc4n` cut from it — still carried the OLD broken `fd622a9` modal (translate-centering + inline `body.style.overflow`). Reading *those* branches' `MotionModal.tsx` showed "no portal / no flex-centering," which read as "the fix never shipped" — but production was always serving the portal fix. The earlier `data-build` gap is exactly why the build marker (below) now exists.
+
+#### Anchored to `main` (this session)
+- `claude/dreamy-franklin-wlhqld` (`097d991`) was **fast-forwarded into `main`**. `097d991` is now an ancestor of `main`, so `main` no longer carries the broken modal. This removes the hazard where a future push to `main` would auto-deploy a production **regression** of the modal fix.
+- A build-marker commit sits on top of the fast-forward (below).
+
+#### Build marker — verify which commit is actually live
+- `next.config.mjs` exposes `VERCEL_GIT_COMMIT_SHA` as `NEXT_PUBLIC_COMMIT_SHA`; `src/app/layout.tsx` renders it on `<body data-build="…">`.
+- Confirm what is serving in production:
+  ```bash
+  curl -s https://cadence-eta-five.vercel.app | grep -o 'data-build="[^"]*"'
+  ```
+  Compare against `git rev-parse origin/main`. If they match, the live site is the merged `main`. (This is the check that would have instantly resolved the "did the fix ship?" question this session.)
+
+#### Stale branch — DO NOT promote
+- `claude/sweet-mayer-d9xc4n` is rooted at the old `fd622a9` (broken modal) and was **not** merged anywhere. Discard / ignore it — promoting it would regress the modal fix.
 
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)

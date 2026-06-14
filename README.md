@@ -129,6 +129,14 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
 - **Overnight duration** (e.g. 23:30→00:15 = 0.75h, 22:00→02:00 = 4h) is computed with a wrapping formula everywhere hours are shown/aggregated, instead of the DB generated column (which is negative for overnight).
 - **Trends filters** (time window + organization) update charts **in place** via client state + a server action — no full page reload.
 
+### Modal fix anchored to `main` + build marker
+- The modal portal fix above shipped to production but was originally on a feature branch that was **never merged to `main`** — so `main` still carried the old, broken modal. It is now merged, and the owner has confirmed the flicker/off-center bug is **resolved on the live deploy**.
+- **Deploy verifiability:** `next.config.mjs` exposes the build's git commit SHA as `NEXT_PUBLIC_COMMIT_SHA`, rendered on `<body data-build="…">`. To confirm which commit is actually live:
+  ```bash
+  curl -s https://cadence-eta-five.vercel.app | grep -o 'data-build="[^"]*"'
+  ```
+  Compare the value to `git rev-parse origin/main`.
+
 ## Getting started
 
 ```bash

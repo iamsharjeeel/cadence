@@ -44,7 +44,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${spaceGrotesk.variable} ${playfairDisplay.variable}`}
     >
-      <body>
+      <body data-build={process.env.NEXT_PUBLIC_COMMIT_SHA || "local"}>
         <Providers>{children}</Providers>
       </body>
     </html>
