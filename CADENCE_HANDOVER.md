@@ -1399,6 +1399,19 @@ They were **not** code-only failures and were **not** un-deployed. They shipped 
 #### Stale branch — DO NOT promote
 - `claude/sweet-mayer-d9xc4n` is rooted at the old `fd622a9` (broken modal) and was **not** merged anywhere. Discard / ignore it — promoting it would regress the modal fix.
 
+### Security audit (read-only) — findings only, fixes pending triage
+
+Ran a read-only, evidence-first security audit against **`main` @ `acef7f3`** and the **live production DB** (Supabase project ref `irybkcryeywmwpcmhlaa`, read via MCP — live policies/grants/triggers, not migration files). **No app code, RLS, or config was changed.** This is an inventory, **not** a security clearance — nothing here is marked "secure".
+
+Full report: **`SECURITY_AUDIT.md`** (repo root) — severity-ranked table, per-table cross-tenant matrix, full `createAdminClient` call-site inventory, "what's solid" calibration, and the headline verdict.
+
+**Headline:** multi-tenant isolation does **not** fully hold — two 🔴 Critical gaps, both at the DB/storage policy layer (app code is disciplined):
+- **C1** — `profiles` UPDATE policy `with check (id = auth.uid())` + `authenticated` column-UPDATE on `role`/`org_id`/`status` + no trigger → any signed-in user can self-promote to `superadmin` or re-point their own `org_id` from the browser.
+- **C2/H1** — `timesheets` storage bucket has legacy `ts_read`/`ts_upload` policies scoped only to `auth.role()='authenticated'` (OR'd permissively with the scoped ones) → any authenticated user (incl. `org_id=NULL`) can read/write any org's payroll files. (Live/migration divergence.)
+- Plus 🟡 M1 (`audit_log` forgeable inserts), 🟡 M2 (`timesheet_rows` intra-org over-exposure), 🔵 L1/L2 (over-broad `anon` grants; caller-trusted `orgId` in service-role aggregators).
+
+**Solid:** RLS on all 21 tables; `auth_org()`/`auth_role()`/`is_active()` unspoofable; standard tenant tables org-pinned on read+write; token tables own-user-only; every `createAdminClient` site derives tenant key server-side (no client `org_id` trusted); service-role + encryption keys server-only; secrets never returned to client; other storage buckets path-scoped. **Fixes deferred to separate triage — do not action from this entry; see `SECURITY_AUDIT.md`.**
+
 ## Deferred (do not build yet)
 - Full employee account deletion / GDPR hard-delete (membership removal only ships this session)
 - FX conversion layer (cross-currency summing)
