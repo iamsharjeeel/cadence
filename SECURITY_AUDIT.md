@@ -1,6 +1,12 @@
 # Cadence — Security Audit (read-only, findings only)
 
-**Status:** INVENTORY ONLY. No code, RLS, or config was changed. Fixes are pending separate triage. Nothing here should be read as a clearance.
+**Status:** INVENTORY ONLY (original audit). No code, RLS, or config was changed *by the audit*. Nothing here should be read as a blanket clearance.
+
+> **Remediation update — 2026-06-14:** **C1, C2 and H1 are now FIXED** at the DB/storage-policy layer and each exploit was re-verified **closed against the live database** (project `irybkcryeywmwpcmhlaa`). **M1, M2, L1, L2 remain OPEN** (untouched). Migrations:
+> - `supabase/migrations/20260625000000_c1_profiles_block_self_role_status_org_escalation.sql` (C1)
+> - `supabase/migrations/20260626000000_c2_h1_drop_legacy_timesheets_storage_policies.sql` (C2/H1)
+>
+> Both were applied live via Supabase MCP `apply_migration`. See the per-finding ✅ blocks below for mechanism + verification evidence.
 
 ## Target confirmation (STEP 0)
 - **Supabase project ref:** `irybkcryeywmwpcmhlaa` (name `cadence`, status `ACTIVE_HEALTHY`). ✅ matches.
@@ -25,9 +31,9 @@
 
 | ID | Severity | Priority | Location | Finding | Why it matters | Evidence |
 |----|----------|----------|----------|---------|----------------|----------|
-| **C1** | 🔴 Critical | P2 / P4.2 | `profiles` policy `update own profile basics` + column grants | Any authenticated user can update their OWN `profiles` row's `role`, `org_id`, `status` (and `rate`) | Self-elevate to `superadmin` (→ all-orgs access via superadmin policies) or set `org_id` to any org (→ full cross-tenant access). Pure browser call, bypasses all app code. | `WITH CHECK (id = auth.uid())` only; `authenticated` has column-`UPDATE` on `role`,`org_id`,`status`; **no triggers** on `profiles` |
-| **C2** | 🔴 Critical | P3.4 / P2 | `storage.objects` policy `ts_read` (bucket `timesheets`) | Any authenticated user can SELECT **every** object in the private `timesheets` bucket | A NULL-org or any-org user can list/download another org's raw payroll/timesheet files (`{org}/{emp}/{ts}/raw`). | `using (bucket_id='timesheets' AND auth.role()='authenticated')` — no org/path predicate; OR'd (permissive) with the scoped policy, so the loose one wins |
-| **H1** | 🟠 High | P3.4 | `storage.objects` policy `ts_upload` (bucket `timesheets`) | Any authenticated user can INSERT objects at **any** path in `timesheets` | Write/overwrite into another org's folder (tamper, plant files). | `with check (bucket_id='timesheets' AND auth.role()='authenticated')` — no org/path predicate |
+| **C1** ✅ FIXED | 🔴 Critical | P2 / P4.2 | `profiles` policy `update own profile basics` + column grants | Any authenticated user can update their OWN `profiles` row's `role`, `org_id`, `status` (and `rate`) | Self-elevate to `superadmin` (→ all-orgs access via superadmin policies) or set `org_id` to any org (→ full cross-tenant access). Pure browser call, bypasses all app code. | `WITH CHECK (id = auth.uid())` only; `authenticated` has column-`UPDATE` on `role`,`org_id`,`status`; **no triggers** on `profiles` |
+| **C2** ✅ FIXED | 🔴 Critical | P3.4 / P2 | `storage.objects` policy `ts_read` (bucket `timesheets`) | Any authenticated user can SELECT **every** object in the private `timesheets` bucket | A NULL-org or any-org user can list/download another org's raw payroll/timesheet files (`{org}/{emp}/{ts}/raw`). | `using (bucket_id='timesheets' AND auth.role()='authenticated')` — no org/path predicate; OR'd (permissive) with the scoped policy, so the loose one wins |
+| **H1** ✅ FIXED | 🟠 High | P3.4 | `storage.objects` policy `ts_upload` (bucket `timesheets`) | Any authenticated user can INSERT objects at **any** path in `timesheets` | Write/overwrite into another org's folder (tamper, plant files). | `with check (bucket_id='timesheets' AND auth.role()='authenticated')` — no org/path predicate |
 | **M1** | 🟡 Medium | P3.3 | `audit_log` policy `authenticated insert audit` | Any authenticated user can INSERT arbitrary `audit_log` rows for any `org_id`/`actor_id` | Forge/spoof audit entries (attribute actions to others, inject content admins read), cross-org write. App writes audit via service-role, so this policy is unused attack surface. | `with check (auth.uid() IS NOT NULL)` — no org/actor binding |
 | **M2** | 🟡 Medium | P3.2 / P3.3 | `timesheet_rows` policies `rows_select`, `rows_update` | Any org member can read AND update **all** legacy `timesheet_rows` in their org (no employee/ownership predicate) | Intra-org (not cross-tenant): an employee reads/edits colleagues' legacy uploaded hours/projects. Legacy table. | `rows_select using (org_id = auth_org())`; `rows_update using (org_id = auth_org())` — org-only, no `employee_id`/owner check |
 | **L1** | 🔵 Low | P2.4 | `anon` table grants | `anon` role holds INSERT/UPDATE/DELETE on `profiles` (and other tables) | Currently neutralized by RLS (`auth.uid()` is NULL for anon, so no policy matches), but over-broad grants are a defense-in-depth smell / one-policy-away from exposure. | `role_table_grants`: anon has INSERT/UPDATE/DELETE on `profiles`; column-UPDATE on `role`,`org_id`,`status` |
@@ -58,6 +64,18 @@ supabase.from('profiles').update({ org_id: '<org B uuid>' }).eq('id', <their uid
 Both commit. Afterwards `auth_role()`/`auth_org()` (SECURITY DEFINER, read from `profiles`) return the attacker-chosen values, so every downstream policy now grants the escalated access. App-layer field whitelisting in the profile server actions is irrelevant — the attacker never calls app code.
 **Direction (not a fix):** the write path needs to forbid `authenticated` from changing `role`/`org_id`/`status` on self — e.g. column-scoped UPDATE grant and/or a guard that pins those columns to their prior values for non-admins.
 
+**✅ FIXED — 2026-06-14** — migration `20260625000000_c1_profiles_block_self_role_status_org_escalation.sql`, applied live via Supabase MCP `apply_migration`. Two independent layers:
+1. **Column-privilege lockdown.** `authenticated`'s table-wide `UPDATE` on `public.profiles` (the Supabase default `GRANT ALL`, which made a column-only `REVOKE` ineffective) was dropped and re-granted as `UPDATE` on every column **except** `role`, `status`, `org_id`. `service_role` retains full table+column `UPDATE`, so the admin path (every `role`/`status`/`org_id` write goes through `createAdminClient` → service role: `onboarding.ts`, `invites.ts`, `employees/actions.ts`, `employees/assign-actions.ts`, `employees/remove-actions.ts`) is unaffected. Verified: `authenticated` table-level UPDATE = absent; `service_role` table-level UPDATE = present.
+2. **SECURITY DEFINER trigger** `guard_profiles_privileged_columns` (`BEFORE UPDATE OF role, status, org_id`) rejects any change to those columns unless the session is the service-role API client (JWT `role='service_role'`) or a direct privileged DB session (no JWT context). EXECUTE revoked from `anon`/`authenticated` (a trigger fires regardless of grantee EXECUTE — re-verified).
+
+**Live exploit re-test** (as the `authenticated` role with injected JWT claims for a non-privileged employee; every statement in `ROLLBACK`, committed `role/status/org_id` unchanged afterwards):
+- self `UPDATE … SET role='superadmin'` → **BLOCKED** `42501 permission denied for table profiles`
+- self `UPDATE … SET org_id='<org B>'` → **BLOCKED** `42501`
+- self `UPDATE … SET status='suspended'` → **BLOCKED** `42501`
+- self `UPDATE … SET full_name=…` (legit basic) → **SUCCESS** (self-edit feature preserved)
+- role change with the column grant temporarily re-added (isolates layer 2) → **BLOCKED by the trigger** (`42501 profiles: role, status and org_id are administrator-managed and cannot be changed by this account`)
+- `service_role` `UPDATE … SET role='owner'` (admin path) → **SUCCESS** (admin path intact)
+
 ### C2 / H1 — `timesheets` storage bucket world-readable/writable to any authenticated user 🔴/🟠
 **Live policies (verbatim):**
 ```
@@ -69,6 +87,16 @@ timesheets_storage_insert WITH CHECK ((bucket_id='timesheets') AND is_active() A
 ```
 RLS policies are **permissive (OR'd)** — confirmed `permissive=PERMISSIVE` for all `storage.objects` policies. So the loose `ts_read`/`ts_upload` grant access regardless of the scoped policies. Any authenticated user (including a fresh `org_id=NULL` signup) can `storage.from('timesheets').list()/download()` across all orgs, and upload to any path. Bucket currently holds **5 objects** under **1** org folder. This is the classic "migration diverged from live": the security migration ADDED the scoped policies but the legacy `ts_read`/`ts_upload` were never dropped.
 **Direction (not a fix):** drop the legacy `ts_read`/`ts_upload` policies so only the org/path-scoped policies remain. (Other buckets — `documents`, `official-documents`, `org-logos` — are already correctly path-scoped.)
+
+**✅ FIXED — 2026-06-14** — migration `20260626000000_c2_h1_drop_legacy_timesheets_storage_policies.sql`, applied live via Supabase MCP. The legacy `ts_read` (SELECT) and `ts_upload` (INSERT) policies were **dropped**; only the org/path-scoped `timesheets_storage_select` / `timesheets_storage_insert` remain (verified: those two are now the only `timesheets` policies on `storage.objects`).
+
+**Calibration correction:** production actually holds **2 orgs** (5 members each), not one. Org B (`d9385682-…`) owns all 5 timesheet files; Org A (`745dd1c9-…`) has none. So C2/H1 was a **live cross-tenant data exposure** (Org A users could read/overwrite Org B's real payroll files), not merely a latent gap.
+
+**Live exploit re-test** (as a NON-privileged Org A employee, `authenticated` + JWT claims; every statement in `ROLLBACK`, bucket still 5 objects afterwards):
+- READ (list/download) Org B's folder → **0 objects visible** (Org B's 5 files confirmed present in the postgres view) → cross-tenant read **denied** (C2 closed)
+- READ own `{orgA}/{uid}/…` path → **1 object visible** → legit read **preserved**
+- INSERT under own `{orgA}/{uid}/…` path → **SUCCESS** → legit upload **preserved**
+- INSERT into Org B's `{orgB}/…` folder → **BLOCKED** `42501 new row violates row-level security policy for table "objects"` (H1 closed)
 
 ### M1 — `audit_log` forgeable inserts 🟡
 `authenticated insert audit` `WITH CHECK (auth.uid() IS NOT NULL)` lets any authenticated user insert audit rows with arbitrary `org_id`, `actor_id`, `action`, `payload`. The application writes all real audit entries via `createAdminClient()` (`src/lib/audit.ts:49`), so this policy serves no app purpose and is pure forgery surface. **Direction:** remove the authenticated INSERT policy (audit writes are service-role only).
@@ -178,8 +206,8 @@ RLS-bypassing call sites enumerated via `rg -n "createAdminClient" src`. **Every
 ---
 
 ## Triage queue (one-line direction only — NOT applied)
-1. **C1** — prevent `authenticated` self-update of `profiles.role`/`org_id`/`status` (column-scoped grant and/or value-pinning guard for non-admins).
-2. **C2/H1** — drop legacy `ts_read`/`ts_upload` storage policies so only the org/path-scoped `timesheets_storage_*` remain.
+1. ✅ **DONE (2026-06-14)** **C1** — prevent `authenticated` self-update of `profiles.role`/`org_id`/`status` (column-scoped grant and/or value-pinning guard for non-admins). *Fixed via column-grant reset + SECURITY DEFINER trigger; exploit re-verified blocked live.*
+2. ✅ **DONE (2026-06-14)** **C2/H1** — drop legacy `ts_read`/`ts_upload` storage policies so only the org/path-scoped `timesheets_storage_*` remain. *Dropped; cross-tenant read/write re-verified blocked live.*
 3. **M1** — remove the `authenticated` INSERT policy on `audit_log` (writes are service-role only).
 4. **M2** — add an employee/ownership predicate to `timesheet_rows` `rows_select`/`rows_update`.
 5. **L1** — narrow `anon` table grants (defense-in-depth).

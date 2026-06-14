@@ -91,12 +91,19 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - Server-side re-validation of all parsed rows (never trust client).
 - Service-role key server-only, never `NEXT_PUBLIC_`, never in client bundle.
 - Rate/calc always from DB server-side, never client input.
-- Employees can never self-set role/status — enforced in server actions. Rate is self-editable on Profile.
+- Employees can never self-set role/status (nor org_id) — enforced in server actions **and** at the DB layer (column grants + trigger; see Security remediation log → C1). Rate is self-editable on Profile.
 - Audit log on: approval, role/rate/status change, org creation, timesheet submission.
 - Reject `.xlsm`/macros; validate MIME + extension + size (max 10MB).
 - CSV export: re-check admin/superadmin role server-side before streaming.
 - Never expose unapproved timesheets in export.
 - Dashboard aggregates: admin queries always filter by `profile.org_id`; superadmin org drill-down validates org server-side (never trust client `org_id` for admin scope).
+
+### Security remediation log
+- **2026-06-14 — C1 / C2 / H1 from `SECURITY_AUDIT.md` FIXED at the DB/storage-policy layer** (live project `irybkcryeywmwpcmhlaa`; applied via Supabase MCP `apply_migration` and committed as migration files):
+  - **C1** (profiles privilege-escalation) — `supabase/migrations/20260625000000_c1_profiles_block_self_role_status_org_escalation.sql`. `authenticated`'s table-wide UPDATE on `profiles` was reset to per-column UPDATE **excluding** `role`/`status`/`org_id`, plus a SECURITY DEFINER `BEFORE UPDATE` trigger (`guard_profiles_privileged_columns`) that rejects changes to those columns unless the session is service-role / a direct DB connection. The admin path (every such write goes through `createAdminClient` = service role) and employee self-edit of profile basics are both unaffected.
+  - **C2 + H1** (timesheets bucket readable/writable by any authenticated user) — `supabase/migrations/20260626000000_c2_h1_drop_legacy_timesheets_storage_policies.sql`. Dropped the loose legacy `ts_read`/`ts_upload` storage policies; the correctly org/path-scoped `timesheets_storage_select` / `timesheets_storage_insert` remain.
+  - **Verified live (exploits re-run as a real `authenticated` session, all rolled back):** self `role`/`status`/`org_id` updates rejected with `42501` while legit profile-basics edits still succeed; an Org A employee can neither read nor write Org B's timesheet files, while own-org access still works. Production currently holds **2 orgs**, so C2/H1 was a *live* cross-tenant exposure, not just latent.
+  - **Still OPEN — next, low priority:** **M1** (forgeable `audit_log` inserts by `authenticated`) and **M2** (`timesheet_rows` intra-org over-read/over-write); plus **L1**/**L2** defense-in-depth items. Not touched in this pass.
 
 ## Cost note
 No hourly crons (paid). Daily crons only (free). Currently using none.
