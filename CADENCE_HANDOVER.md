@@ -1449,12 +1449,21 @@ a personal cannot read/write any org · b member reads/writes own active org (+s
 ### Prod survival
 Prod still runs app code `8dfa2f2` (pre-Track-C) on the new DB. It **degrades gracefully to personal-only**: `auth_org()` returns NULL (not an error), existing users read/write their own now-personal data; org/admin views render empty but don't crash. The new model fully lights up when the branch is merged to `main` + deployed (owner does this manually after preview testing).
 
-### Known follow-ups (noted, not blocking)
-- Employees page: team listing + invites now use memberships, but per-member **role-change / remove** controls still write `profiles` (role is now membership-derived) — rework to update `memberships`.
-- Leave approval RPCs (`approve/reject_leave_request`) check `auth_role()` (vestigial) rather than `auth_workspace_role()` — dormant (no org leave yet); update when org leave is wired.
+### Known follow-ups
+- ✅ DONE (finalization) — Employees role-change + remove now write `memberships` (not the vestigial `profiles`).
+- ✅ DONE (finalization) — `src/types/db.ts` regenerated (memberships/active_workspace/RPCs typed; all `as any` removed).
+- Leave approval RPCs (`approve/reject_leave_request`) check `auth_role()` (vestigial) rather than `auth_workspace_role()` — dormant (no org leave yet); a code comment marks the rework needed when org leave lands.
 - Personal storage paths (own existing timesheet files in personal context) — define a personal path convention in a follow-up; cross-tenant storage isolation already holds.
-- `memberships`/`active_workspace` not yet in generated `src/types/db.ts` (accessed via localized `as any`); regenerate types.
+- `/login` copy still says "matching email domains join your team automatically" — the mechanism is removed (invite-only); update the copy.
 - `allowed_domains` is retained as data only (no auto-attach); could power an optional domain-as-request-to-join later.
+
+### Finalization — MERGED TO MAIN + DEPLOYED TO PRODUCTION ✅ (2026-06-15, `main` @ `d40fab4`)
+- **Step 1 follow-ups (on the branch):** (1a) role-change + remove rewritten onto `memberships` (`authorizeTarget()` membership-aware; hierarchy preserved — owner manages admins+employees, manager only employees, nobody touches self/owners/superadmins; writes via service-role admin client, no client write policy on `memberships`). (1b) `db.ts` regenerated + zero `as any`. (1c) leave-RPC dormant comment. (1d) personal storage path = future (cross-tenant storage isolation already holds).
+- **Merge:** `main` was actually at production's `8dfa2f2` (the local `c452030` ref was stale), so the merge was a clean **fast-forward `8dfa2f2 → d40fab4`**. `main` now carries the full app + Track C + the C1/C2/H1 security fixes + every migration.
+- **Deploy:** pushing `main` auto-created a production deployment that **auto-promoted** (alias includes `cadence-eta-five.vercel.app`). Live `<body data-build>` = `d40fab4` (authenticated fetch). No `deploy_to_vercel`; no manual promotion needed.
+- **Drift cleanup:** before deploy, old prod code's domain auto-attach had re-attached ONLY the superadmin (1 profile + 1 timesheet) to Voxility; re-severed precisely → 0 org-attached, all 11 personal, superadmin `org_id` null, no data lost (te 4, ts 5). New code prevents recurrence.
+- **Live post-deploy isolation battery: 30/30, 0 failures** on the production DB (a–h + C4 abuse + membership-write safety: authenticated self-grant / own-role-change / delete-other / fresh-self-grant all DENIED).
+- **Known infra limitation (out of scope, NOT fixed):** preview-deploy Google OAuth redirects to the production URL (Supabase/Vercel redirect config). Don't change redirect config without owner sign-off.
 
 ## Working preferences
 - Direct, snappy, concise. Minimal preamble.

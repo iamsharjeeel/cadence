@@ -17,7 +17,7 @@ Cadence is **personal-by-default + true multi-workspace**:
 - **Invite-only joining.** Org owners/admins invite by email; the invitee accepts (`accept_invite()`) to get a membership with the assigned role. There is **no domain auto-attach** — signing up never lands you in an org by email domain.
 - **Superadmin** is a platform-oversight layer **outside** the workspace structure: it owns nothing, is in no org, and retains cross-tenant read for audit/support.
 
-Isolation is enforced at the database layer (RLS keyed on the validated active workspace) and re-verified as real `authenticated` sessions; see `SECURITY_AUDIT.md`.
+Isolation is enforced at the database layer (RLS keyed on the validated active workspace) and re-verified as real `authenticated` sessions; see `SECURITY_AUDIT.md`. **The multi-workspace model is live in production** (merged to `main`; post-deploy isolation re-verification passed on the production database).
 
 ## Tech stack
 
