@@ -1425,6 +1425,37 @@ Full report: **`SECURITY_AUDIT.md`** (repo root) — severity-ranked table, per-
 - CFO Claude Agent webhook activation (seam exists, just dormant)
 - DOCX → PDF server-side conversion on Vercel (DOCX shows download + acknowledge flow)
 
+## Track C — single-org-per-user → TRUE multi-workspace ✅ (branch `track-c-multiworkspace`, NOT yet merged to main)
+
+**The model change.** Cadence went from "a user IS their org" (`profiles.org_id` ties one user to one org; `auth_org()` reads it) to **personal-by-default + many-to-many memberships + a server-side active workspace**. Every user is a personal account (full solo product minus approvals); orgs are joined via a `memberships` table; the active workspace decides personal-vs-org context and drives both UI and RLS. Self-serve org creation; invite-only joining; **domain auto-attach removed**. Superadmin is platform oversight, outside the workspace structure.
+
+All four stages were applied **live** to `irybkcryeywmwpcmhlaa` via Supabase MCP (shared prod+preview DB — there is no separate branch DB), each committed with its migration file + pushed to the branch (preview deploys; `deploy_to_vercel` never called; never pushed to `main`).
+
+### New DB objects
+- **`memberships`** (`user_id`, `org_id`, `role` owner/admin/employee, unique(user_id,org_id)). RLS: read own + superadmin read. **No client write path** — written only by SECURITY DEFINER RPCs / service role.
+- **`active_workspace`** (`user_id` PK → `org_id`). Read-own RLS; written only via `set_active_workspace()`.
+- **`track_c_org_link_archive`** (table_name, row_id, original_org_id) — **87 severed org links** recorded at the C2 cutover for reversibility/forensics (superadmin-read only).
+- **Helpers:** `auth_org()` REWRITTEN to resolve `active_workspace ⨝ memberships` (forged/stale active-workspace for a non-member org → NULL → personal/no access); `auth_workspace_role()` (org role from memberships); `my_org_ids()`, `active_org_member_ids()`; RPCs `set_active_workspace(org)`, `create_organization(name,…)`, `accept_invite(invite_id)`, `pending_invites_for_me()`. `auth_role()` now only used for the `superadmin` platform check; `is_active()` unchanged.
+
+### Stages
+- **C1** `20260627000000_track_c1_memberships_personal_scope.sql` — additive: memberships table, `org_id` widened to NULLABLE on 11 personal-capable tenant tables, `create_organization()`. Live app untouched (helpers/data unchanged).
+- **C2** `20260628000000_track_c2_atomic_cutover_rls_rewrite.sql` (HIGHEST RISK) — atomic cutover (all 11 beta users → personal-only; `org_id` severed on owned rows, archived, **no row deleted**; superadmin preserved; old orgs Voxility/Google left inert; memberships stays 0) + `auth_org()` rewrite + **every tenant policy rewritten** for personal/active-org/superadmin scope. Preserved C1/C2/H1 fixes (profiles guard trigger + scoped timesheets storage). Also CLOSED **M1** (dropped forgeable `audit_log` insert) and **M2** (scoped `timesheet_rows` by parent owner). **Isolation gate: 44/44 in-rollback + 22/22 committed-live, 0 failures.**
+- **C3** (no migration) — `getWorkspaceContext()` returns an **effective profile** (`org_id`+`role` re-pointed at the active workspace) so existing role/org-scoped code follows the switcher and agrees with RLS; `getProfile()` returns it. **WorkspaceSwitcher** in the sidebar replaces the old duplicate org display (one control: current context + access level; switch personal↔orgs; "Create organization"). Context-aware nav (personal/employee/manager/superadmin) + dashboard (solo / team / oversight). Org member listings read `memberships`.
+- **C4** `20260629000000_track_c4_invite_accept_rpcs.sql` — `accept_invite()` + `pending_invites_for_me()`; **domain auto-attach removed** from `onboarding.ts` (the only such path); invite redemption now creates memberships; `inviteMember` authorizes via the active workspace's true owner/admin role; switcher surfaces pending invites with one-click Accept. Membership-write paths are now exactly two (`create_organization`, `accept_invite`) — no self-grant.
+
+### Final isolation re-verification (real `authenticated` via `SET ROLE` + injected `request.jwt.claims`, all in `ROLLBACK`) — **24/24, 0 failures** on the finished branch:
+a personal cannot read/write any org · b member reads/writes own active org (+storage) · c cross-org read/write denied (tables AND storage) · d escalation refused (`set_active` non-member) + forged active-workspace → NULL · e fresh 0-membership user reaches nothing · f superadmin cross-tenant oversight intact · g profiles privileged-column guard (C1) holds · h every migrated user still reads their own personal data; +C4 bogus `accept_invite` blocked. Plus create-org→switch→owner and invite→accept→membership verified live (rolled back).
+
+### Prod survival
+Prod still runs app code `8dfa2f2` (pre-Track-C) on the new DB. It **degrades gracefully to personal-only**: `auth_org()` returns NULL (not an error), existing users read/write their own now-personal data; org/admin views render empty but don't crash. The new model fully lights up when the branch is merged to `main` + deployed (owner does this manually after preview testing).
+
+### Known follow-ups (noted, not blocking)
+- Employees page: team listing + invites now use memberships, but per-member **role-change / remove** controls still write `profiles` (role is now membership-derived) — rework to update `memberships`.
+- Leave approval RPCs (`approve/reject_leave_request`) check `auth_role()` (vestigial) rather than `auth_workspace_role()` — dormant (no org leave yet); update when org leave is wired.
+- Personal storage paths (own existing timesheet files in personal context) — define a personal path convention in a follow-up; cross-tenant storage isolation already holds.
+- `memberships`/`active_workspace` not yet in generated `src/types/db.ts` (accessed via localized `as any`); regenerate types.
+- `allowed_domains` is retained as data only (no auto-attach); could power an optional domain-as-request-to-join later.
+
 ## Working preferences
 - Direct, snappy, concise. Minimal preamble.
 - For each build phase: manual actions FIRST (numbered), then the agent prompt.

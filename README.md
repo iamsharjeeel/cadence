@@ -6,6 +6,19 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 
 **Live:** [https://cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app)
 
+## Workspace model (Track C)
+
+Cadence is **personal-by-default + true multi-workspace**:
+
+- **Every user is a personal account.** The full solo product — time tracking, projects, trends, leave, documents, profile — works with no organization and no approval layer (solo = nobody to approve). Personal data belongs to the **user** (`org_id IS NULL`, owned via `employee_id`/`user_id`/`owner_id`), not an org.
+- **Organizations are many-to-many.** Membership lives in a `memberships` table (`user_id`, `org_id`, `role` ∈ owner/admin/employee). A solo user has zero memberships; a user may belong to many orgs, each with its own role.
+- **Self-serve org creation.** Any user can create an organization from personal space and becomes its **owner** (`create_organization()` RPC — atomic org + owner membership). No superadmin involved.
+- **Active workspace.** A per-user server-side context (`active_workspace` table) decides "am I acting as personal, or as org X?". It drives **both** the UI (workspace switcher in the sidebar) and the database scope: `auth_org()` resolves the active workspace **validated against your memberships** — you can only ever scope to an org you actually belong to, and a forged/stale claim resolves to personal (no access). Switching always goes through `set_active_workspace()`, which refuses a non-member org.
+- **Invite-only joining.** Org owners/admins invite by email; the invitee accepts (`accept_invite()`) to get a membership with the assigned role. There is **no domain auto-attach** — signing up never lands you in an org by email domain.
+- **Superadmin** is a platform-oversight layer **outside** the workspace structure: it owns nothing, is in no org, and retains cross-tenant read for audit/support.
+
+Isolation is enforced at the database layer (RLS keyed on the validated active workspace) and re-verified as real `authenticated` sessions; see `SECURITY_AUDIT.md`.
+
 ## Tech stack
 
 - **Next.js 14** — App Router, TypeScript, `src/` directory

@@ -8,6 +8,14 @@
 >
 > Both were applied live via Supabase MCP `apply_migration`. See the per-finding ✅ blocks below for mechanism + verification evidence.
 
+> **Track C — multi-workspace model change + isolation re-verification (2026-06-15):** the tenancy model was converted from single-org-per-user to **personal-by-default + many-to-many org memberships + a server-side active workspace** (branch `track-c-multiworkspace`, applied live to `irybkcryeywmwpcmhlaa`).
+> - **C1** `20260627000000_track_c1_memberships_personal_scope.sql` — `memberships` table (read-own RLS, no client write path), `org_id` widened to NULLABLE on personal-capable tables, `create_organization()` RPC. Additive/non-destructive.
+> - **C2** `20260628000000_track_c2_atomic_cutover_rls_rewrite.sql` — **`auth_org()` rewritten** to resolve the active workspace **validated against `memberships`** (a forged/stale active-workspace for a non-member org → NULL → no access); new `auth_workspace_role()` supplies the org role from `memberships` (the now-vestigial `profiles.role` is only used for the `superadmin` platform check). **Every tenant policy** re-keyed to `personal (org_id IS NULL, owner=auth.uid())` OR active-org OR superadmin-read. Atomic cutover: all 11 beta users → personal-only (`org_id` severed on owned rows; **87 links archived to `track_c_org_link_archive` for reversibility**; no row deleted). Superadmin preserved outside the workspace structure. The C1/C2/H1 fixes (profiles privileged-column guard trigger, scoped `timesheets` storage policies) are preserved.
+> - **C4** `20260629000000_track_c4_invite_accept_rpcs.sql` — `accept_invite()` / `pending_invites_for_me()` RPCs; **domain auto-attach removed entirely** from onboarding. Membership-write paths are now exactly two — `create_organization` (owner of a new org) and `accept_invite` (an invite addressed to your own email) — so no user can self-grant into an arbitrary existing org.
+> - **Isolation re-verification (tested as real `authenticated` via `SET ROLE` + injected `request.jwt.claims`, everything inside `ROLLBACK`):** the full a–h battery passed **44/44 in-rollback at C2** and **24/24 on the committed final branch state** (personal cannot reach any org; member reads/writes only their active org incl. storage; cross-org read/write denied for tables AND storage; escalation via `set_active_workspace` refused and a forged active-workspace row resolves to NULL; fresh 0-membership user reaches nothing; superadmin cross-tenant oversight intact; profiles guard holds; every migrated user still reads their own personal data; bogus `accept_invite` blocked).
+> - **M1 and M2 are now CLOSED by C2** (the forgeable `audit_log` authenticated INSERT policy was dropped — audit writes are service-role only; `timesheet_rows` was re-scoped by its parent timesheet's owner). **L1/L2** remain as defense-in-depth notes.
+> - Prod (app code `8dfa2f2`) runs on the new DB and **degrades gracefully to a personal-only experience** (`auth_org()` returns NULL, not an error; users read/write their own now-personal data) until the branch is merged + deployed. `track-c-multiworkspace` is NOT merged to `main`.
+
 ## Target confirmation (STEP 0)
 - **Supabase project ref:** `irybkcryeywmwpcmhlaa` (name `cadence`, status `ACTIVE_HEALTHY`). ✅ matches.
   - Note: live region reports `ap-southeast-2` (Sydney); the handover labelled it "Singapore". The **ref** is the authoritative match, so the audit proceeded. Region label is a doc nuance, not a target mismatch.
@@ -208,7 +216,7 @@ RLS-bypassing call sites enumerated via `rg -n "createAdminClient" src`. **Every
 ## Triage queue (one-line direction only — NOT applied)
 1. ✅ **DONE (2026-06-14)** **C1** — prevent `authenticated` self-update of `profiles.role`/`org_id`/`status` (column-scoped grant and/or value-pinning guard for non-admins). *Fixed via column-grant reset + SECURITY DEFINER trigger; exploit re-verified blocked live.*
 2. ✅ **DONE (2026-06-14)** **C2/H1** — drop legacy `ts_read`/`ts_upload` storage policies so only the org/path-scoped `timesheets_storage_*` remain. *Dropped; cross-tenant read/write re-verified blocked live.*
-3. **M1** — remove the `authenticated` INSERT policy on `audit_log` (writes are service-role only).
-4. **M2** — add an employee/ownership predicate to `timesheet_rows` `rows_select`/`rows_update`.
+3. ✅ **DONE (2026-06-15, Track C2)** **M1** — dropped the `authenticated` INSERT policy on `audit_log` (writes are service-role only).
+4. ✅ **DONE (2026-06-15, Track C2)** **M2** — `timesheet_rows` policies re-scoped by the parent timesheet's owner (personal: parent owned by you; org: parent in your active org).
 5. **L1** — narrow `anon` table grants (defense-in-depth).
 6. **L2** — have service-role lib aggregators re-assert org scope rather than trust caller `orgId` (defense-in-depth).
