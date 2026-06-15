@@ -1,35 +1,47 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app/AppShell";
-import { createClient } from "@/lib/supabase/server";
-import { getProfile } from "@/lib/auth";
+import { getWorkspaceContext, navContextFor } from "@/lib/workspace";
+import { titleCase } from "@/lib/utils";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const profile = await getProfile();
-  if (!profile) redirect("/login");
-  if (profile.status === "suspended") {
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  if (ctx.realProfile.status === "suspended") {
     redirect("/login?error=suspended");
   }
 
-  let orgName: string | null = null;
-  let orgLogoUrl: string | null = null;
-  if (profile.org_id) {
-    const supabase = createClient();
-    const { data: org } = await supabase
-      .from("organizations")
-      .select("name, logo_url")
-      .eq("id", profile.org_id)
-      .single();
-    orgName = org?.name ?? null;
-    orgLogoUrl = org?.logo_url ?? null;
-  }
+  const navContext = navContextFor(ctx);
+
+  const inOrg = !ctx.isSuperadmin && ctx.activeOrg;
+  const switcher = {
+    activeOrgId: ctx.activeOrgId,
+    isSuperadmin: ctx.isSuperadmin,
+    memberships: ctx.memberships.map((m) => ({
+      orgId: m.orgId,
+      name: m.name,
+      role: m.role,
+    })),
+    currentLabel: inOrg ? ctx.activeOrg!.name : "Personal",
+    currentSublabel: ctx.isSuperadmin
+      ? "Platform admin"
+      : inOrg
+        ? titleCase(ctx.workspaceRole!)
+        : "Personal workspace",
+    currentLogoName: inOrg ? ctx.activeOrg!.name : "Personal",
+    currentLogoUrl: inOrg ? ctx.activeOrg!.logoUrl : null,
+  };
 
   return (
-    <AppShell profile={profile} orgName={orgName} orgLogoUrl={orgLogoUrl}>
+    <AppShell
+      profile={ctx.effectiveProfile}
+      navContext={navContext}
+      switcher={switcher}
+    >
       {children}
     </AppShell>
   );

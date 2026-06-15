@@ -7,21 +7,23 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { useNavigation } from "./NavigationProvider";
 import type { Profile } from "@/types/db";
-import { navForRole } from "./nav";
+import { navForContext, type NavContext } from "./nav";
 import { usePathname } from "next/navigation";
 
 export function Topbar({
   profile,
+  navContext,
   mobileNavOpen,
   onMobileNavToggle,
 }: {
   profile: Profile;
+  navContext: NavContext;
   mobileNavOpen?: boolean;
   onMobileNavToggle?: () => void;
 }) {
   const pathname = usePathname();
   const { optimisticPath } = useNavigation();
-  const items = navForRole(profile.role);
+  const items = navForContext(navContext);
   const currentPath = optimisticPath ?? pathname;
   const current = items.find((i) => i.href === currentPath);
 

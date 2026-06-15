@@ -90,3 +90,64 @@ export const NAV_ITEMS: NavItem[] = [
 export function navForRole(role: UserRole): NavItem[] {
   return NAV_ITEMS.filter((item) => item.roles.includes(role));
 }
+
+/** Track C — workspace-context-driven navigation. */
+export type NavContext = "personal" | "employee" | "manager" | "superadmin";
+
+const CONTEXT_HREFS: Record<NavContext, string[]> = {
+  // Solo product: time tracking, projects, trends, leave, documents, profile.
+  // No approvals / employees / settings / audit.
+  personal: [
+    "/app/dashboard",
+    "/app/timesheets",
+    "/app/trends",
+    "/app/projects",
+    "/app/leave",
+    "/app/documents",
+    "/app/profile",
+  ],
+  // Same surface as personal, but org-scoped (can submit for approval).
+  employee: [
+    "/app/dashboard",
+    "/app/timesheets",
+    "/app/trends",
+    "/app/projects",
+    "/app/leave",
+    "/app/documents",
+    "/app/profile",
+  ],
+  // Org owner/admin: solo surface + team management.
+  manager: [
+    "/app/dashboard",
+    "/app/timesheets",
+    "/app/trends",
+    "/app/projects",
+    "/app/leave",
+    "/app/documents",
+    "/app/profile",
+    "/app/employees",
+    "/app/settings",
+    "/app/audit",
+  ],
+  // Platform oversight: personal surface + cross-org organizations + audit.
+  superadmin: [
+    "/app/dashboard",
+    "/app/timesheets",
+    "/app/trends",
+    "/app/projects",
+    "/app/leave",
+    "/app/documents",
+    "/app/profile",
+    "/app/employees",
+    "/app/organizations",
+    "/app/settings",
+    "/app/audit",
+  ],
+};
+
+export function navForContext(ctx: NavContext): NavItem[] {
+  const byHref = new Map(NAV_ITEMS.map((i) => [i.href, i]));
+  return CONTEXT_HREFS[ctx]
+    .map((href) => byHref.get(href))
+    .filter((i): i is NavItem => Boolean(i));
+}

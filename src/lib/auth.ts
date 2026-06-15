@@ -2,7 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceContext } from "@/lib/workspace";
 import type { Profile, UserRole } from "@/types/db";
 
 /**
@@ -13,21 +13,16 @@ import type { Profile, UserRole } from "@/types/db";
  * RLS is a backstop, not the only gate.
  */
 
-/** Returns the authenticated profile, or null if not signed in / no profile. */
+/**
+ * Returns the authenticated profile, or null if not signed in / no profile.
+ *
+ * Track C: `org_id` and `role` are re-pointed at the caller's ACTIVE workspace
+ * (see `getWorkspaceContext`), so existing org/role-scoped code automatically
+ * follows the workspace switcher and agrees with C2's RLS scope.
+ */
 export async function getProfile(): Promise<Profile | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  return profile ?? null;
+  const ctx = await getWorkspaceContext();
+  return ctx?.effectiveProfile ?? null;
 }
 
 /**

@@ -7,17 +7,29 @@ import { Sidebar } from "@/components/app/Sidebar";
 import { Topbar } from "@/components/app/Topbar";
 import { NavigationProvider } from "@/components/app/NavigationProvider";
 import { PageTransition } from "@/components/motion/PageTransition";
+import type { SwitcherMembership } from "@/components/app/WorkspaceSwitcher";
+import type { NavContext } from "@/components/app/nav";
 import type { Profile } from "@/types/db";
+
+export type SwitcherData = {
+  activeOrgId: string | null;
+  isSuperadmin: boolean;
+  memberships: SwitcherMembership[];
+  currentLabel: string;
+  currentSublabel: string;
+  currentLogoName: string;
+  currentLogoUrl: string | null;
+};
 
 export function AppShell({
   profile,
-  orgName,
-  orgLogoUrl,
+  navContext,
+  switcher,
   children,
 }: {
   profile: Profile;
-  orgName: string | null;
-  orgLogoUrl: string | null;
+  navContext: NavContext;
+  switcher: SwitcherData;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -44,15 +56,15 @@ export function AppShell({
     <NavigationProvider>
       <div className="flex min-h-screen bg-background">
         <Sidebar
-          role={profile.role}
-          orgName={orgName}
-          orgLogoUrl={orgLogoUrl}
+          navContext={navContext}
+          switcher={switcher}
           mobileOpen={mobileNavOpen}
           onMobileClose={() => setMobileNavOpen(false)}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar
             profile={profile}
+            navContext={navContext}
             mobileNavOpen={mobileNavOpen}
             onMobileNavToggle={() => setMobileNavOpen((v) => !v)}
           />

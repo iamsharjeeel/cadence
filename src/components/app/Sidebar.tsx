@@ -3,27 +3,24 @@
 import Link from "next/link";
 
 import { Wordmark } from "@/components/brand/Wordmark";
-import { OrgLogo } from "@/components/brand/OrgLogo";
 import { NavLink } from "@/components/app/NavLink";
-import { titleCase } from "@/lib/utils";
-import type { UserRole } from "@/types/db";
-import { navForRole } from "./nav";
+import { WorkspaceSwitcher } from "@/components/app/WorkspaceSwitcher";
+import type { SwitcherData } from "@/components/app/AppShell";
+import { navForContext, type NavContext } from "./nav";
 import { NavIcon } from "./NavIcon";
 
 export function Sidebar({
-  role,
-  orgName,
-  orgLogoUrl,
+  navContext,
+  switcher,
   mobileOpen = false,
   onMobileClose,
 }: {
-  role: UserRole;
-  orgName: string | null;
-  orgLogoUrl: string | null;
+  navContext: NavContext;
+  switcher: SwitcherData;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
-  const items = navForRole(role);
+  const items = navForContext(navContext);
 
   const linkClass =
     "flex items-center gap-3 rounded-[var(--radius-input)] border-l-2 border-transparent px-3 py-2.5 font-display text-sm font-medium transition-colors dark:uppercase dark:tracking-[0.08em] dark:text-[11px] dark:font-semibold";
@@ -41,14 +38,18 @@ export function Sidebar({
             PAYROLL &amp; HR
           </p>
         </Link>
-        {orgName && (
-          <div className="mt-4 flex items-center gap-3 rounded-[var(--radius-card)] bg-surface-low p-3">
-            <OrgLogo name={orgName} logoUrl={orgLogoUrl} size="md" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-ink">{orgName}</p>
-            </div>
-          </div>
-        )}
+        <div className="mt-4">
+          <WorkspaceSwitcher
+            activeOrgId={switcher.activeOrgId}
+            isSuperadmin={switcher.isSuperadmin}
+            memberships={switcher.memberships}
+            currentLabel={switcher.currentLabel}
+            currentSublabel={switcher.currentSublabel}
+            currentLogoName={switcher.currentLogoName}
+            currentLogoUrl={switcher.currentLogoUrl}
+            onNavigate={onMobileClose}
+          />
+        </div>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
@@ -66,23 +67,6 @@ export function Sidebar({
           </NavLink>
         ))}
       </nav>
-
-      <div className="border-t border-[var(--line)] px-4 py-4">
-        <div className="flex items-center gap-3 rounded-[12px] bg-surface-low p-3">
-          <OrgLogo
-            name={orgName ?? "Organization"}
-            logoUrl={orgLogoUrl}
-            size="sm"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-muted">Organization</p>
-            <p className="truncate text-sm font-medium text-ink">
-              {orgName ?? "—"}
-            </p>
-            <p className="text-xs text-muted">{titleCase(role)}</p>
-          </div>
-        </div>
-      </div>
     </>
   );
 

@@ -223,20 +223,29 @@ export async function getAdminDashboard(
       (payrollByCurrency[cur] ?? 0) + (t.calculated_total ?? 0);
   }
 
-  let profilesQuery = db
-    .from("profiles")
-    .select("id, full_name, email, role, rate, currency, org_id")
-    .neq("role", "superadmin");
-  if (orgId) {
-    profilesQuery = profilesQuery.eq("org_id", orgId);
-  } else {
-    profilesQuery = profilesQuery.not("org_id", "is", null);
+  // Track C: org members come from `memberships`, not the (now-null) profiles.org_id.
+  let memQuery = (db as any).from("memberships").select("user_id, role");
+  if (orgId) memQuery = memQuery.eq("org_id", orgId);
+  const { data: memRows } = await memQuery;
+  const memberIds = [
+    ...new Set((memRows ?? []).map((m: any) => m.user_id as string)),
+  ] as string[];
+  const roleByUser = new Map<string, string>(
+    (memRows ?? []).map((m: any) => [m.user_id as string, m.role as string]),
+  );
+
+  let profiles: { id: string; full_name: string | null; email: string; rate: number | null; currency: string | null }[] = [];
+  if (memberIds.length > 0) {
+    const { data } = await db
+      .from("profiles")
+      .select("id, full_name, email, rate, currency")
+      .in("id", memberIds);
+    profiles = (data ?? []) as typeof profiles;
   }
-  const { data: profiles } = await profilesQuery;
 
   const employeeBreakdown: EmployeeBreakdownRow[] = [];
 
-  for (const p of profiles ?? []) {
+  for (const p of profiles) {
     const name = p.full_name?.trim() || p.email;
     const hrs = hoursByEmployeeMap.get(p.id) ?? 0;
     let estimatedTotal = 0;
@@ -248,7 +257,7 @@ export async function getAdminDashboard(
     employeeBreakdown.push({
       id: p.id,
       name,
-      role: p.role,
+      role: roleByUser.get(p.id) ?? "employee",
       rate: p.rate,
       currency: p.currency ?? "USD",
       approvedHours: hrs,
@@ -319,11 +328,11 @@ export async function getSuperadminOrgSummaries(): Promise<OrgSummaryCard[]> {
   const cards: OrgSummaryCard[] = [];
 
   for (const org of orgs ?? []) {
-    const { count: employeeCount } = await db
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("org_id", org.id)
-      .neq("role", "superadmin");
+    // Track C: members come from `memberships`.
+    const { count: employeeCount } = await (db as any)
+      .from("memberships")
+      .select("user_id", { count: "exact", head: true })
+      .eq("org_id", org.id);
 
     const { count: pendingCount } = await db
       .from("timesheets")
