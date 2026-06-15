@@ -76,34 +76,45 @@ export const getWorkspaceContext = cache(
       .single();
     if (!realProfile) return null;
 
-    // memberships + active_workspace are post-Track-C tables (not in generated db types yet).
-    const sb = supabase as unknown as {
-      from: (t: string) => any;
-    };
-
-    const { data: memRows } = await sb
+    const { data: memRows } = await supabase
       .from("memberships")
-      .select("org_id, role, created_at, organizations:org_id(id,name,slug,logo_url)")
+      .select("org_id, role, created_at")
       .order("created_at", { ascending: true });
 
-    const memberships: WorkspaceMembership[] = (memRows ?? []).map((m: any) => ({
-      orgId: m.org_id,
-      name: m.organizations?.name ?? "Organization",
-      slug: m.organizations?.slug ?? "",
-      logoUrl: m.organizations?.logo_url ?? null,
-      role: (m.role ?? "employee") as WorkspaceRole,
-    }));
+    const orgIds = (memRows ?? []).map((m) => m.org_id);
+    const orgById = new Map<
+      string,
+      { name: string; slug: string; logo_url: string | null }
+    >();
+    if (orgIds.length > 0) {
+      const { data: orgs } = await supabase
+        .from("organizations")
+        .select("id, name, slug, logo_url")
+        .in("id", orgIds);
+      for (const o of orgs ?? []) {
+        orgById.set(o.id, { name: o.name, slug: o.slug, logo_url: o.logo_url });
+      }
+    }
 
-    const { data: awRow } = await sb
+    const memberships: WorkspaceMembership[] = (memRows ?? []).map((m) => {
+      const o = orgById.get(m.org_id);
+      return {
+        orgId: m.org_id,
+        name: o?.name ?? "Organization",
+        slug: o?.slug ?? "",
+        logoUrl: o?.logo_url ?? null,
+        role: (m.role ?? "employee") as WorkspaceRole,
+      };
+    });
+
+    const { data: awRow } = await supabase
       .from("active_workspace")
       .select("org_id")
       .maybeSingle();
 
     // Invites addressed to this user's email (invite-only joining).
-    const { data: inviteRows } = await (
-      supabase as unknown as { rpc: (fn: string) => any }
-    ).rpc("pending_invites_for_me");
-    const pendingInvites: PendingInvite[] = (inviteRows ?? []).map((r: any) => ({
+    const { data: inviteRows } = await supabase.rpc("pending_invites_for_me");
+    const pendingInvites: PendingInvite[] = (inviteRows ?? []).map((r) => ({
       id: r.id,
       orgId: r.org_id,
       orgName: r.org_name,

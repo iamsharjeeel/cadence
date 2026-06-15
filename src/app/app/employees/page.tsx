@@ -76,7 +76,7 @@ export default async function EmployeesPage() {
     const db = createAdminClient();
     const [{ data: memRows }, { data: org }, { data: invites }] =
       await Promise.all([
-        (db as any)
+        db
           .from("memberships")
           .select("user_id, role")
           .eq("org_id", orgId!),

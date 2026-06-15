@@ -14,7 +14,7 @@ import { requireActiveProfile } from "@/lib/auth";
  */
 export async function switchWorkspace(orgId: string | null): Promise<void> {
   await requireActiveProfile();
-  const supabase = createClient() as any;
+  const supabase = createClient();
   const { error } = await supabase.rpc("set_active_workspace", {
     p_org_id: orgId,
   });
@@ -29,7 +29,7 @@ export async function switchWorkspace(orgId: string | null): Promise<void> {
  */
 export async function acceptInvite(inviteId: string): Promise<void> {
   await requireActiveProfile();
-  const supabase = createClient() as any;
+  const supabase = createClient();
   const { data: orgId, error } = await supabase.rpc("accept_invite", {
     p_invite_id: inviteId,
   });
@@ -54,7 +54,7 @@ export async function createOrganizationAction(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Organization name is required");
 
-  const supabase = createClient() as any;
+  const supabase = createClient();
   try {
     const { data: orgId, error } = await supabase.rpc("create_organization", {
       p_name: name,

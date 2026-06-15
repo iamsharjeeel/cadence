@@ -38,7 +38,7 @@ export async function redeemOrgInvites(
 
   let redeemed = 0;
   for (const invite of invites) {
-    const { error: memErr } = await (admin as any).from("memberships").upsert(
+    const { error: memErr } = await admin.from("memberships").upsert(
       {
         user_id: userId,
         org_id: invite.org_id,

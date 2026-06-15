@@ -5,103 +5,95 @@ import { revalidatePath } from "next/cache";
 import { writeAudit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth";
-import type { Profile } from "@/types/db";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export type ActionResult = { ok: boolean; message: string };
 
-function canRemoveMember(actor: Profile, target: Profile): string | null {
-  if (target.id === actor.id) {
-    return "You can't remove yourself from the organization.";
-  }
-  if (target.role === "superadmin") {
-    return "Superadmins can't be removed here.";
-  }
-  if (!actor.org_id || target.org_id !== actor.org_id) {
-    return "That member isn't in your organization.";
-  }
-  if (actor.role === "admin") {
-    if (target.role === "owner") {
-      return "Managers can't remove owners.";
-    }
-    if (target.role === "admin") {
-      return "Managers can only remove employees.";
-    }
-  }
-  return null;
-}
-
 /**
- * Removes org membership only — clears profile.org_id and deletes pending invites.
- * Does NOT delete profiles or auth.users.
+ * Track C: removes a member from the caller's ACTIVE organization by deleting
+ * the `memberships` row (and clearing their active_workspace + pending invites
+ * for this org). The person's account + personal data are untouched.
+ * Hierarchy: owner removes managers + employees; manager only employees;
+ * nobody removes self / owners / superadmins.
  */
 export async function removeMemberFromOrg(
   targetId: string,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "owner", "superadmin"]);
-
-  if (actor.role === "superadmin") {
+  const ctx = await getWorkspaceContext();
+  if (!ctx) return { ok: false, message: "Not signed in." };
+  if (ctx.isSuperadmin) {
     return {
       ok: false,
-      message: "Use organization settings to manage members as superadmin.",
+      message: "Membership changes are made from within the organization.",
     };
   }
 
-  if (!actor.org_id) {
-    return { ok: false, message: "Your account has no organization." };
+  const orgId = ctx.activeOrgId;
+  const callerRole = ctx.workspaceRole;
+  if (!orgId || (callerRole !== "owner" && callerRole !== "admin")) {
+    return { ok: false, message: "Switch to an organization you own or manage." };
+  }
+  if (targetId === ctx.realProfile.id) {
+    return { ok: false, message: "You can't remove yourself from the organization." };
   }
 
   const db = createAdminClient();
-  const { data: target } = await db
-    .from("profiles")
-    .select("*")
-    .eq("id", targetId)
-    .single();
+  const { data: mem } = await db
+    .from("memberships")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", targetId)
+    .maybeSingle();
 
-  if (!target) return { ok: false, message: "Member not found." };
-
-  const block = canRemoveMember(actor, target as Profile);
-  if (block) return { ok: false, message: block };
-
-  const email = (target.email ?? "").trim().toLowerCase();
-
-  const { error: inviteErr } = await db
-    .from("org_invites")
-    .delete()
-    .eq("org_id", actor.org_id)
-    .ilike("email", email);
-
-  if (inviteErr) {
-    console.error("[remove] org_invites delete failed:", inviteErr.message);
-    return { ok: false, message: "Couldn't clear pending invites." };
+  if (!mem) return { ok: false, message: "That person isn't a member of this organization." };
+  const targetRole = mem.role as "owner" | "admin" | "employee";
+  if (targetRole === "owner") {
+    return { ok: false, message: "Owners can't be removed here." };
+  }
+  if (callerRole === "admin" && targetRole !== "employee") {
+    return { ok: false, message: "Managers can only remove employees." };
   }
 
-  const { error: profileErr } = await db
+  const { data: target } = await db
     .from("profiles")
-    .update({ org_id: null })
+    .select("email, full_name")
     .eq("id", targetId)
-    .eq("org_id", actor.org_id);
+    .maybeSingle();
+  const email = (target?.email ?? "").trim().toLowerCase();
 
-  if (profileErr) {
-    console.error("[remove] profile update failed:", profileErr.message);
+  const { error: memErr } = await db
+    .from("memberships")
+    .delete()
+    .eq("org_id", orgId)
+    .eq("user_id", targetId);
+  if (memErr) {
+    console.error("[remove] membership delete failed:", memErr.message);
     return { ok: false, message: "Couldn't remove member from organization." };
   }
 
+  // If they were actively in this workspace, drop them back to personal.
+  await db
+    .from("active_workspace")
+    .delete()
+    .eq("user_id", targetId)
+    .eq("org_id", orgId);
+
+  if (email) {
+    await db.from("org_invites").delete().eq("org_id", orgId).ilike("email", email);
+  }
+
   await writeAudit({
-    actorId: actor.id,
-    orgId: actor.org_id,
+    actorId: ctx.realProfile.id,
+    orgId,
     action: "member_removed",
     entity: targetId,
-    payload: {
-      email,
-      previous_role: target.role,
-      previous_org_id: target.org_id,
-    },
+    payload: { email, previous_role: targetRole },
   });
 
   revalidatePath("/app/employees");
   return {
     ok: true,
-    message: `${target.full_name?.trim() || email} removed from the organization.`,
+    message: `${target?.full_name?.trim() || email || "Member"} removed from the organization.`,
   };
 }
 

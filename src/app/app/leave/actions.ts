@@ -232,6 +232,12 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
     return { ok: false, message: "Forbidden." };
   }
 
+  // TRACK C DORMANT NOTE: approve_leave_request / reject_leave_request still
+  // authorize the reviewer via the vestigial auth_role()/profiles.org_id. This
+  // is harmless today (org leave is not wired — leave is personal-only, with no
+  // approval), but when org-scoped leave lands these RPCs MUST be reworked to
+  // authorize via auth_workspace_role() against the active workspace's
+  // membership (like every other tenant policy in C2).
   const { error } = await db.rpc("approve_leave_request", {
     p_request_id: id,
     p_reviewer_id: actor.id,

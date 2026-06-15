@@ -63,6 +63,102 @@ export type Database = {
           },
         ]
       }
+      active_workspace: {
+        Row: {
+          org_id: string
+          set_at: string
+          user_id: string
+        }
+        Insert: {
+          org_id: string
+          set_at?: string
+          user_id: string
+        }
+        Update: {
+          org_id?: string
+          set_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "active_workspace_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "active_workspace_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memberships: {
+        Row: {
+          created_at: string
+          id: string
+          org_id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          org_id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memberships_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_c_org_link_archive: {
+        Row: {
+          archived_at: string
+          id: number
+          original_org_id: string
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          archived_at?: string
+          id?: never
+          original_org_id: string
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          archived_at?: string
+          id?: never
+          original_org_id?: string
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       asana_connections: {
         Row: {
           id: string
@@ -1085,6 +1181,36 @@ export type Database = {
         }
         Returns: undefined
       }
+      accept_invite: { Args: { p_invite_id: string }; Returns: string }
+      active_org_member_ids: { Args: never; Returns: string[] }
+      auth_workspace_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      create_organization: {
+        Args: {
+          p_base_currency?: string
+          p_cadence?: Database["public"]["Enums"]["period_cadence"]
+          p_name: string
+          p_slug?: string
+        }
+        Returns: string
+      }
+      my_org_ids: { Args: never; Returns: string[] }
+      pending_invites_for_me: {
+        Args: never
+        Returns: {
+          expires_at: string
+          id: string
+          org_id: string
+          org_name: string
+          role: Database["public"]["Enums"]["user_role"]
+        }[]
+      }
+      set_active_workspace: {
+        Args: { p_org_id: string | null }
+        Returns: undefined
+      }
     }
     Enums: {
       period_cadence: "weekly" | "biweekly" | "monthly"
@@ -1231,6 +1357,8 @@ export const Constants = {
 // ---------------------------------------------------------------------------
 
 export type Organization = Tables<"organizations">
+export type Membership = Tables<"memberships">
+export type ActiveWorkspace = Tables<"active_workspace">
 export type AsanaConnection = Tables<"asana_connections">
 export type AsanaImportedProject = Tables<"asana_imported_projects">
 export type GoogleCalendarConnection = Tables<"google_calendar_connections">

@@ -224,7 +224,7 @@ export async function getAdminDashboard(
   }
 
   // Track C: org members come from `memberships`, not the (now-null) profiles.org_id.
-  let memQuery = (db as any).from("memberships").select("user_id, role");
+  let memQuery = db.from("memberships").select("user_id, role");
   if (orgId) memQuery = memQuery.eq("org_id", orgId);
   const { data: memRows } = await memQuery;
   const memberIds = [
@@ -329,7 +329,7 @@ export async function getSuperadminOrgSummaries(): Promise<OrgSummaryCard[]> {
 
   for (const org of orgs ?? []) {
     // Track C: members come from `memberships`.
-    const { count: employeeCount } = await (db as any)
+    const { count: employeeCount } = await db
       .from("memberships")
       .select("user_id", { count: "exact", head: true })
       .eq("org_id", org.id);

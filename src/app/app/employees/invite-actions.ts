@@ -61,7 +61,7 @@ export async function inviteMember(payload: {
     .maybeSingle();
 
   if (existingProfile) {
-    const { data: existingMember } = await (db as any)
+    const { data: existingMember } = await db
       .from("memberships")
       .select("user_id")
       .eq("org_id", orgId)
