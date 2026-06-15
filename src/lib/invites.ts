@@ -14,46 +14,50 @@ export type OrgInvite = {
   accepted_at: string | null;
 };
 
-/** Apply a pending invite for this email, if one exists. Returns updated profile fields. */
-export async function redeemOrgInvite(
+/**
+ * Track C: redeem ALL pending invites addressed to this email into
+ * `memberships` (the user stays a personal account by default; the org(s)
+ * become available in the workspace switcher). Returns how many were redeemed.
+ * Does NOT touch profiles.org_id — org membership is many-to-many now.
+ */
+export async function redeemOrgInvites(
   userId: string,
   email: string,
-): Promise<{ org_id: string; role: UserRole } | null> {
+): Promise<number> {
   const admin = createAdminClient();
   const normalized = email.trim().toLowerCase();
 
-  const { data: invite } = await admin
+  const { data: invites } = await admin
     .from("org_invites")
-    .select("id, org_id, role, expires_at")
+    .select("id, org_id, role")
     .ilike("email", normalized)
     .is("accepted_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .gt("expires_at", new Date().toISOString());
 
-  if (!invite) return null;
+  if (!invites || invites.length === 0) return 0;
 
-  const { error: profileErr } = await admin
-    .from("profiles")
-    .update({
-      org_id: invite.org_id,
-      role: invite.role as UserRole,
-      status: "active",
-    })
-    .eq("id", userId);
-
-  if (profileErr) {
-    console.error("[invite] profile update failed:", profileErr.message);
-    return null;
+  let redeemed = 0;
+  for (const invite of invites) {
+    const { error: memErr } = await (admin as any).from("memberships").upsert(
+      {
+        user_id: userId,
+        org_id: invite.org_id,
+        role: invite.role as UserRole,
+      },
+      { onConflict: "user_id,org_id" },
+    );
+    if (memErr) {
+      console.error("[invite] membership upsert failed:", memErr.message);
+      continue;
+    }
+    await admin
+      .from("org_invites")
+      .update({ accepted_at: new Date().toISOString() })
+      .eq("id", invite.id);
+    redeemed++;
   }
 
-  await admin
-    .from("org_invites")
-    .update({ accepted_at: new Date().toISOString() })
-    .eq("id", invite.id);
-
-  return { org_id: invite.org_id, role: invite.role as UserRole };
+  return redeemed;
 }
 
 export async function getOrgName(orgId: string): Promise<string> {

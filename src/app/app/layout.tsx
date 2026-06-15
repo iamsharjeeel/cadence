@@ -26,6 +26,11 @@ export default async function AppLayout({
       name: m.name,
       role: m.role,
     })),
+    pendingInvites: ctx.pendingInvites.map((i) => ({
+      id: i.id,
+      orgName: i.orgName,
+      role: i.role,
+    })),
     currentLabel: inOrg ? ctx.activeOrg!.name : "Personal",
     currentSublabel: ctx.isSuperadmin
       ? "Platform admin"

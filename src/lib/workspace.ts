@@ -30,6 +30,13 @@ export type WorkspaceMembership = {
   role: WorkspaceRole;
 };
 
+export type PendingInvite = {
+  id: string;
+  orgId: string;
+  orgName: string;
+  role: WorkspaceRole;
+};
+
 export type WorkspaceContext = {
   realProfile: Profile;
   /** profile with org_id + role re-pointed at the active workspace. */
@@ -40,6 +47,7 @@ export type WorkspaceContext = {
   activeOrg: WorkspaceMembership | null;
   workspaceRole: WorkspaceRole | null;
   memberships: WorkspaceMembership[];
+  pendingInvites: PendingInvite[];
 };
 
 export type NavContext = "personal" | "employee" | "manager" | "superadmin";
@@ -91,6 +99,17 @@ export const getWorkspaceContext = cache(
       .select("org_id")
       .maybeSingle();
 
+    // Invites addressed to this user's email (invite-only joining).
+    const { data: inviteRows } = await (
+      supabase as unknown as { rpc: (fn: string) => any }
+    ).rpc("pending_invites_for_me");
+    const pendingInvites: PendingInvite[] = (inviteRows ?? []).map((r: any) => ({
+      id: r.id,
+      orgId: r.org_id,
+      orgName: r.org_name,
+      role: (r.role ?? "employee") as WorkspaceRole,
+    }));
+
     const isSuperadmin = realProfile.role === "superadmin";
 
     const requestedOrgId: string | null = awRow?.org_id ?? null;
@@ -125,6 +144,7 @@ export const getWorkspaceContext = cache(
       activeOrg: activeMembership,
       workspaceRole,
       memberships,
+      pendingInvites,
     };
   },
 );

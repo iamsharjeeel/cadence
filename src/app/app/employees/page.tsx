@@ -12,7 +12,9 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge, RolePill, StatusPill } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { requireRole } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+import { getWorkspaceContext } from "@/lib/workspace";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney, roleLabel } from "@/lib/utils";
@@ -39,9 +41,18 @@ import type { OrgInvite } from "@/lib/invites";
 export const metadata: Metadata = { title: "Employees" };
 
 export default async function EmployeesPage() {
-  const actor = await requireRole(["admin", "owner", "superadmin"]);
-  const isSuperadmin = actor.role === "superadmin";
-  const canInvite = Boolean(actor.org_id) && actor.role !== "superadmin";
+  // Track C: authorize against the ACTIVE workspace (true owner/admin role);
+  // org members come from `memberships`, not the now-null profiles.org_id.
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  const isSuperadmin = ctx.isSuperadmin;
+  const wsRole = ctx.workspaceRole;
+  if (!isSuperadmin && wsRole !== "owner" && wsRole !== "admin") {
+    redirect("/app/dashboard");
+  }
+  const actor = ctx.effectiveProfile;
+  const orgId = ctx.activeOrgId;
+  const canInvite = !isSuperadmin && Boolean(orgId);
 
   let members: Profile[] = [];
   let pendingInvites: OrgInvite[] = [];
@@ -63,26 +74,40 @@ export default async function EmployeesPage() {
   } else {
     const supabase = createClient();
     const db = createAdminClient();
-    const [{ data }, { data: org }, { data: invites }] = await Promise.all([
-      supabase
+    const [{ data: memRows }, { data: org }, { data: invites }] =
+      await Promise.all([
+        (db as any)
+          .from("memberships")
+          .select("user_id, role")
+          .eq("org_id", orgId!),
+        supabase.from("organizations").select("name").eq("id", orgId!).single(),
+        db
+          .from("org_invites")
+          .select("*")
+          .eq("org_id", orgId!)
+          .is("accepted_at", null)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false }),
+      ]);
+    const roleByUser = new Map<string, string>(
+      (memRows ?? []).map((m: any) => [m.user_id as string, m.role as string]),
+    );
+    const memberIds = [...roleByUser.keys()];
+    if (memberIds.length > 0) {
+      const { data: profs } = await db
         .from("profiles")
         .select("*")
-        .eq("org_id", actor.org_id!)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("organizations")
-        .select("name")
-        .eq("id", actor.org_id!)
-        .single(),
-      db
-        .from("org_invites")
-        .select("*")
-        .eq("org_id", actor.org_id!)
-        .is("accepted_at", null)
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false }),
-    ]);
-    members = (data ?? []) as Profile[];
+        .in("id", memberIds)
+        .order("created_at", { ascending: true });
+      members = ((profs ?? []) as Profile[]).map(
+        (p) =>
+          ({
+            ...p,
+            role: (roleByUser.get(p.id) ?? p.role) as Profile["role"],
+            org_id: orgId,
+          }) as Profile,
+      );
+    }
     pendingInvites = (invites ?? []) as OrgInvite[];
     orgName = org?.name ?? "Organization";
   }
@@ -122,7 +147,7 @@ export default async function EmployeesPage() {
           <div className="flex items-center gap-3">
             {canInvite && (
               <InviteMemberModal
-                actorRole={actor.role as "admin" | "owner"}
+                actorRole={wsRole === "owner" ? "owner" : "admin"}
                 orgName={orgName}
               />
             )}

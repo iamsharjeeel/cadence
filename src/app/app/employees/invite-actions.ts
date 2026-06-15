@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/auth";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { writeAudit } from "@/lib/audit";
 import { getOrgName } from "@/lib/invites";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,9 +23,18 @@ export async function inviteMember(payload: {
   email: string;
   role: InviteRoleOption;
 }): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "owner", "superadmin"]);
-  if (!actor.org_id) {
-    return { ok: false, message: "Your account has no organization." };
+  // Track C: authorize against the ACTIVE workspace's true role (owner/admin),
+  // not the now-vestigial profiles.role.
+  const ctx = await getWorkspaceContext();
+  if (!ctx) return { ok: false, message: "Not signed in." };
+  const orgId = ctx.activeOrgId;
+  const wsRole = ctx.workspaceRole;
+  const actorId = ctx.realProfile.id;
+  if (!orgId || (wsRole !== "owner" && wsRole !== "admin")) {
+    return {
+      ok: false,
+      message: "Switch to an organization you own or manage to invite members.",
+    };
   }
 
   const email = payload.email.trim().toLowerCase();
@@ -38,29 +47,38 @@ export async function inviteMember(payload: {
     return { ok: false, message: "Invalid role." };
   }
 
-  if (actor.role === "admin" && role !== "employee") {
-    return {
-      ok: false,
-      message: "Managers can only invite employees.",
-    };
+  // Admins can only invite employees; owners can invite any role.
+  if (wsRole === "admin" && role !== "employee") {
+    return { ok: false, message: "Admins can only invite employees." };
   }
 
   const db = createAdminClient();
 
   const { data: existingProfile } = await db
     .from("profiles")
-    .select("id, org_id, status")
+    .select("id")
     .ilike("email", email)
     .maybeSingle();
 
-  if (existingProfile?.org_id === actor.org_id && existingProfile.status === "active") {
-    return { ok: false, message: "This person is already an active member of your organization." };
+  if (existingProfile) {
+    const { data: existingMember } = await (db as any)
+      .from("memberships")
+      .select("user_id")
+      .eq("org_id", orgId)
+      .eq("user_id", existingProfile.id)
+      .maybeSingle();
+    if (existingMember) {
+      return {
+        ok: false,
+        message: "This person is already a member of this organization.",
+      };
+    }
   }
 
   const { data: pendingInvite } = await db
     .from("org_invites")
     .select("id")
-    .eq("org_id", actor.org_id)
+    .eq("org_id", orgId)
     .ilike("email", email)
     .is("accepted_at", null)
     .gt("expires_at", new Date().toISOString())
@@ -74,10 +92,10 @@ export async function inviteMember(payload: {
   expiresAt.setDate(expiresAt.getDate() + 14);
 
   const { error: insertErr } = await db.from("org_invites").insert({
-    org_id: actor.org_id,
+    org_id: orgId,
     email,
     role: role as UserRole,
-    invited_by: actor.id,
+    invited_by: actorId,
     expires_at: expiresAt.toISOString(),
   });
 
@@ -86,7 +104,7 @@ export async function inviteMember(payload: {
     return { ok: false, message: "Couldn't create invite. Try again." };
   }
 
-  const orgName = await getOrgName(actor.org_id);
+  const orgName = await getOrgName(orgId);
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? "https://cadence-eta-five.vercel.app";
   const loginUrl = `${appUrl.replace(/\/$/, "")}/login`;
@@ -120,7 +138,7 @@ export async function inviteMember(payload: {
       await db
         .from("org_invites")
         .delete()
-        .eq("org_id", actor.org_id)
+        .eq("org_id", orgId)
         .ilike("email", email)
         .is("accepted_at", null);
       return {
@@ -133,7 +151,7 @@ export async function inviteMember(payload: {
     await db
       .from("org_invites")
       .delete()
-      .eq("org_id", actor.org_id)
+      .eq("org_id", orgId)
       .ilike("email", email)
       .is("accepted_at", null);
     return {
@@ -143,11 +161,11 @@ export async function inviteMember(payload: {
   }
 
   await writeAudit({
-    actorId: actor.id,
-    orgId: actor.org_id,
+    actorId: actorId,
+    orgId: orgId,
     action: "member_invited",
     entity: "org_invites",
-    payload: { email, role, org_id: actor.org_id },
+    payload: { email, role, org_id: orgId },
   });
 
   revalidatePath("/app/employees");

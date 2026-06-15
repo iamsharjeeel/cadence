@@ -43,6 +43,7 @@ export function Sidebar({
             activeOrgId={switcher.activeOrgId}
             isSuperadmin={switcher.isSuperadmin}
             memberships={switcher.memberships}
+            pendingInvites={switcher.pendingInvites}
             currentLabel={switcher.currentLabel}
             currentSublabel={switcher.currentSublabel}
             currentLogoName={switcher.currentLogoName}

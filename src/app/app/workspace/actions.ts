@@ -24,6 +24,25 @@ export async function switchWorkspace(orgId: string | null): Promise<void> {
 }
 
 /**
+ * Accept an invite addressed to the caller's email -> membership, then switch
+ * into the org. accept_invite() refuses invites not addressed to the caller.
+ */
+export async function acceptInvite(inviteId: string): Promise<void> {
+  await requireActiveProfile();
+  const supabase = createClient() as any;
+  const { data: orgId, error } = await supabase.rpc("accept_invite", {
+    p_invite_id: inviteId,
+  });
+  if (error) throw new Error(error.message);
+  const { error: switchError } = await supabase.rpc("set_active_workspace", {
+    p_org_id: orgId,
+  });
+  if (switchError) throw new Error(switchError.message);
+  revalidatePath("/app", "layout");
+  redirect("/app/dashboard");
+}
+
+/**
  * Self-serve org creation: any active user creates an org and becomes its
  * OWNER (atomic org + owner membership via the create_organization RPC), then
  * is switched into it. No superadmin involved.

@@ -7,7 +7,10 @@ import { Sidebar } from "@/components/app/Sidebar";
 import { Topbar } from "@/components/app/Topbar";
 import { NavigationProvider } from "@/components/app/NavigationProvider";
 import { PageTransition } from "@/components/motion/PageTransition";
-import type { SwitcherMembership } from "@/components/app/WorkspaceSwitcher";
+import type {
+  SwitcherMembership,
+  SwitcherInvite,
+} from "@/components/app/WorkspaceSwitcher";
 import type { NavContext } from "@/components/app/nav";
 import type { Profile } from "@/types/db";
 
@@ -15,6 +18,7 @@ export type SwitcherData = {
   activeOrgId: string | null;
   isSuperadmin: boolean;
   memberships: SwitcherMembership[];
+  pendingInvites: SwitcherInvite[];
   currentLabel: string;
   currentSublabel: string;
   currentLogoName: string;
