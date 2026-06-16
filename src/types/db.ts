@@ -995,6 +995,7 @@ export type Database = {
           days_requested: number
           employee_id: string
           end_date: string
+          google_event_id: string | null
           half_day: boolean
           id: string
           leave_type_id: string | null
@@ -1012,6 +1013,7 @@ export type Database = {
           days_requested: number
           employee_id: string
           end_date: string
+          google_event_id?: string | null
           half_day?: boolean
           id?: string
           leave_type_id?: string | null
@@ -1029,6 +1031,7 @@ export type Database = {
           days_requested?: number
           employee_id?: string
           end_date?: string
+          google_event_id?: string | null
           half_day?: boolean
           id?: string
           leave_type_id?: string

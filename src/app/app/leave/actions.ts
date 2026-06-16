@@ -8,7 +8,7 @@ import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { requireActiveProfile } from "@/lib/auth";
 import { countBusinessDays } from "@/lib/leave/days";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
-import { pushLeaveToGoogleCalendar } from "@/lib/google-calendar/push-leave";
+import { pushLeaveToGoogleCalendar, removeLeaveFromGoogleCalendar } from "@/lib/google-calendar/push-leave";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getWorkspaceContext } from "@/lib/workspace";
 import {
@@ -79,7 +79,9 @@ export async function markPersonalLeave(input: {
   if (!noteV.ok) return { ok: false, message: noteV.error };
 
   const db = createAdminClient();
+  const requestId = crypto.randomUUID();
   const { error } = await db.from("leave_requests").insert({
+    id: requestId,
     org_id: null,
     employee_id: profile.id,
     leave_type_id: null,
@@ -103,6 +105,13 @@ export async function markPersonalLeave(input: {
     endDate: dates.value.end,
     note: noteV.value || null,
   });
+
+  if (push.pushed) {
+    await db
+      .from("leave_requests")
+      .update({ google_event_id: push.eventId })
+      .eq("id", requestId);
+  }
 
   revalidatePath("/app/leave");
   return {
@@ -246,9 +255,20 @@ export async function cancelLeaveRequest(id: string): Promise<ActionResult> {
     return { ok: false, message: "Request not in this workspace." };
   }
 
+  if (req.google_event_id) {
+    await removeLeaveFromGoogleCalendar({
+      userId: req.employee_id,
+      eventId: req.google_event_id,
+    });
+  }
+
   await db
     .from("leave_requests")
-    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .update({
+      status: "cancelled",
+      google_event_id: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", id);
 
   if (req.org_id) {
@@ -280,6 +300,13 @@ export async function deletePersonalLeave(id: string): Promise<ActionResult> {
     .single();
   if (!req || req.employee_id !== profile.id || req.org_id !== null) {
     return { ok: false, message: "Entry not found." };
+  }
+
+  if (req.google_event_id) {
+    await removeLeaveFromGoogleCalendar({
+      userId: profile.id,
+      eventId: req.google_event_id,
+    });
   }
 
   await db.from("leave_requests").delete().eq("id", id);
@@ -341,6 +368,13 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
     note: req.note,
   });
 
+  if (push.pushed) {
+    await db
+      .from("leave_requests")
+      .update({ google_event_id: push.eventId })
+      .eq("id", id);
+  }
+
   await notifyUser({
     orgId: req.org_id,
     userId: req.employee_id,
@@ -380,7 +414,7 @@ export async function rejectLeaveRequest(
 
   const { data: req } = await db
     .from("leave_requests")
-    .select("org_id, employee_id, start_date, end_date, status")
+    .select("org_id, employee_id, start_date, end_date, status, google_event_id")
     .eq("id", id)
     .single();
   if (!req || req.org_id !== orgId) {
@@ -390,6 +424,13 @@ export async function rejectLeaveRequest(
     return { ok: false, message: "Request is not pending." };
   }
 
+  if (req.google_event_id) {
+    await removeLeaveFromGoogleCalendar({
+      userId: req.employee_id,
+      eventId: req.google_event_id,
+    });
+  }
+
   const { error } = await db
     .from("leave_requests")
     .update({
@@ -397,6 +438,7 @@ export async function rejectLeaveRequest(
       reviewed_by: actor.id,
       reviewed_at: new Date().toISOString(),
       rejection_note: note.trim(),
+      google_event_id: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

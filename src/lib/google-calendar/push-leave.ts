@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAllDayEvent } from "@/lib/google-calendar/api";
+import { deleteCalendarEvent, createAllDayEvent } from "@/lib/google-calendar/api";
 import { hasGCalConnection } from "@/lib/google-calendar/connection";
 
 export type LeaveGCalPushInput = {
@@ -45,5 +45,23 @@ export async function pushLeaveToGoogleCalendar(
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[gcal] leave push failed:", message);
     return { pushed: false, reason: "failed", message };
+  }
+}
+
+/**
+ * Best-effort removal of a previously pushed leave event. Never throws.
+ */
+export async function removeLeaveFromGoogleCalendar(input: {
+  userId: string;
+  eventId: string;
+}): Promise<void> {
+  const connected = await hasGCalConnection(input.userId);
+  if (!connected) return;
+
+  try {
+    await deleteCalendarEvent(input.userId, input.eventId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[gcal] leave event delete failed:", message);
   }
 }

@@ -44,12 +44,30 @@ function dateStr(ym: string, day: number) {
   return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function requestOnDay(requests: RequestWithMeta[], iso: string) {
-  return requests.find(
+function requestsOnDay(requests: RequestWithMeta[], iso: string) {
+  return requests.filter(
     (r) =>
       r.status !== "cancelled" &&
       r.start_date <= iso &&
       r.end_date >= iso,
+  );
+}
+
+function LeaveDayPill({ hit }: { hit: RequestWithMeta }) {
+  const label = entryLabel(hit);
+  const pending = hit.status === "pending";
+  return (
+    <span
+      className={cn(
+        "block w-full truncate rounded-[var(--radius-chip)] px-1.5 py-0.5 text-[10px] font-semibold leading-snug",
+        pending
+          ? "border border-dashed border-[var(--accent)]/40 bg-surface text-muted"
+          : "bg-[var(--accent)] text-white shadow-sm dark:bg-[var(--accent-mid)] dark:text-ink",
+      )}
+      title={`${label} (${hit.status})`}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -144,29 +162,45 @@ export function LeaveEmployeeView({
             {Array.from({ length: days }).map((_, i) => {
               const day = i + 1;
               const iso = dateStr(calendarMonth, day);
-              const hit = requestOnDay(calendarRequests, iso);
+              const hits = requestsOnDay(calendarRequests, iso);
+              const hasApproved = hits.some((h) => h.status === "approved");
+              const hasPending = hits.some((h) => h.status === "pending");
+              const visible = hits.slice(0, 2);
+              const overflow = hits.length - visible.length;
               return (
                 <div
                   key={day}
                   className={cn(
-                    "relative min-h-[72px] bg-surface p-2 transition-colors",
-                    !hit && "hover:bg-container",
-                    hit?.status === "approved" &&
-                      "bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]",
-                    hit?.status === "pending" &&
-                      "bg-container ring-1 ring-inset ring-dashed ring-[var(--line)]",
-                    hit &&
-                      hit.status !== "approved" &&
-                      hit.status !== "pending" &&
-                      "bg-surface-low ring-1 ring-inset ring-[var(--line)]",
+                    "relative flex min-h-[80px] flex-col gap-1 bg-surface p-1.5 transition-colors",
+                    hits.length === 0 && "hover:bg-container",
+                    hasApproved &&
+                      "bg-[var(--accent-soft)]/50 ring-1 ring-inset ring-[var(--accent)]/25",
+                    hasPending &&
+                      !hasApproved &&
+                      "bg-container/80 ring-1 ring-inset ring-dashed ring-[var(--line)]",
                   )}
-                  title={hit ? `${entryLabel(hit)} (${hit.status})` : undefined}
                 >
-                  <span className="text-[13px] text-muted">{day}</span>
-                  {hit ? (
-                    <p className="mt-1 truncate text-[10px] font-medium text-ink dark:text-[var(--accent)]">
-                      {entryLabel(hit)}
-                    </p>
+                  <span
+                    className={cn(
+                      "text-[12px] font-medium tabular leading-none",
+                      hits.length > 0
+                        ? "text-[var(--accent-strong)]"
+                        : "text-muted",
+                    )}
+                  >
+                    {day}
+                  </span>
+                  {hits.length > 0 ? (
+                    <div className="flex min-h-0 flex-1 flex-col gap-0.5">
+                      {visible.map((hit) => (
+                        <LeaveDayPill key={hit.id} hit={hit} />
+                      ))}
+                      {overflow > 0 ? (
+                        <span className="truncate px-0.5 text-[10px] font-medium text-muted">
+                          +{overflow} more
+                        </span>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               );
@@ -174,8 +208,8 @@ export function LeaveEmployeeView({
           </div>
           <p className="px-4 py-3 text-xs text-muted">
             {mode === "personal"
-              ? "Gold highlights show your marked time off."
-              : "Solid highlights are approved leave; dashed borders are pending requests."}
+              ? "Gold pills show your marked time off."
+              : "Solid gold pills are approved leave; dashed pills are pending."}
           </p>
         </CardContent>
       </MotionCard>

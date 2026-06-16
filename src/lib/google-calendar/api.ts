@@ -65,7 +65,16 @@ async function gcalApiRequest<T>(
     throw gcalReconnectRequiredError(GCAL_RECONNECT_REQUIRED);
   }
 
-  const json = (await res.json()) as T & {
+  if (res.status === 204) {
+    return {} as T;
+  }
+
+  const text = await res.text();
+  if (!text) {
+    return {} as T;
+  }
+
+  const json = JSON.parse(text) as T & {
     error?: { message?: string };
   };
 
@@ -166,5 +175,19 @@ export async function createAllDayEvent(
         end: { date: gcalExclusiveEndDate(input.endDateInclusive) },
       }),
     },
+  );
+}
+
+export async function deleteCalendarEvent(
+  userId: string,
+  eventId: string,
+  calendarId = "primary",
+): Promise<void> {
+  const encodedCalendarId = encodeURIComponent(calendarId);
+  const encodedEventId = encodeURIComponent(eventId);
+  await gcalApiRequest<Record<string, never>>(
+    userId,
+    `/calendars/${encodedCalendarId}/events/${encodedEventId}`,
+    { method: "DELETE" },
   );
 }

@@ -12,6 +12,7 @@ import {
   acceptInvite,
   type ActionResult,
 } from "@/app/app/workspace/actions";
+import { useWorkspaceSwitch } from "@/components/app/WorkspaceSwitchContext";
 
 export type SwitcherMembership = {
   orgId: string;
@@ -93,6 +94,7 @@ export function WorkspaceSwitcher({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { beginSwitch, endSwitch } = useWorkspaceSwitch();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -133,10 +135,11 @@ export function WorkspaceSwitcher({
       setOpen(false);
       setCreating(false);
       onNavigate?.();
+      beginSwitch("Setting up workspace…");
       router.refresh();
       router.push("/app/dashboard");
     }
-  }, [createState, toast, router, onNavigate]);
+  }, [createState, toast, router, onNavigate, beginSwitch]);
 
   function choose(orgId: string | null) {
     if (orgId === activeOrgId) {
@@ -145,9 +148,11 @@ export function WorkspaceSwitcher({
     }
     setOpen(false);
     onNavigate?.();
+    beginSwitch();
     startTransition(async () => {
       const result = await switchWorkspace(orgId);
       if (!result.ok) {
+        endSwitch();
         toast(result.message, "error");
         return;
       }
@@ -159,9 +164,11 @@ export function WorkspaceSwitcher({
   function accept(inviteId: string) {
     setOpen(false);
     onNavigate?.();
+    beginSwitch("Joining workspace…");
     startTransition(async () => {
       const result = await acceptInvite(inviteId);
       if (!result.ok) {
+        endSwitch();
         toast(result.message, "error");
         return;
       }
@@ -310,7 +317,11 @@ export function WorkspaceSwitcher({
             <>
               <div className="my-1.5 border-t border-[var(--line)]" />
               {creating ? (
-                <form action={createAction} className="flex flex-col gap-2 p-2">
+                <form
+                  action={createAction}
+                  onSubmit={() => beginSwitch("Creating organization…")}
+                  className="flex flex-col gap-2 p-2"
+                >
                   <input
                     name="name"
                     autoFocus

@@ -1608,3 +1608,25 @@ _(none logged)_
 
 #### Note — storage policies
 - User-doc uploads/deletes use the **service-role admin client** (same as generated pay PDFs), so existing `documents` bucket RLS path rules (`{org_id}/…`) do not block `user-docs/…` paths. If you later move uploads to the authenticated client, add storage policies for the `user-docs/` prefix.
+
+### Session — Polish batch A (leave calendar, GCal removal, workspace loader, doc viewer) ✅ (2026-06-16, app-layer only; no DB change)
+
+#### Fix L2 — Leave calendar rendering
+- `LeaveEmployeeView.tsx`: marked/approved time-off renders as gold accent pills inside day cells (dashed pills for pending); supports multiple entries per day with "+N more" overflow; taller cells for legibility.
+
+#### Fix L3 — Google Calendar event removal (`google_event_id` now wired)
+- On personal mark / org approval: after GCal push, stores `google_event_id` on `leave_requests`.
+- On personal delete, org cancel, or org reject: best-effort `deleteCalendarEvent` via `removeLeaveFromGoogleCalendar`; clears column; never blocks the leave mutation.
+- `src/lib/google-calendar/{api,push-leave}.ts` — `deleteCalendarEvent` + `removeLeaveFromGoogleCalendar`.
+
+#### Fix W1 — Workspace switch loading indicator
+- `WorkspaceSwitchProvider` + full-app overlay ("Switching workspace…" / "Joining workspace…" / "Creating organization…") in `AppShell`.
+- Driven from `WorkspaceSwitcher` on switch, invite accept, and create-org paths; dismisses on route change or error.
+
+#### Fix D1 — Full-screen document viewer
+- `UserDocumentViewer.tsx` — full-screen overlay for PDF (iframe) and images; close + download controls.
+- `userDocPreviewKind()` helper; non-previewable types (docx, xlsx, etc.) fall back to download with toast.
+- Wired into `UserDocumentRowActions` as View/Open action on Official documents tab.
+
+#### Verification
+- `npm run typecheck` and `npm run build` pass.
