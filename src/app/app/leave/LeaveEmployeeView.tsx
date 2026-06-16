@@ -3,14 +3,11 @@
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
-import { GoogleEventDetailModal } from "@/components/google-calendar/GoogleEventDetailModal";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { MotionCard } from "@/components/motion/MotionCard";
 import { MotionTR } from "@/components/motion/MotionTR";
-import { CountUp } from "@/components/motion/CountUp";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -18,9 +15,11 @@ import {
   type LeaveUnit,
 } from "@/lib/leave/types";
 import type { LeaveType } from "@/types/db";
-import type { BalanceWithType, RequestWithMeta } from "@/lib/leave/queries";
-import type { GoogleCalendarEventWithMeta } from "@/lib/google-calendar/sync";
-import { cancelLeaveRequest } from "./actions";
+import type { RequestWithMeta } from "@/lib/leave/queries";
+import {
+  cancelLeaveRequest,
+  deletePersonalLeave,
+} from "./actions";
 import { RequestLeaveModal } from "./RequestLeaveModal";
 
 function statusTone(status: string) {
@@ -28,36 +27,6 @@ function statusTone(status: string) {
   if (status === "rejected") return "text-[var(--danger)]";
   if (status === "pending") return "text-muted";
   return "text-muted";
-}
-
-function buildDisplayBalances(
-  leaveTypes: LeaveType[],
-  balances: BalanceWithType[],
-): BalanceWithType[] {
-  const byType = new Map(balances.map((b) => [b.leave_type_id, b]));
-  return leaveTypes
-    .filter((t) => t.is_active)
-    .map((lt) => {
-      const existing = byType.get(lt.id);
-      if (existing) return existing;
-      return {
-        id: lt.id,
-        org_id: lt.org_id,
-        employee_id: "",
-        leave_type_id: lt.id,
-        year: new Date().getFullYear(),
-        allocated_days: lt.default_days_per_year ?? 0,
-        used_days: 0,
-        pending_days: 0,
-        created_at: lt.created_at,
-        leave_type: {
-          name: lt.name,
-          category: lt.category,
-          color: lt.color ?? "var(--accent-mid)",
-          unit: (lt.unit === "hours" ? "hours" : "days") as LeaveUnit,
-        },
-      } as BalanceWithType;
-    });
 }
 
 function daysInMonth(ym: string) {
@@ -84,41 +53,35 @@ function requestOnDay(requests: RequestWithMeta[], iso: string) {
   );
 }
 
-function gcalEventsOnDay(events: GoogleCalendarEventWithMeta[], iso: string) {
-  return events.filter((e) => e.start_at.slice(0, 10) === iso);
+function entryLabel(hit: RequestWithMeta) {
+  return (hit.leave_type?.name ?? hit.note?.trim()) || "Time off";
 }
 
 export function LeaveEmployeeView({
-  balances,
+  mode,
   requests,
-  leaveTypes,
+  leaveTypes = [],
   calendarMonth,
-  googleCalendarEvents = [],
-  showGoogleCalendar = false,
 }: {
-  balances: BalanceWithType[];
+  mode: "personal" | "org";
   requests: RequestWithMeta[];
-  leaveTypes: LeaveType[];
+  leaveTypes?: LeaveType[];
   calendarMonth: string;
-  googleCalendarEvents?: GoogleCalendarEventWithMeta[];
-  showGoogleCalendar?: boolean;
 }) {
   const [requestModalOpen, setRequestModalOpen] = useState(false);
-  const [gcalModalOpen, setGcalModalOpen] = useState(false);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [selectedGcalEvent, setSelectedGcalEvent] =
-    useState<GoogleCalendarEventWithMeta | null>(null);
-  const [gcalEvents, setGcalEvents] = useState(googleCalendarEvents);
+  const [actingId, setActingId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const displayBalances = useMemo(
-    () => buildDisplayBalances(leaveTypes, balances),
-    [leaveTypes, balances],
-  );
-
   const calendarRequests = useMemo(
-    () => requests.filter((r) => r.status !== "cancelled"),
-    [requests],
+    () =>
+      requests.filter(
+        (r) =>
+          r.status !== "cancelled" &&
+          (mode === "personal"
+            ? r.status === "approved"
+            : r.status === "approved" || r.status === "pending"),
+      ),
+    [requests, mode],
   );
 
   const days = daysInMonth(calendarMonth);
@@ -129,78 +92,39 @@ export function LeaveEmployeeView({
   );
 
   async function cancel(id: string) {
-    setCancellingId(id);
+    setActingId(id);
     try {
       const result = await cancelLeaveRequest(id);
       toast(result.message, result.ok ? "success" : "error");
     } finally {
-      setCancellingId(null);
+      setActingId(null);
     }
   }
+
+  async function removePersonal(id: string) {
+    setActingId(id);
+    try {
+      const result = await deletePersonalLeave(id);
+      toast(result.message, result.ok ? "success" : "error");
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  const ctaLabel = mode === "personal" ? "Mark time off" : "Request leave";
+  const description =
+    mode === "personal"
+      ? "Mark days off on your personal calendar."
+      : "Request time off for manager approval.";
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">
-          Request time off and track your remaining balance.
-        </p>
-        <Button onClick={() => setRequestModalOpen(true)} disabled={leaveTypes.length === 0}>
-          Request leave
-        </Button>
+        <p className="text-sm text-muted">{description}</p>
+        <Button onClick={() => setRequestModalOpen(true)}>{ctaLabel}</Button>
       </div>
 
-      {displayBalances.length === 0 ? (
-        <EmptyState
-          title="No leave types configured"
-          description="Your organization hasn't set up leave types yet. Contact your admin."
-        />
-      ) : (
-        <div className="grid grid-cols-4 gap-4">
-          {displayBalances.map((b) => {
-            const remaining =
-              Number(b.allocated_days) -
-              Number(b.used_days) -
-              Number(b.pending_days);
-            const allocated = Number(b.allocated_days);
-            const usedPct =
-              allocated > 0
-                ? Math.min(100, ((allocated - remaining) / allocated) * 100)
-                : 0;
-            const unit: LeaveUnit =
-              b.leave_type.unit === "hours" ? "hours" : "days";
-            return (
-              <MotionCard
-                key={b.leave_type_id}
-                className="shadow-card dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none"
-              >
-                <CardContent className="p-5">
-                  <p className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
-                    {b.leave_type.name}
-                  </p>
-                  <p className="mt-3 font-display text-[48px] font-bold leading-none tabular text-ink dark:text-[var(--accent)]">
-                    <CountUp value={remaining} decimals={1} />
-                    <span className="ml-1.5 font-body text-[16px] font-normal text-muted">
-                      {unit === "hours"
-                        ? "h"
-                        : remaining === 1
-                          ? "day"
-                          : "days"}
-                    </span>
-                  </p>
-                  <div className="mt-4 h-[3px] w-full overflow-hidden rounded-[var(--radius-chip)] bg-surface-low">
-                    <div
-                      className="h-full rounded-[var(--radius-chip)] bg-accent-mid"
-                      style={{ width: `${usedPct}%` }}
-                    />
-                  </div>
-                </CardContent>
-              </MotionCard>
-            );
-          })}
-        </div>
-      )}
-
-      <MotionCard className="mt-4 overflow-hidden">
+      <MotionCard className="overflow-hidden">
         <CardHeader>
           <CardTitle className="text-base">Calendar — {monthLabel}</CardTitle>
         </CardHeader>
@@ -221,9 +145,6 @@ export function LeaveEmployeeView({
               const day = i + 1;
               const iso = dateStr(calendarMonth, day);
               const hit = requestOnDay(calendarRequests, iso);
-              const dayGcal = showGoogleCalendar
-                ? gcalEventsOnDay(gcalEvents, iso)
-                : [];
               return (
                 <div
                   key={day}
@@ -239,127 +160,117 @@ export function LeaveEmployeeView({
                       hit.status !== "pending" &&
                       "bg-surface-low ring-1 ring-inset ring-[var(--line)]",
                   )}
-                  title={
-                    hit
-                      ? `${hit.leave_type.name} (${hit.status})`
-                      : undefined
-                  }
+                  title={hit ? `${entryLabel(hit)} (${hit.status})` : undefined}
                 >
                   <span className="text-[13px] text-muted">{day}</span>
-                  {dayGcal.length > 0 ? (
-                    <div className="mt-1 flex flex-col gap-0.5">
-                      {dayGcal.slice(0, 2).map((event) => (
-                        <button
-                          key={event.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedGcalEvent(event);
-                            setGcalModalOpen(true);
-                          }}
-                          className="truncate rounded-full bg-[#4285F4] px-2 py-0.5 text-left text-[10px] font-medium text-white"
-                        >
-                          {event.title ?? "Event"}
-                        </button>
-                      ))}
-                      {dayGcal.length > 2 ? (
-                        <span className="text-[10px] text-muted">
-                          +{dayGcal.length - 2} more
-                        </span>
-                      ) : null}
-                    </div>
+                  {hit ? (
+                    <p className="mt-1 truncate text-[10px] font-medium text-ink dark:text-[var(--accent)]">
+                      {entryLabel(hit)}
+                    </p>
                   ) : null}
                 </div>
               );
             })}
           </div>
           <p className="px-4 py-3 text-xs text-muted">
-            Highlighted days show approved or pending leave.
-            {showGoogleCalendar ? " Blue pills are synced Google Calendar events." : ""}
+            {mode === "personal"
+              ? "Gold highlights show your marked time off."
+              : "Solid highlights are approved leave; dashed borders are pending requests."}
           </p>
         </CardContent>
       </MotionCard>
 
       <MotionCard className="mt-4">
         <CardHeader>
-          <CardTitle className="text-base">Request history</CardTitle>
+          <CardTitle className="text-base">
+            {mode === "personal" ? "Your time off" : "Request history"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {requests.length === 0 ? (
-            <p className="px-6 py-8 text-sm text-muted">No requests yet.</p>
+            <p className="px-6 py-8 text-sm text-muted">
+              {mode === "personal" ? "No time off marked yet." : "No requests yet."}
+            </p>
           ) : (
             <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50">
               <THead className="bg-surface-low">
                 <TR>
-                  <TH>Type</TH>
+                  {mode === "org" ? <TH>Category</TH> : null}
                   <TH>Dates</TH>
                   <TH>Amount</TH>
-                  <TH>Status</TH>
+                  {mode === "org" ? <TH>Status</TH> : null}
                   <TH className="text-right">Action</TH>
                 </TR>
               </THead>
               <TBody>
-                {requests.map((r, i) => (
-                  <MotionTR key={r.id} index={i}>
-                    <TD className="text-sm">{r.leave_type.name}</TD>
-                    <TD className="tabular text-sm text-muted">
-                      {formatDate(r.start_date)} – {formatDate(r.end_date)}
-                    </TD>
-                    <TD className="tabular text-sm">
-                      {formatLeaveAmount(
-                        Number(r.days_requested),
-                        r.leave_type.unit === "hours" ? "hours" : "days",
-                      )}
-                    </TD>
-                    <TD className={`text-sm capitalize ${statusTone(r.status)}`}>
-                      {r.status}
-                    </TD>
-                    <TD className="text-right">
-                      {r.status === "pending" && (
-                        <RowActionsMenu
-                          actions={[
-                            {
-                              label:
-                                cancellingId === r.id
-                                  ? "Cancelling…"
-                                  : "Cancel request",
-                              onClick: () => cancel(r.id),
-                            },
-                          ]}
-                        />
-                      )}
-                    </TD>
-                  </MotionTR>
-                ))}
+                {requests.map((r, i) => {
+                  const unit: LeaveUnit =
+                    r.leave_type?.unit === "hours" ? "hours" : "days";
+                  return (
+                    <MotionTR key={r.id} index={i}>
+                      {mode === "org" ? (
+                        <TD className="text-sm">
+                          {r.leave_type?.name ?? "—"}
+                        </TD>
+                      ) : null}
+                      <TD className="tabular text-sm text-muted">
+                        {formatDate(r.start_date)}
+                        {r.start_date !== r.end_date
+                          ? ` – ${formatDate(r.end_date)}`
+                          : ""}
+                      </TD>
+                      <TD className="tabular text-sm">
+                        {formatLeaveAmount(Number(r.days_requested), unit)}
+                      </TD>
+                      {mode === "org" ? (
+                        <TD
+                          className={`text-sm capitalize ${statusTone(r.status)}`}
+                        >
+                          {r.status}
+                        </TD>
+                      ) : null}
+                      <TD className="text-right">
+                        {mode === "org" && r.status === "pending" ? (
+                          <RowActionsMenu
+                            actions={[
+                              {
+                                label:
+                                  actingId === r.id
+                                    ? "Cancelling…"
+                                    : "Cancel request",
+                                onClick: () => cancel(r.id),
+                              },
+                            ]}
+                          />
+                        ) : null}
+                        {mode === "personal" && r.status === "approved" ? (
+                          <RowActionsMenu
+                            actions={[
+                              {
+                                label:
+                                  actingId === r.id ? "Removing…" : "Remove",
+                                onClick: () => removePersonal(r.id),
+                              },
+                            ]}
+                          />
+                        ) : null}
+                      </TD>
+                    </MotionTR>
+                  );
+                })}
               </TBody>
             </Table>
           )}
         </CardContent>
       </MotionCard>
 
-      {gcalModalOpen && selectedGcalEvent ? (
-        <GoogleEventDetailModal
-          open={gcalModalOpen}
-          onClose={() => {
-            setGcalModalOpen(false);
-            setSelectedGcalEvent(null);
-          }}
-          event={selectedGcalEvent}
-          onEventUpdated={(updated) => {
-            setGcalEvents((prev) =>
-              prev.map((e) => (e.id === updated.id ? updated : e)),
-            );
-            setSelectedGcalEvent(updated);
-          }}
-        />
-      ) : null}
-
-      {requestModalOpen && (
+      {requestModalOpen ? (
         <RequestLeaveModal
-          leaveTypes={leaveTypes.filter((t) => t.is_active)}
-          balances={displayBalances}
+          mode={mode}
+          leaveTypes={leaveTypes}
           onClose={() => setRequestModalOpen(false)}
         />
-      )}
+      ) : null}
     </div>
   );
 }

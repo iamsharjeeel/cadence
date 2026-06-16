@@ -45,10 +45,19 @@ type GoogleEventsListResponse = {
   items?: GoogleCalendarApiEvent[];
 };
 
-async function gcalApiGet<T>(userId: string, path: string): Promise<T> {
+async function gcalApiRequest<T>(
+  userId: string,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const accessToken = await getValidGCalAccessToken(userId);
   const res = await fetch(`${GOOGLE_CALENDAR_API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers,
+    },
     cache: "no-store",
   });
 
@@ -66,6 +75,10 @@ async function gcalApiGet<T>(userId: string, path: string): Promise<T> {
   }
 
   return json;
+}
+
+async function gcalApiGet<T>(userId: string, path: string): Promise<T> {
+  return gcalApiRequest<T>(userId, path);
 }
 
 export async function listUserCalendars(
@@ -116,5 +129,42 @@ export async function getEvent(
   return gcalApiGet<GoogleCalendarApiEvent>(
     userId,
     `/calendars/${encodedCalendarId}/events/${encodedEventId}`,
+  );
+}
+
+/** ISO date (YYYY-MM-DD) → exclusive end for Google all-day events. */
+export function gcalExclusiveEndDate(endDateInclusive: string): string {
+  const end = new Date(`${endDateInclusive}T12:00:00`);
+  end.setDate(end.getDate() + 1);
+  const y = end.getFullYear();
+  const m = String(end.getMonth() + 1).padStart(2, "0");
+  const d = String(end.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export async function createAllDayEvent(
+  userId: string,
+  input: {
+    calendarId?: string;
+    summary: string;
+    description?: string;
+    startDate: string;
+    endDateInclusive: string;
+  },
+): Promise<GoogleCalendarApiEvent> {
+  const calendarId = input.calendarId ?? "primary";
+  const encodedCalendarId = encodeURIComponent(calendarId);
+  return gcalApiRequest<GoogleCalendarApiEvent>(
+    userId,
+    `/calendars/${encodedCalendarId}/events`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        summary: input.summary,
+        description: input.description,
+        start: { date: input.startDate },
+        end: { date: gcalExclusiveEndDate(input.endDateInclusive) },
+      }),
+    },
   );
 }

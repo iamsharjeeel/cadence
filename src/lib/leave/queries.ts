@@ -2,21 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { LeaveUnit } from "@/lib/leave/types";
-import type {
-  LeaveBalance,
-  LeaveRequest,
-  LeaveType,
-  Profile,
-} from "@/types/db";
-
-export type BalanceWithType = LeaveBalance & {
-  leave_type: {
-    name: string;
-    category: string;
-    color: string;
-    unit: LeaveUnit;
-  };
-};
+import type { LeaveRequest, LeaveType } from "@/types/db";
 
 export type RequestWithMeta = LeaveRequest & {
   leave_type: {
@@ -24,7 +10,7 @@ export type RequestWithMeta = LeaveRequest & {
     color: string;
     category: string;
     unit: LeaveUnit;
-  };
+  } | null;
   employee_name?: string;
 };
 
@@ -32,67 +18,58 @@ function leaveTypeUnit(lt: LeaveType | undefined): LeaveUnit {
   return lt?.unit === "hours" ? "hours" : "days";
 }
 
+function metaForType(lt: LeaveType | undefined): RequestWithMeta["leave_type"] {
+  if (!lt) return null;
+  return {
+    name: lt.name,
+    color: lt.color ?? "#B8862F",
+    category: lt.category,
+    unit: leaveTypeUnit(lt),
+  };
+}
+
 async function typesById(ids: string[]) {
-  if (!ids.length) return new Map<string, LeaveType>();
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return new Map<string, LeaveType>();
   const db = createAdminClient();
-  const { data } = await db.from("leave_types").select("*").in("id", ids);
+  const { data } = await db.from("leave_types").select("*").in("id", unique);
   return new Map((data ?? []).map((t) => [t.id, t as LeaveType]));
 }
 
-export async function getLeaveBalancesForEmployee(
-  profile: Profile,
-  year: number,
-): Promise<BalanceWithType[]> {
-  if (!profile.org_id) return [];
-  const db = createAdminClient();
-  const { data } = await db
-    .from("leave_balances")
-    .select("*")
-    .eq("employee_id", profile.id)
-    .eq("year", year);
-
-  const rows = (data ?? []) as LeaveBalance[];
-  const typeMap = await typesById(rows.map((r) => r.leave_type_id));
-
-  return rows.map((r) => {
-    const lt = typeMap.get(r.leave_type_id);
-    return {
-      ...r,
-      leave_type: {
-        name: lt?.name ?? "—",
-        category: lt?.category ?? "custom",
-        color: lt?.color ?? "#B8862F",
-        unit: leaveTypeUnit(lt),
-      },
-    };
-  });
+function mapRequests(
+  rows: LeaveRequest[],
+  typeMap: Map<string, LeaveType>,
+  nameById?: Map<string, string>,
+): RequestWithMeta[] {
+  return rows.map((r) => ({
+    ...r,
+    leave_type: r.leave_type_id
+      ? metaForType(typeMap.get(r.leave_type_id))
+      : null,
+    employee_name: nameById?.get(r.employee_id),
+  }));
 }
 
-export async function getLeaveRequestsForEmployee(
-  profile: Profile,
+/** Leave entries for the active workspace (personal: org_id null). */
+export async function getLeaveRequestsForWorkspace(
+  employeeId: string,
+  orgId: string | null,
 ): Promise<RequestWithMeta[]> {
   const db = createAdminClient();
-  const { data } = await db
+  let query = db
     .from("leave_requests")
     .select("*")
-    .eq("employee_id", profile.id)
+    .eq("employee_id", employeeId)
     .order("created_at", { ascending: false });
 
-  const rows = (data ?? []) as LeaveRequest[];
-  const typeMap = await typesById(rows.map((r) => r.leave_type_id));
+  query = orgId === null ? query.is("org_id", null) : query.eq("org_id", orgId);
 
-  return rows.map((r) => {
-    const lt = typeMap.get(r.leave_type_id);
-    return {
-      ...r,
-      leave_type: {
-        name: lt?.name ?? "—",
-        color: lt?.color ?? "#B8862F",
-        category: lt?.category ?? "custom",
-        unit: leaveTypeUnit(lt),
-      },
-    };
-  });
+  const { data } = await query;
+  const rows = (data ?? []) as LeaveRequest[];
+  const typeMap = await typesById(
+    rows.map((r) => r.leave_type_id).filter((id): id is string => Boolean(id)),
+  );
+  return mapRequests(rows, typeMap);
 }
 
 export async function getOrgLeaveTypes(orgId: string): Promise<LeaveType[]> {
@@ -101,6 +78,7 @@ export async function getOrgLeaveTypes(orgId: string): Promise<LeaveType[]> {
     .from("leave_types")
     .select("*")
     .eq("org_id", orgId)
+    .eq("is_active", true)
     .order("name");
   return (data ?? []) as LeaveType[];
 }
@@ -117,7 +95,9 @@ export async function getPendingLeaveRequests(
     .order("created_at", { ascending: true });
 
   const rows = (data ?? []) as LeaveRequest[];
-  const typeMap = await typesById(rows.map((r) => r.leave_type_id));
+  const typeMap = await typesById(
+    rows.map((r) => r.leave_type_id).filter((id): id is string => Boolean(id)),
+  );
 
   const employeeIds = [...new Set(rows.map((r) => r.employee_id))];
   const { data: people } = employeeIds.length
@@ -131,33 +111,30 @@ export async function getPendingLeaveRequests(
     (people ?? []).map((p) => [p.id, p.full_name?.trim() || p.email]),
   );
 
-  return rows.map((r) => {
-    const lt = typeMap.get(r.leave_type_id);
-    return {
-      ...r,
-      leave_type: {
-        name: lt?.name ?? "—",
-        color: lt?.color ?? "#B8862F",
-        category: lt?.category ?? "custom",
-        unit: leaveTypeUnit(lt),
-      },
-      employee_name: nameById.get(r.employee_id),
-    };
-  });
+  return mapRequests(rows, typeMap, nameById);
 }
 
 export async function getApprovedLeaveInPeriod(
   employeeId: string,
   periodStart: string,
   periodEnd: string,
+  orgId?: string | null,
 ): Promise<number> {
   const db = createAdminClient();
-  const { data } = await db
+  let query = db
     .from("leave_requests")
     .select("days_requested")
     .eq("employee_id", employeeId)
     .eq("status", "approved")
     .lte("start_date", periodEnd)
     .gte("end_date", periodStart);
+
+  if (orgId === null) {
+    query = query.is("org_id", null);
+  } else if (orgId) {
+    query = query.eq("org_id", orgId);
+  }
+
+  const { data } = await query;
   return (data ?? []).reduce((s, r) => s + Number(r.days_requested), 0);
 }

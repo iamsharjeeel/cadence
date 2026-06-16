@@ -10,7 +10,7 @@ Cadence is a premium, multi-tenant SaaS timesheet portal for modern teams. Emplo
 
 Cadence is **personal-by-default + true multi-workspace**:
 
-- **Every user is a personal account.** The full solo product — time tracking, projects, trends, leave, documents, profile — works with no organization and no approval layer (solo = nobody to approve). Personal data belongs to the **user** (`org_id IS NULL`, owned via `employee_id`/`user_id`/`owner_id`), not an org.
+- **Every user is a personal account.** The full solo product — time tracking, projects, trends, leave (personal time-off calendar), documents, profile — works with no organization and no approval layer (solo = nobody to approve). Personal data belongs to the **user** (`org_id IS NULL`, owned via `employee_id`/`user_id`/`owner_id`), not an org.
 - **Workspace self-onboarding.** Any non-superadmin user can create an organization from the sidebar workspace switcher (`create_organization` RPC → owner `memberships` row → auto-switch → `org.create` audit entry). Non-superadmins are capped at **one owned org** (DB-enforced; UI hides the create action when you already own one). Switch between Personal and org workspaces via `set_active_workspace` (null clears to personal) — **Slack-style**: the switch persists server-side in `active_workspace`, then the full app shell re-renders in that workspace's context (dashboard, nav, Employees, Timesheets, Settings, Audit).
 - **Employees / Members (split by context).** Superadmin in platform context sees a read-only **Platform members** audit directory (id, name, email, phone — no banking/rates). Org owners/managers inside an active org workspace see the org **Team** list (memberships-backed role change + remove). Plain employees do not see a member list.
 - **Organizations are many-to-many.** Membership lives in a `memberships` table (`user_id`, `org_id`, `role` ∈ owner/admin/employee). A solo user has zero memberships; a user may belong to many orgs, each with its own role.
@@ -60,7 +60,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - Document status tracking and re-send
 
 ### Phase 5 — Leave, onboarding & document hub
-- Leave balances, calendar, request/approve workflow
+- **Leave (workspace-scoped):** Personal workspace → standalone time-off calendar (mark days off, no approval, no categories). Org workspace → calendar + request/approve flow; leave categories optional when org has types configured (not required); balances never gate requests. Confirmed leave (personal mark or org approval) pushes one-way to Google Calendar when connected.
 - Five-step employee onboarding wizard
 - Official documents: upload, e-sign, acknowledge
 
@@ -125,10 +125,10 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - **Collapsed summary precedence:** Cadence-only, Asana-only (no erroneous "No project"), or both shown together; "Synced …" subordinate to Asana tag
 
 ### Phase 10 — Google Calendar integration
-- **Per-user OAuth:** Google Calendar `calendar.readonly` scope; tokens encrypted at rest (`cadence-gcal-v1` salt)
+- **Per-user OAuth:** Google Calendar `calendar.readonly` + `calendar.events` scopes; tokens encrypted at rest (`cadence-gcal-v1` salt). Users who connected before the events scope was added must reconnect to enable leave push.
 - **Profile → Connected accounts:** side-by-side Asana + Google Calendar tiles; Manage modals for each integration
 - **Calendar sync:** select calendars, sync events (−7 to +60 days), persisted in `google_calendar_events`
-- **Leave page:** synced events as blue chips on calendar grid; event detail modal with “Add as time entry”
+- **Leave → Google Calendar (one-way):** confirmed personal time off and org-approved leave create all-day events in the user's primary calendar; leave view does not pull GCal events in
 - **Log time:** “From calendar” suggestions per day; prefill via `?date=&prefill=` query params
 - **Mobile nav:** sidebar overlay below 768px; topbar hamburger + Cadence wordmark + avatar/bell
 

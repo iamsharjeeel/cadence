@@ -2,6 +2,8 @@ import "server-only";
 
 export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
+  // Create/update all-day leave events (one-way Cadence → GCal).
+  "https://www.googleapis.com/auth/calendar.events",
   // Lets the callback read the connected account email for display.
   "openid",
   "https://www.googleapis.com/auth/userinfo.email",

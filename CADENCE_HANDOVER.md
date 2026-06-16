@@ -1550,3 +1550,31 @@ _(none logged)_
 - **Verification**
   - `npm run typecheck` and `npm run build` pass.
   - Dashboard/Trends comfortable spacing remains intact from the previous comfortable-density overrides.
+
+### Session — Leave rebuild (workspace-scoped, two-mode, GCal push) ✅ (2026-06-16, app-layer + types only; **DB migration needed** — see gaps below)
+
+#### Model
+- **Personal workspace:** standalone time-off calendar — mark days off (date/range, half-day, optional note). No org gate, no balances, no categories, no approval. Entries: `org_id = null`, `employee_id = user`, `leave_type_id = null`, `status = approved`.
+- **Org workspace:** same calendar + request flow. Category optional when org has leave types (zero types = still works). No balance gating. Pending → owner/admin approve/reject via `auth_workspace_role()` (not global `profiles.role`). Audit on org request/approve/reject/cancel.
+- **Context:** `getWorkspaceContext()` / active workspace only — removed all `profiles.org_id` reads on the leave path.
+
+#### Google Calendar (one-way Cadence → GCal)
+- On personal mark or org approval, best-effort all-day event in user's primary calendar (`Leave — {note/category/Time off}`).
+- Added `calendar.events` OAuth scope (existing connections need reconnect for push).
+- Push failure never blocks leave save; soft warning in toast when push fails.
+- **Gap — no `google_event_id` column on `leave_requests`:** create-on-confirm only; cancel-on-delete not implemented. Needs migration: `leave_requests.google_event_id text null` (+ optional `google_calendar_id`) to track pushed events for deletion.
+
+#### Schema gap — `leave_type_id` nullability
+- App now inserts `leave_type_id = null` for personal leave and uncategorized org requests.
+- **Production DB still has `leave_type_id uuid NOT NULL`** (Phase 5 migration). **Needs migration:** `alter table leave_requests alter column leave_type_id drop not null;` — run before personal/uncategorized leave will persist.
+
+#### Touched
+- `src/app/app/leave/{page,actions,LeaveEmployeeView,LeaveAdminView,RequestLeaveModal}.tsx`
+- `src/lib/leave/queries.ts`
+- `src/lib/google-calendar/{config,api,push-leave}.ts`
+- `src/types/db.ts` (nullable `leave_type_id` / `org_id` on leave_requests types)
+- `src/app/app/timesheets/[id]/page.tsx` (workspace-scoped approved-leave notice)
+- `README.md`
+
+#### Removed / deprecated on leave path
+- "No organization assigned" empty state, superadmin org picker (`LeaveOrgSelect` unused), balance cards, team balances table, GCal event chips on leave calendar, balance validation in request flow, vestigial `approve_leave_request` / `reject_leave_request` RPC calls (replaced with direct updates + workspace manager gate).

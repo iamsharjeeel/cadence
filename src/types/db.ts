@@ -936,9 +936,9 @@ export type Database = {
           end_date: string
           half_day: boolean
           id: string
-          leave_type_id: string
+          leave_type_id: string | null
           note: string | null
-          org_id: string
+          org_id: string | null
           rejection_note: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -953,9 +953,9 @@ export type Database = {
           end_date: string
           half_day?: boolean
           id?: string
-          leave_type_id: string
+          leave_type_id?: string | null
           note?: string | null
-          org_id: string
+          org_id?: string | null
           rejection_note?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null

@@ -1,55 +1,155 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
-import { requireActiveProfile, requireRole } from "@/lib/auth";
+import { requireActiveProfile } from "@/lib/auth";
 import { countBusinessDays } from "@/lib/leave/days";
-import {
-  formatLeaveRemaining,
-  type LeaveUnit,
-} from "@/lib/leave/types";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
+import { pushLeaveToGoogleCalendar } from "@/lib/google-calendar/push-leave";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getWorkspaceContext } from "@/lib/workspace";
 import {
   validateDateRange,
   validateMaxLength,
   validateNonNegativeNumber,
   validateYear,
 } from "@/lib/validation";
+import type { LeaveUnit } from "@/lib/leave/types";
 
 export type ActionResult = { ok: boolean; message: string };
 
+async function requireOrgWorkspace() {
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  if (!ctx.activeOrgId) {
+    return { ok: false as const, message: "Switch to an organization workspace." };
+  }
+  return { ok: true as const, ctx, orgId: ctx.activeOrgId };
+}
+
+async function requireOrgManager() {
+  const gate = await requireOrgWorkspace();
+  if (!gate.ok) return gate;
+  const { ctx, orgId } = gate;
+  if (ctx.workspaceRole !== "owner" && ctx.workspaceRole !== "admin") {
+    return { ok: false as const, message: "Forbidden." };
+  }
+  return { ok: true as const, ctx, orgId, profile: ctx.effectiveProfile };
+}
+
+function gcalWarningSuffix(
+  push: Awaited<ReturnType<typeof pushLeaveToGoogleCalendar>>,
+): string {
+  if (push.pushed || push.reason === "not_connected") return "";
+  return " (Google Calendar sync failed — your leave was still saved.)";
+}
+
+/** Personal workspace — mark days off immediately (no approval). */
+export async function markPersonalLeave(input: {
+  startDate: string;
+  endDate: string;
+  halfDay: boolean;
+  note?: string;
+}): Promise<ActionResult> {
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  if (ctx.activeOrgId && !ctx.isSuperadmin) {
+    return { ok: false, message: "Switch to Personal to mark time off." };
+  }
+
+  const profile = ctx.effectiveProfile;
+  const dates = validateDateRange(input.startDate, input.endDate);
+  if (!dates.ok) return { ok: false, message: dates.error };
+
+  const days = countBusinessDays(
+    dates.value.start,
+    dates.value.end,
+    input.halfDay,
+  );
+  if (days <= 0) {
+    return { ok: false, message: "Select valid weekdays for time off." };
+  }
+
+  const noteV = input.note
+    ? validateMaxLength(input.note, 500, "Note")
+    : { ok: true as const, value: "" };
+  if (!noteV.ok) return { ok: false, message: noteV.error };
+
+  const db = createAdminClient();
+  const { error } = await db.from("leave_requests").insert({
+    org_id: null,
+    employee_id: profile.id,
+    leave_type_id: null,
+    start_date: dates.value.start,
+    end_date: dates.value.end,
+    days_requested: days,
+    half_day: input.halfDay,
+    note: noteV.value || null,
+    status: "approved",
+    reviewed_at: new Date().toISOString(),
+    reviewed_by: profile.id,
+  });
+  if (error) {
+    console.error("[leave] personal mark failed:", error.message);
+    return { ok: false, message: "Couldn't save time off." };
+  }
+
+  const push = await pushLeaveToGoogleCalendar({
+    userId: profile.id,
+    startDate: dates.value.start,
+    endDate: dates.value.end,
+    note: noteV.value || null,
+  });
+
+  revalidatePath("/app/leave");
+  return {
+    ok: true,
+    message: `Time off marked.${gcalWarningSuffix(push)}`,
+  };
+}
+
+/** Org workspace — request leave (optional category, no balance gate). */
 export async function requestLeave(input: {
-  leaveTypeId: string;
+  leaveTypeId?: string | null;
   startDate: string;
   endDate: string;
   halfDay: boolean;
   hoursRequested?: number;
   note?: string;
 }): Promise<ActionResult> {
-  const profile = await requireActiveProfile();
-  if (!profile.org_id) return { ok: false, message: "No organization." };
+  const gate = await requireOrgWorkspace();
+  if (!gate.ok) return gate;
 
+  const { ctx, orgId } = gate;
+  const profile = ctx.effectiveProfile;
   const db = createAdminClient();
 
-  const { data: lt } = await db
-    .from("leave_types")
-    .select("id, category, org_id, unit")
-    .eq("id", input.leaveTypeId)
-    .single();
-  if (!lt || lt.org_id !== profile.org_id) {
-    return { ok: false, message: "Invalid leave type." };
-  }
-
-  const unit: LeaveUnit = lt.unit === "hours" ? "hours" : "days";
+  let unit: LeaveUnit = "days";
   let days: number;
   let start: string;
   let end: string;
   let halfDay = false;
+  let leaveTypeId: string | null = input.leaveTypeId?.trim() || null;
+
+  if (leaveTypeId) {
+    const { data: lt } = await db
+      .from("leave_types")
+      .select("id, org_id, unit")
+      .eq("id", leaveTypeId)
+      .single();
+    if (!lt || lt.org_id !== orgId) {
+      return { ok: false, message: "Invalid leave category." };
+    }
+    unit = lt.unit === "hours" ? "hours" : "days";
+  }
 
   if (unit === "hours") {
+    if (!leaveTypeId) {
+      return { ok: false, message: "Select a category for hourly leave." };
+    }
     if (!input.startDate) {
       return { ok: false, message: "Select a date for leave." };
     }
@@ -86,53 +186,10 @@ export async function requestLeave(input: {
     : { ok: true as const, value: "" };
   if (!noteV.ok) return { ok: false, message: noteV.error };
 
-  const year = new Date(start).getFullYear();
-
-  const { data: bal } = await db
-    .from("leave_balances")
-    .select("*")
-    .eq("employee_id", profile.id)
-    .eq("leave_type_id", input.leaveTypeId)
-    .eq("year", year)
-    .maybeSingle();
-
-  const remaining =
-    (bal?.allocated_days ?? 0) -
-    (bal?.used_days ?? 0) -
-    (bal?.pending_days ?? 0);
-
-  if (
-    lt.category !== "unpaid" &&
-    lt.category !== "sick" &&
-    remaining < days
-  ) {
-    return {
-      ok: false,
-      message: `Insufficient balance. ${formatLeaveRemaining(remaining, unit)} remaining.`,
-    };
-  }
-
-  if (bal) {
-    await db
-      .from("leave_balances")
-      .update({ pending_days: Number(bal.pending_days) + days })
-      .eq("id", bal.id);
-  } else {
-    await db.from("leave_balances").insert({
-      org_id: profile.org_id,
-      employee_id: profile.id,
-      leave_type_id: input.leaveTypeId,
-      year,
-      allocated_days: lt.category === "unpaid" ? 365 : 0,
-      used_days: 0,
-      pending_days: days,
-    });
-  }
-
   const { error } = await db.from("leave_requests").insert({
-    org_id: profile.org_id,
+    org_id: orgId,
     employee_id: profile.id,
-    leave_type_id: input.leaveTypeId,
+    leave_type_id: leaveTypeId,
     start_date: start,
     end_date: end,
     days_requested: days,
@@ -140,11 +197,14 @@ export async function requestLeave(input: {
     note: noteV.value || null,
     status: "pending",
   });
-  if (error) return { ok: false, message: "Couldn't submit request." };
+  if (error) {
+    console.error("[leave] request failed:", error.message);
+    return { ok: false, message: "Couldn't submit request." };
+  }
 
   const employeeName = profile.full_name?.trim() || profile.email;
   await notifyOrgAdmins({
-    orgId: profile.org_id,
+    orgId,
     type: "leave_requested",
     title: `Leave request from ${employeeName}`,
     body: `${start} – ${end}`,
@@ -154,10 +214,10 @@ export async function requestLeave(input: {
 
   await writeAudit({
     actorId: profile.id,
-    orgId: profile.org_id,
+    orgId,
     action: "leave_requested",
     entity: "leave_requests",
-    payload: { leave_type_id: input.leaveTypeId, days },
+    payload: { leave_type_id: leaveTypeId, days },
   });
 
   revalidatePath("/app/leave");
@@ -166,6 +226,7 @@ export async function requestLeave(input: {
 
 export async function cancelLeaveRequest(id: string): Promise<ActionResult> {
   const profile = await requireActiveProfile();
+  const ctx = await getWorkspaceContext();
   const db = createAdminClient();
 
   const { data: req } = await db
@@ -180,25 +241,9 @@ export async function cancelLeaveRequest(id: string): Promise<ActionResult> {
     return { ok: false, message: "Only pending requests can be cancelled." };
   }
 
-  const year = new Date(req.start_date).getFullYear();
-  const { data: bal } = await db
-    .from("leave_balances")
-    .select("id, pending_days")
-    .eq("employee_id", profile.id)
-    .eq("leave_type_id", req.leave_type_id)
-    .eq("year", year)
-    .single();
-
-  if (bal) {
-    await db
-      .from("leave_balances")
-      .update({
-        pending_days: Math.max(
-          0,
-          Number(bal.pending_days) - Number(req.days_requested),
-        ),
-      })
-      .eq("id", bal.id);
+  const activeOrgId = ctx?.activeOrgId ?? null;
+  if (req.org_id !== activeOrgId) {
+    return { ok: false, message: "Request not in this workspace." };
   }
 
   await db
@@ -206,43 +251,95 @@ export async function cancelLeaveRequest(id: string): Promise<ActionResult> {
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
     .eq("id", id);
 
-  await writeAudit({
-    actorId: profile.id,
-    orgId: req.org_id,
-    action: "leave_cancelled",
-    entity: "leave_requests",
-    payload: { request_id: id },
-  });
+  if (req.org_id) {
+    await writeAudit({
+      actorId: profile.id,
+      orgId: req.org_id,
+      action: "leave_cancelled",
+      entity: "leave_requests",
+      payload: { request_id: id },
+    });
+  }
 
   revalidatePath("/app/leave");
   return { ok: true, message: "Request cancelled." };
 }
 
+export async function deletePersonalLeave(id: string): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  const ctx = await getWorkspaceContext();
+  if (ctx?.activeOrgId && !ctx.isSuperadmin) {
+    return { ok: false, message: "Switch to Personal to remove time off." };
+  }
+
+  const db = createAdminClient();
+  const { data: req } = await db
+    .from("leave_requests")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (!req || req.employee_id !== profile.id || req.org_id !== null) {
+    return { ok: false, message: "Entry not found." };
+  }
+
+  await db.from("leave_requests").delete().eq("id", id);
+
+  revalidatePath("/app/leave");
+  return { ok: true, message: "Time off removed." };
+}
+
 export async function approveLeaveRequest(id: string): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const gate = await requireOrgManager();
+  if (!gate.ok) return gate;
+
+  const { ctx, orgId, profile: actor } = gate;
   const db = createAdminClient();
 
   const { data: req } = await db
     .from("leave_requests")
-    .select("org_id, employee_id, start_date, end_date")
+    .select(
+      "id, org_id, employee_id, start_date, end_date, status, leave_type_id, note",
+    )
     .eq("id", id)
     .single();
-  if (!req) return { ok: false, message: "Request not found." };
-  if (actor.role === "admin" && req.org_id !== actor.org_id) {
-    return { ok: false, message: "Forbidden." };
+  if (!req || req.org_id !== orgId) {
+    return { ok: false, message: "Request not found." };
+  }
+  if (req.status !== "pending") {
+    return { ok: false, message: "Request is not pending." };
   }
 
-  // TRACK C DORMANT NOTE: approve_leave_request / reject_leave_request still
-  // authorize the reviewer via the vestigial auth_role()/profiles.org_id. This
-  // is harmless today (org leave is not wired — leave is personal-only, with no
-  // approval), but when org-scoped leave lands these RPCs MUST be reworked to
-  // authorize via auth_workspace_role() against the active workspace's
-  // membership (like every other tenant policy in C2).
-  const { error } = await db.rpc("approve_leave_request", {
-    p_request_id: id,
-    p_reviewer_id: actor.id,
+  const { error } = await db
+    .from("leave_requests")
+    .update({
+      status: "approved",
+      reviewed_by: actor.id,
+      reviewed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) {
+    console.error("[leave] approve failed:", error.message);
+    return { ok: false, message: "Couldn't approve request." };
+  }
+
+  let categoryName: string | null = null;
+  if (req.leave_type_id) {
+    const { data: lt } = await db
+      .from("leave_types")
+      .select("name")
+      .eq("id", req.leave_type_id)
+      .maybeSingle();
+    categoryName = lt?.name ?? null;
+  }
+
+  const push = await pushLeaveToGoogleCalendar({
+    userId: req.employee_id,
+    startDate: req.start_date,
+    endDate: req.end_date,
+    categoryName,
+    note: req.note,
   });
-  if (error) return { ok: false, message: "Couldn't approve request." };
 
   await notifyUser({
     orgId: req.org_id,
@@ -263,33 +360,50 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
   });
 
   revalidatePath("/app/leave");
-  return { ok: true, message: "Leave approved." };
+  return {
+    ok: true,
+    message: `Leave approved.${gcalWarningSuffix(push)}`,
+  };
 }
 
 export async function rejectLeaveRequest(
   id: string,
   note: string,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
+  const gate = await requireOrgManager();
+  if (!gate.ok) return gate;
+
   if (!note.trim()) return { ok: false, message: "Rejection note required." };
 
+  const { orgId, profile: actor } = gate;
   const db = createAdminClient();
+
   const { data: req } = await db
     .from("leave_requests")
-    .select("org_id, employee_id, start_date, end_date")
+    .select("org_id, employee_id, start_date, end_date, status")
     .eq("id", id)
     .single();
-  if (!req) return { ok: false, message: "Request not found." };
-  if (actor.role === "admin" && req.org_id !== actor.org_id) {
-    return { ok: false, message: "Forbidden." };
+  if (!req || req.org_id !== orgId) {
+    return { ok: false, message: "Request not found." };
+  }
+  if (req.status !== "pending") {
+    return { ok: false, message: "Request is not pending." };
   }
 
-  const { error } = await db.rpc("reject_leave_request", {
-    p_request_id: id,
-    p_reviewer_id: actor.id,
-    p_note: note.trim(),
-  });
-  if (error) return { ok: false, message: "Couldn't reject request." };
+  const { error } = await db
+    .from("leave_requests")
+    .update({
+      status: "rejected",
+      reviewed_by: actor.id,
+      reviewed_at: new Date().toISOString(),
+      rejection_note: note.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) {
+    console.error("[leave] reject failed:", error.message);
+    return { ok: false, message: "Couldn't reject request." };
+  }
 
   await notifyUser({
     orgId: req.org_id,
@@ -313,12 +427,14 @@ export async function rejectLeaveRequest(
   return { ok: true, message: "Leave rejected." };
 }
 
+/** Legacy settings helper — unchanged. */
 export async function applyDefaultBalances(
   orgId: string,
   year: number,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
-  if (actor.role === "admin" && actor.org_id !== orgId) {
+  const gate = await requireOrgManager();
+  if (!gate.ok) return gate;
+  if (gate.orgId !== orgId) {
     return { ok: false, message: "Forbidden." };
   }
   const yearV = validateYear(year);
@@ -336,16 +452,17 @@ export async function updateLeaveBalance(
   id: string,
   allocatedDays: number,
 ): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "superadmin"]);
-  const db = createAdminClient();
+  const gate = await requireOrgManager();
+  if (!gate.ok) return gate;
 
+  const db = createAdminClient();
   const { data: bal } = await db
     .from("leave_balances")
     .select("org_id")
     .eq("id", id)
     .single();
   if (!bal) return { ok: false, message: "Balance not found." };
-  if (actor.role === "admin" && bal.org_id !== actor.org_id) {
+  if (bal.org_id !== gate.orgId) {
     return { ok: false, message: "Forbidden." };
   }
 

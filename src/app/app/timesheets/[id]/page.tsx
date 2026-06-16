@@ -132,6 +132,7 @@ export default async function TimesheetDetailPage({
     timesheet.employee_id,
     timesheet.period_start,
     timesheet.period_end,
+    timesheet.org_id,
   );
   const canGenerateDoc =
     status === "approved" &&

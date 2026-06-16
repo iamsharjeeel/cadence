@@ -13,27 +13,22 @@ import {
   type LeaveUnit,
 } from "@/lib/leave/types";
 import type { LeaveType } from "@/types/db";
-import { requestLeave } from "./actions";
-
-type BalanceRow = {
-  leave_type_id: string;
-  allocated_days: number;
-  used_days: number;
-  pending_days: number;
-  leave_type?: { unit?: LeaveUnit };
-};
+import { markPersonalLeave, requestLeave } from "./actions";
 
 export function RequestLeaveModal({
-  leaveTypes,
-  balances,
+  mode,
+  leaveTypes = [],
   onClose,
 }: {
-  leaveTypes: LeaveType[];
-  balances: BalanceRow[];
+  mode: "personal" | "org";
+  leaveTypes?: LeaveType[];
   onClose: () => void;
 }) {
   const { toast } = useToast();
-  const [leaveTypeId, setLeaveTypeId] = useState(leaveTypes[0]?.id ?? "");
+  const activeTypes = leaveTypes.filter((t) => t.is_active);
+  const hasTypes = activeTypes.length > 0;
+
+  const [leaveTypeId, setLeaveTypeId] = useState(activeTypes[0]?.id ?? "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [halfDay, setHalfDay] = useState(false);
@@ -41,15 +36,15 @@ export function RequestLeaveModal({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const selectedType = leaveTypes.find((t) => t.id === leaveTypeId);
-  const unit: LeaveUnit = selectedType?.unit === "hours" ? "hours" : "days";
-  const bal = balances.find((b) => b.leave_type_id === leaveTypeId);
+  const selectedType = activeTypes.find((t) => t.id === leaveTypeId);
+  const unit: LeaveUnit =
+    mode === "org" && selectedType?.unit === "hours" ? "hours" : "days";
 
   useEffect(() => {
     setHalfDay(false);
     setHoursRequested("");
     setEndDate("");
-  }, [leaveTypeId]);
+  }, [leaveTypeId, mode]);
 
   const days = useMemo(() => {
     if (unit === "hours") return 0;
@@ -65,64 +60,66 @@ export function RequestLeaveModal({
 
   const requestedAmount = unit === "hours" ? hours : days;
 
-  const remaining = bal
-    ? Number(bal.allocated_days) -
-      Number(bal.used_days) -
-      Number(bal.pending_days)
-    : 0;
-
   const canSubmit =
     requestedAmount > 0 &&
-    (unit === "hours" ? Boolean(startDate) : Boolean(startDate && endDate)) &&
-    (selectedType?.category === "unpaid" ||
-      selectedType?.category === "sick" ||
-      remaining >= requestedAmount);
+    (unit === "hours"
+      ? Boolean(startDate) && Boolean(leaveTypeId)
+      : Boolean(startDate && endDate));
 
   async function submit() {
     setBusy(true);
     try {
-      const result = await requestLeave({
-        leaveTypeId,
-        startDate,
-        endDate: unit === "hours" ? startDate : endDate,
-        halfDay: unit === "hours" ? false : halfDay,
-        hoursRequested: unit === "hours" ? hours : undefined,
-        note,
-      });
-      if (
-        !result.ok &&
-        result.message.startsWith("Insufficient balance.")
-      ) {
-        toast(result.message, "error");
-      } else {
-        toast(result.message, result.ok ? "success" : "error");
-      }
+      const result =
+        mode === "personal"
+          ? await markPersonalLeave({
+              startDate,
+              endDate,
+              halfDay,
+              note,
+            })
+          : await requestLeave({
+              leaveTypeId: hasTypes && leaveTypeId ? leaveTypeId : null,
+              startDate,
+              endDate: unit === "hours" ? startDate : endDate,
+              halfDay: unit === "hours" ? false : halfDay,
+              hoursRequested: unit === "hours" ? hours : undefined,
+              note,
+            });
+      toast(result.message, result.ok ? "success" : "error");
       if (result.ok) onClose();
     } finally {
       setBusy(false);
     }
   }
 
+  const title = mode === "personal" ? "Mark time off" : "Request leave";
+  const submitLabel = mode === "personal" ? "Mark off" : "Submit request";
+
   return (
     <MotionModal open onClose={onClose} panelClassName="max-w-md">
       <h2 className="font-display text-lg font-semibold tracking-tightest">
-        Request leave
+        {title}
       </h2>
       <div className="mt-5 flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium">Leave type</span>
-          <select
-            value={leaveTypeId}
-            onChange={(e) => setLeaveTypeId(e.target.value)}
-            className="h-10 rounded-[var(--radius-card)] border bg-surface px-3"
-          >
-            {leaveTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {mode === "org" && hasTypes ? (
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">
+              Category <span className="font-normal text-muted">(optional)</span>
+            </span>
+            <select
+              value={leaveTypeId}
+              onChange={(e) => setLeaveTypeId(e.target.value)}
+              className="h-10 rounded-[var(--radius-card)] border bg-surface px-3"
+            >
+              <option value="">No category</option>
+              {activeTypes.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         {unit === "hours" ? (
           <>
@@ -172,26 +169,18 @@ export function RequestLeaveModal({
         />
         <div className="rounded-[var(--radius-card)] border border-[var(--line)] bg-[var(--accent-soft)] p-3 text-sm">
           <p>
-            {unit === "hours" ? "Hours requested" : "Days requested"}:{" "}
+            {unit === "hours" ? "Hours requested" : "Days marked"}:{" "}
             <span className="tabular font-semibold">
               {requestedAmount > 0
                 ? formatLeaveAmount(requestedAmount, unit)
                 : "—"}
             </span>
           </p>
-          {selectedType?.category !== "unpaid" && (
-            <p className="mt-1 text-muted">
-              Remaining balance:{" "}
-              <span className="tabular font-medium">
-                {formatLeaveAmount(remaining, unit)}
-              </span>
-            </p>
-          )}
         </div>
       </div>
       <div className="mt-6 flex gap-3">
         <Button onClick={submit} loading={busy} disabled={!canSubmit}>
-          Submit request
+          {submitLabel}
         </Button>
         <Button variant="ghost" onClick={onClose} disabled={busy}>
           Cancel

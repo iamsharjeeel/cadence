@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
 import { fieldBase } from "@/components/ui/Input";
 import { formatLeaveAmount, type LeaveUnit } from "@/lib/leave/types";
@@ -14,19 +13,8 @@ import { approveLeaveRequest, rejectLeaveRequest } from "./actions";
 
 export function LeaveAdminView({
   pending,
-  balances,
 }: {
   pending: RequestWithMeta[];
-  balances: {
-    id: string;
-    employee_name: string;
-    type_name: string;
-    unit: LeaveUnit;
-    allocated_days: number;
-    used_days: number;
-    pending_days: number;
-    year: number;
-  }[];
 }) {
   const { toast } = useToast();
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -62,124 +50,78 @@ export function LeaveAdminView({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Pending requests</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {pending.length === 0 ? (
-            <p className="px-6 py-8 text-sm text-muted">No pending requests.</p>
-          ) : (
-            <ul className="divide-y">
-              {pending.map((r) => {
-                const unit: LeaveUnit =
-                  r.leave_type.unit === "hours" ? "hours" : "days";
-                const amountLabel = formatLeaveAmount(
-                  Number(r.days_requested),
-                  unit,
-                );
-                const dateLabel =
-                  unit === "hours"
-                    ? formatDate(r.start_date)
-                    : `${formatDate(r.start_date)} – ${formatDate(r.end_date)}`;
-                return (
-                  <li key={r.id} className="px-6 py-4">
-                    <p className="text-sm font-medium">{r.employee_name}</p>
-                    <p className="text-sm text-muted">
-                      {r.leave_type.name} · {dateLabel} · {amountLabel}
-                    </p>
-                    {r.note && (
-                      <p className="mt-1 text-xs text-muted">{r.note}</p>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-2">
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Pending requests</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        {pending.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-muted">No pending requests.</p>
+        ) : (
+          <ul className="divide-y">
+            {pending.map((r) => {
+              const unit: LeaveUnit =
+                r.leave_type?.unit === "hours" ? "hours" : "days";
+              const amountLabel = formatLeaveAmount(
+                Number(r.days_requested),
+                unit,
+              );
+              const dateLabel =
+                unit === "hours"
+                  ? formatDate(r.start_date)
+                  : `${formatDate(r.start_date)} – ${formatDate(r.end_date)}`;
+              const category = r.leave_type?.name;
+              return (
+                <li key={r.id} className="px-6 py-4">
+                  <p className="text-sm font-medium">{r.employee_name}</p>
+                  <p className="text-sm text-muted">
+                    {category ? `${category} · ` : ""}
+                    {dateLabel} · {amountLabel}
+                  </p>
+                  {r.note ? (
+                    <p className="mt-1 text-xs text-muted">{r.note}</p>
+                  ) : null}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => approve(r.id)}
+                      disabled={actingId === r.id}
+                    >
+                      {actingId === r.id ? "Approving…" : "Approve"}
+                    </Button>
+                    {rejectId !== r.id ? (
                       <Button
                         size="sm"
-                        onClick={() => approve(r.id)}
-                        disabled={actingId === r.id}
+                        variant="ghost"
+                        onClick={() => setRejectId(r.id)}
                       >
-                        {actingId === r.id ? "Approving…" : "Approve"}
+                        Reject
                       </Button>
-                      {rejectId !== r.id ? (
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          value={rejectNote}
+                          onChange={(e) => setRejectNote(e.target.value)}
+                          placeholder="Rejection note"
+                          className={cn(fieldBase, "h-9 w-48 text-sm")}
+                        />
                         <Button
                           size="sm"
-                          variant="ghost"
-                          onClick={() => setRejectId(r.id)}
+                          variant="danger"
+                          onClick={() => reject(r.id)}
+                          disabled={actingId === r.id}
                         >
-                          Reject
+                          {actingId === r.id ? "Rejecting…" : "Confirm"}
                         </Button>
-                      ) : (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            value={rejectNote}
-                            onChange={(e) => setRejectNote(e.target.value)}
-                            placeholder="Rejection note"
-                            className={cn(fieldBase, "h-9 w-48 text-sm")}
-                          />
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => reject(r.id)}
-                            disabled={actingId === r.id}
-                          >
-                            {actingId === r.id ? "Rejecting…" : "Confirm"}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Team balances</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50">
-            <THead className="bg-surface-low">
-              <TR>
-                <TH>Employee</TH>
-                <TH>Type</TH>
-                <TH>Alloc.</TH>
-                <TH>Used</TH>
-                <TH>Pend.</TH>
-                <TH>Remain</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {balances.map((b) => {
-                const remaining =
-                  Number(b.allocated_days) -
-                  Number(b.used_days) -
-                  Number(b.pending_days);
-                return (
-                  <TR key={b.id}>
-                    <TD className="text-sm">{b.employee_name}</TD>
-                    <TD className="text-sm text-muted">{b.type_name}</TD>
-                    <TD className="tabular text-sm">
-                      {formatLeaveAmount(b.allocated_days, b.unit)}
-                    </TD>
-                    <TD className="tabular text-sm">
-                      {formatLeaveAmount(b.used_days, b.unit)}
-                    </TD>
-                    <TD className="tabular text-sm">
-                      {formatLeaveAmount(b.pending_days, b.unit)}
-                    </TD>
-                    <TD className="tabular text-sm">
-                      {formatLeaveAmount(remaining, b.unit)}
-                    </TD>
-                  </TR>
-                );
-              })}
-            </TBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
