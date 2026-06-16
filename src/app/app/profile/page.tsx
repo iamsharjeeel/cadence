@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/Card";
 import { RolePill, StatusPill } from "@/components/ui/Badge";
 import { requireActiveProfile } from "@/lib/auth";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { getAsanaConnectionStatus } from "@/lib/asana/connection";
 import { getGCalConnectionStatus } from "@/lib/google-calendar/connection";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +33,9 @@ type ProfilePageProps = {
 };
 
 export default async function ProfilePage({ searchParams }: ProfilePageProps) {
+  const ctx = await getWorkspaceContext();
   const profile = await requireActiveProfile();
+  const inOrg = Boolean(ctx?.activeOrgId);
   const [asanaConnection, gcalConnection, importedProjects] = await Promise.all([
     getAsanaConnectionStatus(profile.id),
     getGCalConnectionStatus(profile.id),
@@ -58,7 +61,11 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       <ProfileHashScroll />
       <PageHeader
         title="Your profile"
-        description="Update your personal and employment details. Role and status are managed by your administrator."
+        description={
+          inOrg
+            ? "Update your personal and employment details. Role and status are managed by your administrator."
+            : "Update your personal and employment details."
+        }
       />
 
       <ProfileCompleteness profile={profile} />
@@ -101,7 +108,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           <CardHeader>
             <CardTitle className="text-base">Employment</CardTitle>
             <CardDescription>
-              Role and status are managed by an admin. You can set your own rate.
+              {inOrg
+                ? "Role and status are managed by an admin. You can set your own rate."
+                : "Set your own rate."}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">

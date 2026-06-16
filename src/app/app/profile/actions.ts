@@ -79,11 +79,13 @@ export async function updateOwnEmployment(
   if (!jobTitleV.ok) return { ok: false, message: jobTitleV.error };
 
   const startDateRaw = String(formData.get("start_date") ?? "").trim();
-  let startDate: string | null = null;
-  if (startDateRaw && !profile.start_date) {
+  let startDate: string | null;
+  if (startDateRaw) {
     const startV = validateIsoDate(startDateRaw, "Start date");
     if (!startV.ok) return { ok: false, message: startV.error };
     startDate = startV.value;
+  } else {
+    startDate = null;
   }
 
   const supabase = createClient();
@@ -91,7 +93,7 @@ export async function updateOwnEmployment(
     .from("profiles")
     .update({
       job_title: jobTitleV.value || null,
-      ...(startDate ? { start_date: startDate } : {}),
+      start_date: startDate,
     })
     .eq("id", profile.id);
 

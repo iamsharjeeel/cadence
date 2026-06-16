@@ -1484,9 +1484,15 @@ Prod still runs app code `8dfa2f2` (pre-Track-C) on the new DB. It **degrades gr
 - ~~**Timesheets: lost ability to log time**~~ — fixed 2026-06-16 (see above).
 - ~~**Employees: Unassigned/empty/wrong list, can't self-assign to org**~~ — fixed 2026-06-16 (see below).
 - ~~**Workspace switcher changes UI but not context**~~ — fixed 2026-06-16 (see below).
+- ~~**Profile: start date locked + "set by your administrator" copy**~~ — fixed 2026-06-16 (see below).
 
 ### Open bugs / feedback
 _(none logged)_
+
+### Profile start date + personal-context copy + header identity ✅ (2026-06-16, app-layer only; no DB change)
+- **Start date double-lock removed:** `ProfileEmploymentForm` no longer disables the DatePicker once set; `updateOwnEmployment` no longer guards with `!profile.start_date` — users can set, change, or clear `start_date`.
+- **Admin copy softened:** Profile page uses `getWorkspaceContext().activeOrgId` for org vs personal context. PageHeader + Employment card administrator wording only when in an org workspace; personal users see neutral copy. Role/Status remain display-only; email stays read-only.
+- **Top-right identity:** `Topbar` shows name + email stacked (avatar + text on `sm+`), linked to `/app/profile`; Sign out unchanged.
 
 ### Workspace switcher persistence + org cap + audit ✅ (2026-06-16, app-layer only; no DB change)
 - **Root cause (verified against live prod):** `WorkspaceSwitcher` called `switchWorkspace()` inside `startTransition(() => { void switchWorkspace(orgId) })`, which **discarded the promise** — RPC failures (`not authenticated`, `not a member`, etc.) were never surfaced, and `redirect()` inside the action did not reliably refresh the app shell. The dropdown closed and looked successful, but `active_workspace` stayed empty and `auth_org()` kept returning null (personal). The action already used the authenticated server client (not service-role); the bug was **silent failure + no post-switch revalidation**, not the wrong Supabase client.

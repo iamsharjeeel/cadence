@@ -31,6 +31,10 @@ export function ProfileEmploymentForm({
   const [startDateValue, setStartDateValue] = useState(startDate);
 
   useEffect(() => {
+    setStartDateValue(startDate);
+  }, [startDate]);
+
+  useEffect(() => {
     if (state && state !== last.current) {
       last.current = state;
       toast(state.message, state.ok ? "success" : "error");
@@ -50,13 +54,7 @@ export function ProfileEmploymentForm({
         name="start_date"
         value={startDateValue}
         onChange={setStartDateValue}
-        disabled={!!startDate}
       />
-      {startDate ? (
-        <p className="text-xs text-muted">
-          Start date is set by your administrator.
-        </p>
-      ) : null}
       <SubmitButton />
     </form>
   );
