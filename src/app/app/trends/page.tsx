@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/PageHeader";
-import { requireActiveProfile } from "@/lib/auth";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { getTrendsBundle, type TrendRange } from "@/lib/time/trends";
 import { TrendsClient } from "./TrendsClient";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -16,7 +17,11 @@ export default async function TrendsPage({
 }: {
   searchParams: { range?: string; org?: string };
 }) {
-  const profile = await requireActiveProfile();
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  if (ctx.isPersonal) redirect("/app/dashboard");
+
+  const profile = ctx.effectiveProfile;
   const range = (RANGES.includes(searchParams.range as TrendRange)
     ? searchParams.range
     : "monthly") as TrendRange;

@@ -165,22 +165,29 @@ function buildTrendMetrics(
 export async function getEmployeeTrends(profile: Profile, range: TrendRange) {
   const db = createAdminClient();
   const since = rangeStart(range);
-
-  const { data: entries } = await db
+  let query = db
     .from("time_entries")
     .select(TREND_ENTRY_SELECT)
     .eq("employee_id", profile.id)
     .gte("entry_date", since);
 
+  // Scope to the active workspace so personal and org contexts stay isolated.
+  if (profile.org_id) query = query.eq("org_id", profile.org_id);
+  else query = query.is("org_id", null);
+
+  const { data: entries } = await query;
+
   const rows = withWrappedHours((entries ?? []) as RawEntryRow[]);
   const projectIds = [...new Set(rows.map((r) => r.project_id).filter(Boolean))] as string[];
   const projectMap = await loadProjects(projectIds);
 
-  const cadence = (await db
-    .from("organizations")
-    .select("default_cadence")
-    .eq("id", profile.org_id!)
-    .single()).data?.default_cadence as PeriodCadence | undefined;
+  const cadence = profile.org_id
+    ? ((await db
+        .from("organizations")
+        .select("default_cadence")
+        .eq("id", profile.org_id)
+        .single()).data?.default_cadence as PeriodCadence | undefined)
+    : undefined;
 
   return buildTrendMetrics(rows, projectMap, cadence ?? "monthly");
 }
@@ -229,9 +236,7 @@ export async function getTrendsBundle(
   const selectedOrg = isSuperadmin ? orgIdParam?.trim() || undefined : undefined;
   const effectiveOrg = selectedOrg ?? profile.org_id ?? undefined;
 
-  const personalTrends = profile.org_id
-    ? await getEmployeeTrends(profile, range)
-    : null;
+  const personalTrends = isSuperadmin ? null : await getEmployeeTrends(profile, range);
   const orgAggregateData =
     isManager && effectiveOrg
       ? await getOrgAggregateTrends(effectiveOrg, range)

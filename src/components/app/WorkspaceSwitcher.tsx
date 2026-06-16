@@ -4,9 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 
-import { OrgLogo } from "@/components/brand/OrgLogo";
 import { useToast } from "@/components/ui/Toast";
-import { titleCase } from "@/lib/utils";
+import { cn, titleCase } from "@/lib/utils";
 import {
   switchWorkspace,
   createOrganizationAction,
@@ -25,6 +24,36 @@ export type SwitcherInvite = {
   orgName: string;
   role: string;
 };
+
+function workspaceInitial(name: string, fallback = "W") {
+  const first = name.trim().charAt(0);
+  return (first || fallback).toUpperCase();
+}
+
+function InitialBadge({
+  name,
+  personal = false,
+  subtle = false,
+}: {
+  name: string;
+  personal?: boolean;
+  subtle?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border text-[11px] font-semibold leading-none",
+        personal
+          ? "border-[var(--accent)]/30 bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+          : "border-[var(--line)] bg-surface-low text-ink",
+        subtle && "opacity-80",
+      )}
+      aria-hidden
+    >
+      {workspaceInitial(name, personal ? "P" : "W")}
+    </span>
+  );
+}
 
 function CreateOrgSubmitButton() {
   const { pending } = useFormStatus();
@@ -142,7 +171,9 @@ export function WorkspaceSwitcher({
   }
 
   const rowBase =
-    "flex w-full items-center gap-3 rounded-[var(--radius-input)] px-3 py-2 text-left transition-colors hover:bg-[var(--accent-soft)]/50";
+    "group flex w-full items-center gap-2.5 px-2.5 py-2 text-left transition-colors hover:bg-[var(--accent-soft)]/40 disabled:cursor-not-allowed disabled:opacity-60";
+  const currentIsPersonal = activeOrgId === null;
+  const hasCurrentLogo = Boolean(currentLogoUrl);
 
   return (
     <div ref={rootRef} className="relative">
@@ -152,14 +183,18 @@ export function WorkspaceSwitcher({
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={pending}
-        className="flex w-full items-center gap-3 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface-low p-3 text-left transition-colors hover:border-[var(--accent)]/40 disabled:opacity-60"
+        className="flex w-full items-center gap-2.5 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface-low px-2.5 py-2.5 text-left transition-colors hover:border-[var(--accent)]/40 disabled:opacity-60"
       >
-        <OrgLogo name={currentLogoName} logoUrl={currentLogoUrl} size="md" />
+        <InitialBadge
+          name={currentLogoName}
+          personal={currentIsPersonal}
+          subtle={!currentIsPersonal && hasCurrentLogo}
+        />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-ink">
+          <p className="truncate text-[13px] font-semibold text-ink">
             {currentLabel}
           </p>
-          <p className="truncate text-xs text-muted">{currentSublabel}</p>
+          <p className="truncate text-[11px] text-muted">{currentSublabel}</p>
         </div>
         {pendingInvites.length > 0 ? (
           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[11px] font-semibold text-white">
@@ -185,85 +220,95 @@ export function WorkspaceSwitcher({
       </button>
 
       {open ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface p-2 shadow-float">
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface p-1.5 shadow-float">
           {pendingInvites.length > 0 ? (
             <>
-              <p className="px-3 pb-1 pt-1 font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+              <p className="px-2.5 pb-1 pt-1 font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
                 Invitations
               </p>
-              {pendingInvites.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="flex items-center gap-3 rounded-[var(--radius-input)] px-3 py-2"
-                >
-                  <OrgLogo name={inv.orgName} logoUrl={null} size="sm" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">
-                      {inv.orgName}
-                    </span>
-                    <span className="block truncate text-xs text-muted">
-                      Invited as {titleCase(inv.role)}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => accept(inv.id)}
-                    disabled={pending}
-                    className="rounded-[var(--radius-input)] bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-strong)] disabled:opacity-60"
+              <div className="overflow-hidden rounded-[var(--radius-input)] border border-[var(--line)]">
+                {pendingInvites.map((inv, index) => (
+                  <div
+                    key={inv.id}
+                    className={cn(
+                      "flex items-center gap-2.5 bg-surface px-2.5 py-2",
+                      index > 0 && "border-t border-[var(--line)]",
+                    )}
                   >
-                    Accept
-                  </button>
-                </div>
-              ))}
-              <div className="my-1 border-t border-[var(--line)]" />
+                    <InitialBadge name={inv.orgName} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold text-ink">
+                        {inv.orgName}
+                      </span>
+                      <span className="block truncate text-[11px] text-muted">
+                        Invited as {titleCase(inv.role)}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => accept(inv.id)}
+                      disabled={pending}
+                      className="rounded-[var(--radius-input)] bg-[var(--accent)] px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[var(--accent-strong)] disabled:opacity-60"
+                    >
+                      Accept
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="my-1.5 border-t border-[var(--line)]" />
             </>
           ) : null}
-          <p className="px-3 pb-1 pt-1 font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+          <p className="px-2.5 pb-1 pt-1 font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
             Switch workspace
           </p>
-
-          <button
-            type="button"
-            className={rowBase}
-            onClick={() => choose(null)}
-            disabled={pending}
-          >
-            <OrgLogo name="Personal" logoUrl={null} size="sm" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-ink">
-                Personal
-              </span>
-              <span className="block truncate text-xs text-muted">
-                {isSuperadmin ? "Platform admin" : "Your personal workspace"}
-              </span>
-            </span>
-            {activeOrgId === null ? <ActiveDot /> : null}
-          </button>
-
-          {memberships.map((m) => (
+          <div className="overflow-hidden rounded-[var(--radius-input)] border border-[var(--line)]">
             <button
-              key={m.orgId}
               type="button"
-              className={rowBase}
-              onClick={() => choose(m.orgId)}
+              className={cn(rowBase, currentIsPersonal && "bg-[var(--accent-soft)]/30")}
+              onClick={() => choose(null)}
               disabled={pending}
             >
-              <OrgLogo name={m.name} logoUrl={null} size="sm" />
+              <InitialBadge name="Personal" personal />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-ink">
-                  {m.name}
+                <span className="block truncate text-[13px] font-semibold text-ink">
+                  Personal
                 </span>
-                <span className="block truncate text-xs text-muted">
-                  {titleCase(m.role)}
+                <span className="block truncate text-[11px] text-muted">
+                  {isSuperadmin ? "Platform admin" : "Your personal workspace"}
                 </span>
               </span>
-              {activeOrgId === m.orgId ? <ActiveDot /> : null}
+              {currentIsPersonal ? <ActiveDot /> : null}
             </button>
-          ))}
+
+            {memberships.map((m) => (
+              <button
+                key={m.orgId}
+                type="button"
+                className={cn(
+                  rowBase,
+                  "border-t border-[var(--line)]",
+                  activeOrgId === m.orgId && "bg-[var(--accent-soft)]/30",
+                )}
+                onClick={() => choose(m.orgId)}
+                disabled={pending}
+              >
+                <InitialBadge name={m.name} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold text-ink">
+                    {m.name}
+                  </span>
+                  <span className="block truncate text-[11px] text-muted">
+                    {titleCase(m.role)}
+                  </span>
+                </span>
+                {activeOrgId === m.orgId ? <ActiveDot /> : null}
+              </button>
+            ))}
+          </div>
 
           {!isSuperadmin && canCreateOrg ? (
             <>
-              <div className="my-1 border-t border-[var(--line)]" />
+              <div className="my-1.5 border-t border-[var(--line)]" />
               {creating ? (
                 <form action={createAction} className="flex flex-col gap-2 p-2">
                   <input
@@ -288,10 +333,10 @@ export function WorkspaceSwitcher({
               ) : (
                 <button
                   type="button"
-                  className={rowBase}
+                  className={cn(rowBase, "rounded-[var(--radius-input)]")}
                   onClick={() => setCreating(true)}
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-[var(--line)] text-muted">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-dashed border-[var(--line)] text-muted">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path
                         d="M12 5v14M5 12h14"
@@ -301,7 +346,7 @@ export function WorkspaceSwitcher({
                       />
                     </svg>
                   </span>
-                  <span className="text-sm font-medium text-ink">
+                  <span className="text-[13px] font-semibold text-ink">
                     Create organization
                   </span>
                 </button>
@@ -318,7 +363,9 @@ function ActiveDot() {
   return (
     <span
       aria-label="current"
-      className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]"
-    />
+      className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[var(--accent)]/35 bg-[var(--accent-soft)]"
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+    </span>
   );
 }

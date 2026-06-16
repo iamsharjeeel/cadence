@@ -95,12 +95,12 @@ export function navForRole(role: UserRole): NavItem[] {
 export type NavContext = "personal" | "employee" | "manager" | "superadmin";
 
 const CONTEXT_HREFS: Record<NavContext, string[]> = {
-  // Solo product: time tracking, projects, trends, leave, documents, profile.
+  // Solo product: time tracking, projects, leave, documents, profile.
+  // Personal trends are folded into Dashboard; no standalone Trends route/nav.
   // No approvals / employees / settings / audit.
   personal: [
     "/app/dashboard",
     "/app/timesheets",
-    "/app/trends",
     "/app/projects",
     "/app/leave",
     "/app/documents",

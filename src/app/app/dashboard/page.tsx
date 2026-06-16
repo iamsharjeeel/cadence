@@ -130,7 +130,11 @@ export default async function DashboardPage({
   return (
     <div className="bg-background">
       {dashboardPrompts}
-      <EmployeeDashboardContent profile={profile} firstName={firstName} />
+      <EmployeeDashboardContent
+        profile={profile}
+        firstName={firstName}
+        includeTrendsSection={ctx.isPersonal}
+      />
     </div>
   );
 }

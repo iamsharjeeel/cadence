@@ -13,20 +13,27 @@ import { TimesheetStatusPill } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 import type { Profile, TimesheetStatus } from "@/types/db";
 import { getEmployeeDashboard } from "@/lib/dashboard/queries";
+import { getEmployeeTrends } from "@/lib/time/trends";
 import { StatCard } from "./StatCard";
 import { CurrencyTotalsDisplay } from "./CurrencyTotals";
 import { HoursLineChart } from "./DashboardCharts";
+import { EmployeeTrendsView } from "../trends/TrendsCharts";
 
 export async function EmployeeDashboardContent({
   profile,
   firstName,
   extraAction,
+  includeTrendsSection = false,
 }: {
   profile: Profile;
   firstName: string;
   extraAction?: React.ReactNode;
+  includeTrendsSection?: boolean;
 }) {
-  const data = await getEmployeeDashboard(profile);
+  const [data, trendData] = await Promise.all([
+    getEmployeeDashboard(profile),
+    includeTrendsSection ? getEmployeeTrends(profile, "monthly") : Promise.resolve(null),
+  ]);
 
   return (
     <>
@@ -104,6 +111,20 @@ export async function EmployeeDashboardContent({
           </CardContent>
         </Card>
       </div>
+
+      {includeTrendsSection && trendData ? (
+        <section className="mt-6">
+          <h2 className="font-display text-lg font-semibold tracking-tightest text-ink">
+            Trends
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Hours, projects, and activity patterns over time.
+          </p>
+          <div className="mt-4">
+            <EmployeeTrendsView data={trendData} />
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }
