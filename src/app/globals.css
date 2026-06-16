@@ -13,7 +13,7 @@
   --surface-container: #efedea;
   --ink: #1a1917;
   --ink-muted: #6b6560;
-  --line: rgba(26, 25, 23, 0.08);
+  --line: rgba(26, 25, 23, 0.065);
 
   --accent: #7f560c;
   --accent-soft: rgba(127, 86, 12, 0.1);
@@ -21,11 +21,13 @@
   --accent-strong: #624000;
   --accent-rgb: 127, 86, 12;
 
-  --shadow-card: 0px 4px 20px rgba(45, 40, 30, 0.06);
-  --shadow-float: 0px 12px 32px rgba(45, 40, 30, 0.12);
+  --shadow-card: 0px 1px 2px rgba(26, 25, 23, 0.04),
+    0px 8px 20px rgba(26, 25, 23, 0.035);
+  --shadow-float: 0px 2px 6px rgba(26, 25, 23, 0.05),
+    0px 14px 28px rgba(26, 25, 23, 0.045);
 
-  --radius-card: 12px;
-  --radius-input: 8px;
+  --radius-card: 10px;
+  --radius-input: 7px;
   --radius-chip: 9999px;
 
   --border-hairline: 1px solid var(--line);

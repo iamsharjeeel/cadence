@@ -107,7 +107,7 @@ export function ProjectPicker({
 
   const displayLabel = useMemo(() => {
     if (selectedCadence) {
-      return `${selectedCadence.is_org_wide ? "[Org] " : ""}${selectedCadence.name}`;
+      return selectedCadence.name;
     }
     if (selectedAsana) return selectedAsana.asana_project_name;
     return "Project";
@@ -229,7 +229,6 @@ export function ProjectPicker({
                     aria-hidden
                   />
                   <span className="truncate">
-                    {p.is_org_wide ? "[Org] " : ""}
                     {p.name}
                   </span>
                 </OptionButton>

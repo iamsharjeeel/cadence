@@ -15,7 +15,7 @@ export function MotionCard({
   return (
     <motion.div
       className={cn(
-        "rounded-[var(--radius-card)] bg-surface shadow-card transition-[box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-float",
+        "rounded-[var(--radius-card)] border border-[var(--line)] bg-surface shadow-card transition-[box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-float [--card-pad-x:1rem] [--card-pad-y:0.875rem] [--card-footer-y:0.75rem] [--card-title-size:1rem]",
         className,
       )}
       {...CARD_ENTRANCE}

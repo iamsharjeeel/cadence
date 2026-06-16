@@ -64,7 +64,10 @@ export default async function DashboardPage({
               href={`/app/orgs/${org.slug}/dashboard`}
               className="block h-full"
             >
-              <Card className="h-full transition-[box-shadow] duration-150 ease-out hover:shadow-lg">
+              <Card
+                density="comfortable"
+                className="h-full transition-[box-shadow] duration-150 ease-out hover:shadow-lg"
+              >
                 <CardContent className="flex flex-col gap-4">
                   <div className="flex items-center gap-3">
                     <OrgLogo name={org.name} logoUrl={org.logoUrl} size="md" />

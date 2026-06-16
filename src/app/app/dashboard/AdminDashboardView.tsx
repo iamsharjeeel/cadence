@@ -93,7 +93,10 @@ export function AdminDashboardView({
           />
         </StatCardItem>
         <StatCardItem>
-          <Card className="dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+          <Card
+            density="comfortable"
+            className="dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none"
+          >
             <CardContent className="flex flex-col gap-0 py-6">
               <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted dark:text-[var(--ink-muted)]">
                 Payroll estimate
@@ -107,7 +110,7 @@ export function AdminDashboardView({
       </StatCardGrid>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card density="comfortable">
           <CardHeader>
             <CardTitle className="text-[18px] font-semibold">Hours by employee</CardTitle>
             <CardDescription>Approved hours this month.</CardDescription>
@@ -116,7 +119,7 @@ export function AdminDashboardView({
             <HoursBarChart data={data.hoursByEmployee} />
           </CardContent>
         </Card>
-        <Card>
+        <Card density="comfortable">
           <CardHeader>
             <CardTitle className="text-[18px] font-semibold">Weekly trend</CardTitle>
             <CardDescription>
@@ -135,7 +138,7 @@ export function AdminDashboardView({
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card density="comfortable">
           <CardHeader>
             <CardTitle className="text-[18px] font-semibold">Employee breakdown</CardTitle>
             <CardDescription>
@@ -180,7 +183,7 @@ export function AdminDashboardView({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card density="comfortable">
           <CardHeader>
             <CardTitle className="text-[18px] font-semibold">Recent activity</CardTitle>
             <CardDescription>Last 10 audit log entries.</CardDescription>

@@ -123,7 +123,7 @@ export function TrendsClient({
               </section>
             )}
             <AdminTrendsView orgData={orgAggregateData} adminData={adminData} />
-            <Card className="mt-6">
+            <Card density="comfortable" className="mt-6">
               <CardContent className="p-0">
                 <Table>
                   <THead>

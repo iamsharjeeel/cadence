@@ -23,7 +23,7 @@ export function StatCard({
   children?: React.ReactNode;
 }) {
   return (
-    <MotionCard className="min-w-0 overflow-hidden dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+    <MotionCard className="min-w-0 overflow-hidden [--card-pad-x:1.5rem] [--card-pad-y:1.25rem] [--card-footer-y:1rem] [--card-title-size:1.125rem] dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
       <CardContent className="flex flex-col gap-0 py-6">
         <span className="font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted sm:text-[11px] dark:text-[var(--ink-muted)]">
           {label}

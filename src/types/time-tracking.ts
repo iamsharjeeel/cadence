@@ -43,5 +43,4 @@ export const PROJECT_PRESET_COLORS = [
   "#7C3AED",
   "#DB2777",
   "#EA580C",
-  "#CA8A04",
 ] as const;

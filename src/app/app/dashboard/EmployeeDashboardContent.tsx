@@ -50,7 +50,10 @@ export async function EmployeeDashboardContent({
           value={data.approvedHoursMonth}
           decimals={1}
         />
-        <Card className="min-w-0 overflow-hidden dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+        <Card
+          density="comfortable"
+          className="min-w-0 overflow-hidden dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none"
+        >
           <CardContent className="flex flex-col gap-0 py-6">
             <span className="font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted sm:text-[11px] dark:text-[var(--ink-muted)]">
               Total earnings this month
@@ -63,7 +66,7 @@ export async function EmployeeDashboardContent({
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card density="comfortable">
           <CardHeader>
             <CardTitle className="text-[18px] font-semibold">My hours by period</CardTitle>
             <CardDescription>Last 6 approved pay periods.</CardDescription>
@@ -73,7 +76,7 @@ export async function EmployeeDashboardContent({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card density="comfortable">
           <CardHeader>
             <CardTitle className="text-[18px] font-semibold">Recent timesheets</CardTitle>
             <CardDescription>Your last 5 submissions.</CardDescription>

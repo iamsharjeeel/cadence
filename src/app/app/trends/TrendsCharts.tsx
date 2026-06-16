@@ -92,7 +92,7 @@ export function EmployeeTrendsView({ data }: { data: EmployeeTrends }) {
         />
       </div>
 
-      <Card>
+      <Card density="comfortable">
         <CardHeader>
           <CardTitle>Activity heatmap</CardTitle>
         </CardHeader>
@@ -133,7 +133,7 @@ export function AdminTrendsView({
     <div className="flex flex-col gap-6">
       <EmployeeTrendsView data={orgData} />
 
-      <Card>
+      <Card density="comfortable">
         <CardHeader>
           <CardTitle>Hours by employee (last 8 periods)</CardTitle>
         </CardHeader>
@@ -179,7 +179,7 @@ export function AdminTrendsView({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card density="comfortable">
         <CardHeader>
           <CardTitle>Org total hours</CardTitle>
         </CardHeader>
@@ -210,7 +210,7 @@ function TrendLineChart({
   animate: boolean;
 }) {
   return (
-    <Card>
+    <Card density="comfortable">
       <CardHeader>
         <CardTitle>Hours by period</CardTitle>
       </CardHeader>
@@ -269,7 +269,7 @@ function TrendBarChart({
   animate: boolean;
 }) {
   return (
-    <Card>
+    <Card density="comfortable">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
@@ -362,7 +362,10 @@ function Stat({
   text?: string;
 }) {
   return (
-    <Card className="min-w-0 overflow-hidden dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none">
+    <Card
+      density="comfortable"
+      className="min-w-0 overflow-hidden dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none"
+    >
       <CardContent className="flex flex-col gap-0 py-6">
         <p className="font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted sm:text-[11px] dark:text-[var(--ink-muted)]">
           {label}

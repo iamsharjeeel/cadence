@@ -24,6 +24,8 @@ const EMPTY_FORM: ProjectFormValues = {
   billableDefault: true,
 };
 
+const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+
 function projectToForm(project: Project): ProjectFormValues {
   return {
     name: project.name,
@@ -50,6 +52,12 @@ export function ProjectFormModal({
   onSubmit: (values: ProjectFormValues) => void;
 }) {
   const [form, setForm] = useState<ProjectFormValues>(EMPTY_FORM);
+  const selectedPreset = PROJECT_PRESET_COLORS.includes(
+    form.color as (typeof PROJECT_PRESET_COLORS)[number],
+  );
+  const customColorValue = HEX_COLOR.test(form.color)
+    ? form.color
+    : PROJECT_PRESET_COLORS[0];
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +84,7 @@ export function ProjectFormModal({
           : "Update project details."}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3.5">
         <Input
           label="Name"
           name="name"
@@ -107,6 +115,27 @@ export function ProjectFormModal({
                 style={{ backgroundColor: c }}
               />
             ))}
+            <label
+              className={cn(
+                "relative h-9 w-9 cursor-pointer overflow-hidden rounded-full border-2 shadow-card transition-transform hover:scale-105",
+                selectedPreset
+                  ? "border-[var(--line)]"
+                  : "border-[var(--accent)] ring-2 ring-[var(--accent-soft)]",
+              )}
+              aria-label="Choose custom project color"
+              title="Custom color"
+            >
+              <span className="absolute inset-0" style={{ backgroundColor: customColorValue }} />
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[11px] font-semibold text-white mix-blend-difference">
+                +
+              </span>
+              <input
+                type="color"
+                value={customColorValue}
+                onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              />
+            </label>
           </div>
         </div>
 
@@ -161,8 +190,8 @@ export function ProjectFormModal({
           >
             <span
               className={cn(
-                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                form.billableDefault ? "translate-x-[1.35rem]" : "translate-x-0.5",
+                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all",
+                form.billableDefault ? "left-[22px]" : "left-0.5",
               )}
             />
           </button>

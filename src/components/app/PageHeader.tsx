@@ -16,19 +16,19 @@ export function PageHeader({
   greeting?: boolean;
 }) {
   return (
-    <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="flex flex-col gap-1">
+    <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-0.5">
         {orgName && (
-          <div className="mb-1 flex items-center gap-2.5">
+          <div className="mb-0.5 flex items-center gap-2.5">
             <OrgLogo name={orgName} logoUrl={orgLogoUrl} size="md" />
-            <span className="text-sm font-medium text-ink">{orgName}</span>
+            <span className="text-[13px] font-medium text-ink">{orgName}</span>
           </div>
         )}
         <h2
           className={
             greeting
-              ? "font-display text-[42px] font-bold leading-tight tracking-[-0.02em] text-ink"
-              : "font-display text-2xl font-semibold tracking-tightest"
+              ? "font-display text-3xl font-bold leading-tight tracking-[-0.02em] text-ink sm:text-[36px]"
+              : "font-display text-xl font-semibold tracking-tightest"
           }
         >
           {title}
@@ -37,8 +37,8 @@ export function PageHeader({
           <p
             className={
               greeting
-                ? "max-w-xl font-body text-[16px] font-normal text-muted"
-                : "max-w-xl text-sm text-muted"
+                ? "max-w-xl font-body text-[15px] font-normal text-muted"
+                : "max-w-xl text-[13px] text-muted"
             }
           >
             {description}
