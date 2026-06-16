@@ -14,10 +14,8 @@ import {
   useTimer,
 } from "@/contexts/TimerContext";
 import { cn } from "@/lib/utils";
-import {
-  saveTimerEntries,
-  splitTimerAtMidnight,
-} from "@/app/app/timer-actions";
+import { saveTimerEntries } from "@/app/app/timer-actions";
+import { splitTimerAtMidnight } from "@/lib/timer-utils";
 
 function ModalTitle({ children }: { children: React.ReactNode }) {
   return (
