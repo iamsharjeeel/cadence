@@ -45,11 +45,12 @@ export function RoleSelect({
   const options =
     actorRole === "admin"
       ? [{ value: "employee", label: "Employee" }]
-      : [
-          { value: "owner", label: "Owner" },
-          { value: "admin", label: "Manager" },
-          { value: "employee", label: "Employee" },
-        ];
+      : current === "owner"
+        ? [{ value: "owner", label: "Owner" }]
+        : [
+            { value: "admin", label: "Manager" },
+            { value: "employee", label: "Employee" },
+          ];
 
   return (
     <form ref={formRef} action={action}>

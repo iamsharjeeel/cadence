@@ -8,6 +8,7 @@ import { WorkspaceSwitchProvider } from "@/components/app/WorkspaceSwitchContext
 import { OrgDocumentReminderCheck } from "@/components/documents/OrgDocumentReminderCheck";
 import { Topbar } from "@/components/app/Topbar";
 import { NavigationProvider } from "@/components/app/NavigationProvider";
+import { AppProviders } from "@/components/app/AppProviders";
 import { PageTransition } from "@/components/motion/PageTransition";
 import type {
   SwitcherMembership,
@@ -32,11 +33,15 @@ export function AppShell({
   profile,
   navContext,
   switcher,
+  orgSettingsOrgId,
+  canLoadOrgSettings,
   children,
 }: {
   profile: Profile;
   navContext: NavContext;
   switcher: SwitcherData;
+  orgSettingsOrgId: string | null;
+  canLoadOrgSettings: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -62,8 +67,12 @@ export function AppShell({
   return (
     <NavigationProvider>
       <WorkspaceSwitchProvider>
-        <OrgDocumentReminderCheck />
-        <div className="flex min-h-screen bg-background">
+        <AppProviders
+          orgId={orgSettingsOrgId}
+          canLoadOrgSettings={canLoadOrgSettings}
+        >
+          <OrgDocumentReminderCheck />
+          <div className="flex min-h-screen bg-background">
           <Sidebar
             navContext={navContext}
             switcher={switcher}
@@ -82,6 +91,7 @@ export function AppShell({
             </main>
           </div>
         </div>
+        </AppProviders>
       </WorkspaceSwitchProvider>
     </NavigationProvider>
   );

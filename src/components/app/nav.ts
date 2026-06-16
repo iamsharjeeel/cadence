@@ -14,6 +14,7 @@ export type NavItem = {
     | "documents"
     | "projects"
     | "trends"
+    | "reports"
     | "settings"
     | "audit";
 };
@@ -36,6 +37,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/app/trends",
     roles: ["superadmin", "admin", "employee"],
     icon: "trends",
+  },
+  {
+    label: "Reports",
+    href: "/app/reports",
+    roles: ["superadmin", "admin", "employee"],
+    icon: "reports",
   },
   {
     label: "Projects",
@@ -104,6 +111,7 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
     "/app/projects",
     "/app/leave",
     "/app/documents",
+    "/app/reports",
     "/app/profile",
   ],
   // Same surface as personal, but org-scoped (can submit for approval).
@@ -111,6 +119,7 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
     "/app/dashboard",
     "/app/timesheets",
     "/app/trends",
+    "/app/reports",
     "/app/projects",
     "/app/leave",
     "/app/documents",
@@ -121,6 +130,7 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
     "/app/dashboard",
     "/app/timesheets",
     "/app/trends",
+    "/app/reports",
     "/app/projects",
     "/app/leave",
     "/app/documents",
@@ -134,6 +144,7 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
     "/app/dashboard",
     "/app/timesheets",
     "/app/trends",
+    "/app/reports",
     "/app/projects",
     "/app/leave",
     "/app/documents",
@@ -153,6 +164,9 @@ export function navForContext(ctx: NavContext): NavItem[] {
       if (!item) return null;
       if (ctx === "superadmin" && href === "/app/employees") {
         return { ...item, label: "Members" };
+      }
+      if (ctx === "manager" && href === "/app/employees") {
+        return { ...item, label: "Organization" };
       }
       return item;
     })

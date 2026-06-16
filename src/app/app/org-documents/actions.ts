@@ -34,7 +34,7 @@ async function requireOrgManager() {
   }
   if (ctx.workspaceRole !== "owner" && ctx.workspaceRole !== "admin") {
     return {
-      error: "Only organization owners and admins can manage the document library." as const,
+      error: "Only organization owners and managers can manage the document library." as const,
       ctx: null,
     };
   }

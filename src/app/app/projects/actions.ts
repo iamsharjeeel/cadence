@@ -169,7 +169,7 @@ export async function createProject(payload: {
     if (ctx.workspaceRole !== "owner" && ctx.workspaceRole !== "admin") {
       return {
         ok: false,
-        message: "Only owners and admins can create organization projects.",
+        message: "Only owners and managers can create organization projects.",
       };
     }
   }

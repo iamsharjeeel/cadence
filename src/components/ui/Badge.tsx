@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { titleCase } from "@/lib/utils";
+import { roleLabel, titleCase } from "@/lib/utils";
 import type {
   DocumentStatus,
   DocumentType,
@@ -59,7 +59,7 @@ export function StatusPill({ status }: { status: UserStatus }) {
 export function RolePill({ role }: { role: UserRole }) {
   return (
     <Badge tone="pending" className="text-[12px]">
-      {titleCase(role)}
+      {roleLabel(role)}
     </Badge>
   );
 }

@@ -16,7 +16,7 @@ export function summarizePayload(
     return `Role changed from ${p.from} → ${p.to}`;
   }
   if (action === "profile.rate_change" && p.from && p.to) {
-    const source = p.source === "self" ? "Self-updated" : "Admin updated";
+    const source = p.source === "self" ? "Self-updated" : "Manager updated";
     return `${source} rate`;
   }
   if (action === "timesheet_approved" && p.calculated_total != null) {

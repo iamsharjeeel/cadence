@@ -379,6 +379,50 @@ export type Database = {
           },
         ]
       }
+      org_settings: {
+        Row: {
+          id: string
+          org_id: string
+          tier: string
+          approvals_timesheets: boolean
+          approvals_leave: boolean
+          approvals_expenses: boolean
+          approver_scope: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          tier?: string
+          approvals_timesheets?: boolean
+          approvals_leave?: boolean
+          approvals_expenses?: boolean
+          approver_scope?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          tier?: string
+          approvals_timesheets?: boolean
+          approvals_leave?: boolean
+          approvals_expenses?: boolean
+          approver_scope?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_settings_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           allowed_domains: string[]
@@ -1118,7 +1162,7 @@ export type Database = {
       time_entries: {
         Row: {
           id: string
-          org_id: string
+          org_id: string | null
           employee_id: string
           timesheet_id: string | null
           project_id: string | null
@@ -1131,12 +1175,13 @@ export type Database = {
           total_hours: number
           description: string | null
           billable: boolean
+          status: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          org_id: string
+          org_id?: string | null
           employee_id: string
           timesheet_id?: string | null
           project_id?: string | null
@@ -1150,12 +1195,13 @@ export type Database = {
           total_hours?: number
           description?: string | null
           billable?: boolean
+          status?: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          org_id?: string
+          org_id?: string | null
           employee_id?: string
           timesheet_id?: string | null
           project_id?: string | null
@@ -1168,6 +1214,7 @@ export type Database = {
           total_hours?: number
           description?: string | null
           billable?: boolean
+          status?: string
           created_at?: string
           updated_at?: string
         }
@@ -1279,6 +1326,10 @@ export type Database = {
           org_name: string
           role: Database["public"]["Enums"]["user_role"]
         }[]
+      }
+      get_or_create_org_settings: {
+        Args: { p_org_id: string }
+        Returns: Database["public"]["Tables"]["org_settings"]["Row"]
       }
       set_active_workspace: {
         Args: { p_org_id: string | null }
@@ -1452,6 +1503,8 @@ export type UserDocument = Tables<"user_documents">
 export type Notification = Tables<"notifications">
 export type Project = Tables<"projects">
 export type TimeEntry = Tables<"time_entries">
+export type OrgSettingsRow = Tables<"org_settings">
+export type TimeEntryApprovalStatus = "pending_approval" | "approved"
 export type { TimeEntryWithProject } from "./time-tracking";
 
 export type UserRole = Enums<"user_role">

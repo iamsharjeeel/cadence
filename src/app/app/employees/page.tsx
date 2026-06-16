@@ -5,10 +5,16 @@ import { redirect } from "next/navigation";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { PlatformMembersAudit } from "./PlatformMembersAudit";
 import { OrgTeamView } from "./OrgTeamView";
+import { OrganizationTabs } from "./OrganizationTabs";
+import { OrgApprovalSettingsTab } from "./OrgApprovalSettingsTab";
 
-export const metadata: Metadata = { title: "Employees" };
+export const metadata: Metadata = { title: "Organization" };
 
-export default async function EmployeesPage() {
+export default async function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: { tab?: string };
+}) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
 
@@ -25,11 +31,25 @@ export default async function EmployeesPage() {
     redirect("/app/dashboard");
   }
 
+  const tab = searchParams.tab === "settings" ? "settings" : "members";
+  const isOwner = wsRole === "owner";
+
+  if (tab === "settings" && !isOwner) {
+    redirect("/app/employees?tab=members");
+  }
+
   return (
-    <OrgTeamView
-      orgId={ctx.activeOrgId}
-      workspaceRole={wsRole}
-      actorId={ctx.realProfile.id}
-    />
+    <div>
+      <OrganizationTabs tab={tab} showSettings={isOwner} />
+      {tab === "settings" && isOwner ? (
+        <OrgApprovalSettingsTab orgId={ctx.activeOrgId} />
+      ) : (
+        <OrgTeamView
+          orgId={ctx.activeOrgId}
+          workspaceRole={wsRole}
+          actorId={ctx.realProfile.id}
+        />
+      )}
+    </div>
   );
 }

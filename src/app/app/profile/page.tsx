@@ -63,7 +63,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         title="Your profile"
         description={
           inOrg
-            ? "Update your personal and employment details. Role and status are managed by your administrator."
+            ? "Update your personal and employment details. Role and status are managed by your organization."
             : "Update your personal and employment details."
         }
       />
@@ -109,7 +109,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <CardTitle className="text-base">Employment</CardTitle>
             <CardDescription>
               {inOrg
-                ? "Role and status are managed by an admin. You can set your own rate."
+                ? "Role and status are managed by a manager. You can set your own rate."
                 : "Set your own rate."}
             </CardDescription>
           </CardHeader>

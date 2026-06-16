@@ -140,7 +140,7 @@ async function SettingsBody({
               ) : (
                 <EmptyState
                   title="No organization linked"
-                  description="Your admin account isn't attached to an organization."
+                  description="Your manager account isn't attached to an organization."
                 />
               )}
             </CardContent>

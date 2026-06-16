@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 const ERROR_COPY: Record<string, string> = {
   suspended:
-    "Your access has been suspended. Contact your organization's administrator if you believe this is a mistake.",
+    "Your access has been suspended. Contact your organization's manager if you believe this is a mistake.",
   oauth: "Google sign-in was cancelled or failed. Please try again.",
   exchange: "We couldn't complete sign-in. Please try again.",
   session: "Your session couldn't be established. Please try again.",

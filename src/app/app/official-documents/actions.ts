@@ -348,5 +348,5 @@ export async function rejectOfficialDocument(
   });
 
   revalidatePath("/app/documents");
-  return { ok: true, message: "Note submitted to admin." };
+  return { ok: true, message: "Note submitted to manager." };
 }

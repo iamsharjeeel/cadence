@@ -39,7 +39,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 
 ### Phase 1 — Foundation
 - Multi-tenant orgs with domain-gated Google OAuth
-- Three roles: superadmin, admin, employee
+- Three roles: superadmin, owner, manager (DB: `admin`), employee
 - Profile and employee management with audit logging
 - Quiet-luxury design system (Warm Gold accent, Space Grotesk + Inter, true-black dark mode)
 
@@ -219,6 +219,33 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 11. `supabase/migrations/20260622000000_time_entry_asana_project.sql` — **required for Asana entry picker**
 12. `supabase/migrations/20260623000000_leave_types_unit.sql` — leave unit system
 13. `supabase/migrations/20260624000000_google_calendar.sql` — **required for Google Calendar integration**
+14. `supabase/migrations/20260616000001_org_settings.sql` — org approval settings + `get_or_create_org_settings` RPC
+15. `supabase/migrations/20260630000001_time_entries_approval_status.sql` — `time_entries.status` (`pending_approval` | `approved`)
+
+### F1 — Org approval settings (shipped)
+- **`org_settings` table** per org: tier, timesheet/leave/expense approval toggles, `approver_scope` (`owner_only` | `owner_and_managers`)
+- **`get_or_create_org_settings(p_org_id)`** RPC — upserts defaults; callable by owner/manager in active org
+- **`useOrgSettings()`** client hook via `OrgSettingsProvider` in app shell (cached in React context)
+- **Organization page** (`/app/employees`): **Members | Settings** tabs; Settings owner-only with approval toggles, approver radio group, plan badge (display only)
+- Members tab respects role matrix: owner manages roles/invite/remove; manager read-only list; employee redirected; superadmin platform audit view
+
+### F2 — Toggl-style timer (shipped)
+- **Floating timer** in app shell (all `/app/*` pages) — bottom-right, collapsible
+- Start → project prompt (Cadence `ProjectPicker`, skippable); running state with elapsed HH:MM:SS + pulsing indicator
+- Stop saves `time_entries` via server action; persists in `TimerContext` (no localStorage)
+- Mid-session project reassignment; 30-minute idle modal; midnight auto-stop with day split
+- If `approvals_timesheets` is on → `status = pending_approval`; personal/off → `approved`
+- Conflict guard when starting a second timer
+
+### F3 — Reporting (shipped)
+- **`/app/reports`** — personal report always visible; org report for owner/manager in org workspace
+- Date presets: this week / this month / last month / custom
+- Personal: total hours, project breakdown (recharts bar), billable split
+- Org: total hours, per-member (hours, billable %, utilization %), per-project table, client-side CSV export
+- Defense-in-depth workspace filters on all queries; employees in org context see personal tab only
+
+### F4 — Webhooks / API (next session)
+- Deferred: CFO webhook delivery, external API surface
 
 ## Design system v2
 

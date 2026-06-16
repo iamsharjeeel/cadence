@@ -76,7 +76,7 @@ const STEPS = [
   {
     step: "2",
     icon: UserCheck,
-    title: "Admin reviews and approves",
+    title: "Manager reviews and approves",
     description: "Rate snapshot locked, total calculated server-side.",
   },
   {

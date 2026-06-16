@@ -37,7 +37,7 @@ export default async function AppLayout({
     })),
     currentLabel: inOrg ? ctx.activeOrg!.name : "Personal",
     currentSublabel: ctx.isSuperadmin
-      ? "Platform admin"
+      ? "Platform oversight"
       : inOrg
         ? titleCase(ctx.workspaceRole!)
         : "Personal workspace",
@@ -50,6 +50,10 @@ export default async function AppLayout({
       profile={ctx.effectiveProfile}
       navContext={navContext}
       switcher={switcher}
+      orgSettingsOrgId={ctx.activeOrgId}
+      canLoadOrgSettings={
+        ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin"
+      }
     >
       {children}
     </AppShell>

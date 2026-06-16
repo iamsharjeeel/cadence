@@ -1657,5 +1657,70 @@ _(none logged)_
 - `userDocPreviewKind()` helper; DOCX conversion failures and non-previewable types (xlsx, etc.) fall back to download with toast.
 - Wired into `UserDocumentRowActions` as View/Open action on Official documents tab.
 
+### Session — F1 approval settings + F2 timer + F3 reporting + admin→Manager rename ✅ (2026-06-16)
+
+#### F1 — org_settings + Organization page
+- Migration `20260616000001_org_settings.sql` (table + RLS + `get_or_create_org_settings` RPC). **Applied externally on live Supabase** — file committed for repo parity.
+- `OrgSettingsProvider` + `useOrgSettings()` — RPC fetch cached in React context (app shell).
+- `/app/employees` restructured: **Members | Settings** tabs. Settings tab owner-only (approval toggles, approver scope radio, plan badge). Members matrix: owner full manage; manager list-only; employee redirect; superadmin read-only audit view with role badges.
+- `updateOrgApprovalSettings` server action + optimistic save with toast; `org_settings_updated` audit.
+
+#### F2 — Floating timer
+- `TimerContext` + `FloatingTimer` in app shell (no localStorage).
+- Start/stop, project picker, idle 30m modal, midnight split save, running-timer conflict prompt.
+- `saveTimerEntries` server action; `time_entries.status` = `pending_approval` when `approvals_timesheets` on.
+- Migration `20260630000001_time_entries_approval_status.sql`.
+
+#### F3 — Reports
+- `/app/reports` + nav entry (personal always; org tab owner/manager only).
+- `src/lib/reports/queries.ts` — personal + org aggregates with explicit workspace filters.
+- recharts project bar chart; org CSV export client-side.
+
+#### UI rename
+- `getRoleLabel` / `roleLabel` — `admin` → “Manager” in all user-facing strings; `RolePill` uses display helper. DB role value unchanged.
+
+#### Untested (manual QA recommended)
+- Live RPC + RLS on `org_settings` against production Supabase (migration assumed applied).
+- Timer midnight auto-stop across real timezone boundaries.
+- Org report utilization % with partial weeks.
+- Approval `pending_approval` entries end-to-end with manager approval UI (enforcement UI deferred — settings only toggles status on timer save).
+
+#### Remaining roadmap
+- **F4 — Webhooks / external API** (own session): CFO webhook on timesheet approval, API keys, delivery retries.
+
 #### Verification
-- `npm run typecheck` and `npm run build` pass.
+- `npm run typecheck` passes.
+
+### Session — F1 approval settings + F2 timer + F3 reporting + admin→Manager rename ✅ (2026-06-16)
+
+#### F1 — org_settings + Organization page
+- Migration `20260616000001_org_settings.sql` (table + RLS + `get_or_create_org_settings` RPC). **Applied externally on live Supabase** — file committed for repo parity.
+- `OrgSettingsProvider` + `useOrgSettings()` — RPC fetch cached in React context (app shell).
+- `/app/employees` restructured: **Members | Settings** tabs. Settings tab owner-only (approval toggles, approver scope radio, plan badge). Members matrix: owner full manage; manager list-only; employee redirect; superadmin read-only audit view with role badges.
+- `updateOrgApprovalSettings` server action + optimistic save with toast; `org_settings_updated` audit.
+
+#### F2 — Floating timer
+- `TimerContext` + `FloatingTimer` in app shell (no localStorage).
+- Start/stop, project picker, idle 30m modal, midnight split save, running-timer conflict prompt.
+- `saveTimerEntries` server action; `time_entries.status` = `pending_approval` when `approvals_timesheets` on.
+- Migration `20260630000001_time_entries_approval_status.sql`.
+
+#### F3 — Reports
+- `/app/reports` + nav entry (personal always; org tab owner/manager only).
+- `src/lib/reports/queries.ts` — personal + org aggregates with explicit workspace filters.
+- recharts project bar chart; org CSV export client-side.
+
+#### UI rename
+- `getRoleLabel` / `roleLabel` — `admin` → “Manager” in all user-facing strings; `RolePill` uses display helper. DB role value unchanged.
+
+#### Untested (manual QA recommended)
+- Live RPC + RLS on `org_settings` against production Supabase (migration assumed applied).
+- Timer midnight auto-stop across real timezone boundaries.
+- Org report utilization % with partial weeks.
+- Approval `pending_approval` entries end-to-end with manager approval UI (enforcement UI deferred — settings only toggles status on timer save).
+
+#### Remaining roadmap
+- **F4 — Webhooks / external API** (own session): CFO webhook on timesheet approval, API keys, delivery retries.
+
+#### Verification
+- `npm run typecheck` passes.

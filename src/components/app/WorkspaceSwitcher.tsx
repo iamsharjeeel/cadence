@@ -281,7 +281,7 @@ export function WorkspaceSwitcher({
                   Personal
                 </span>
                 <span className="block truncate text-[11px] text-muted">
-                  {isSuperadmin ? "Platform admin" : "Your personal workspace"}
+                  {isSuperadmin ? "Platform oversight" : "Your personal workspace"}
                 </span>
               </span>
               {currentIsPersonal ? <ActiveDot /> : null}

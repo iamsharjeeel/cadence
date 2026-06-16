@@ -201,7 +201,7 @@ export async function getTimeTrackingDataForProfile(
   };
 }
 
-async function loadAsanaImportedProjects(
+export async function loadAsanaImportedProjects(
   userId: string,
 ): Promise<AsanaImportedProject[]> {
   const db = createAdminClient();

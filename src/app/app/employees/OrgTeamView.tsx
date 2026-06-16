@@ -82,6 +82,9 @@ export async function OrgTeamView({
   const pendingInvites = (invites ?? []) as OrgInvite[];
   const orgName = org?.name ?? "Organization";
   const team = members.filter((m) => m.status !== "pending" || m.org_id);
+  const canInvite = workspaceRole === "owner";
+  const canChangeRoles = workspaceRole === "owner";
+  const canRemove = workspaceRole === "owner";
   const canManageMembers = workspaceRole === "owner" || workspaceRole === "admin";
 
   const onboardingByEmployee = new Map<
@@ -100,11 +103,11 @@ export async function OrgTeamView({
     <div>
       <EmployeesListRefresh hasPendingInvites={pendingInvites.length > 0} />
       <PageHeader
-        title="Employees"
-        description="Invite teammates and manage roles, rates, and access for your organization."
+        title="Organization"
+        description="Manage members, roles, and organization settings."
         action={
           <div className="flex items-center gap-3">
-            {canManageMembers && (
+            {canInvite && (
               <InviteMemberModal
                 actorRole={workspaceRole === "owner" ? "owner" : "admin"}
                 orgName={orgName}
@@ -132,7 +135,7 @@ export async function OrgTeamView({
                   <TH>Email</TH>
                   <TH>Role</TH>
                   <TH>Sent</TH>
-                  {canManageMembers && <TH className="text-right">Actions</TH>}
+                  {canInvite && <TH className="text-right">Actions</TH>}
                 </TR>
               </THead>
               <TBody>
@@ -145,7 +148,7 @@ export async function OrgTeamView({
                     <TD className="tabular text-sm text-muted">
                       {new Date(inv.created_at).toLocaleDateString()}
                     </TD>
-                    {canManageMembers && (
+                    {canInvite && (
                       <TD className="text-right">
                         <CancelInviteButton inviteId={inv.id} email={inv.email} />
                       </TD>
@@ -187,7 +190,7 @@ export async function OrgTeamView({
                   <TH>Rate</TH>
                   <TH>Onboarding</TH>
                   <TH>Banking</TH>
-                  {canManageMembers && <TH className="text-right">Actions</TH>}
+                  {canInvite && <TH className="text-right">Actions</TH>}
                 </TR>
               </THead>
               <TBody>
@@ -197,9 +200,12 @@ export async function OrgTeamView({
                   const locked = isSelf || isSuper;
                   const actorIsManager = workspaceRole === "admin";
                   const targetIsOwner = m.role === "owner";
-                  const roleLocked = locked || (actorIsManager && targetIsOwner);
-                  const canRemove =
-                    canManageMembers &&
+                  const roleLocked =
+                    locked ||
+                    !canChangeRoles ||
+                    (actorIsManager && targetIsOwner);
+                  const canRemoveMember =
+                    canRemove &&
                     !locked &&
                     !(actorIsManager && (targetIsOwner || m.role === "admin"));
 
@@ -209,18 +215,18 @@ export async function OrgTeamView({
                         <MemberCell member={m} />
                       </TD>
                       <TD>
-                        {roleLocked ? (
+                        {roleLocked || !canChangeRoles ? (
                           <RolePill role={m.role} />
                         ) : (
                           <RoleSelect
                             id={m.id}
                             current={m.role as "owner" | "admin" | "employee"}
-                            actorRole={workspaceRole === "owner" ? "owner" : "admin"}
+                            actorRole="owner"
                           />
                         )}
                       </TD>
                       <TD>
-                        {locked ? (
+                        {locked || !canChangeRoles ? (
                           <StatusPill status={m.status} />
                         ) : (
                           <StatusSelect id={m.id} current={m.status} />
@@ -234,7 +240,7 @@ export async function OrgTeamView({
                               · {roleLabel(m.rate_type)}
                             </span>
                           </span>
-                          {(!isSuper || isSelf) && (
+                          {canChangeRoles && (!isSuper || isSelf) && (
                             <RateEditor
                               id={m.id}
                               rate={m.rate}
@@ -257,7 +263,7 @@ export async function OrgTeamView({
                         )}
                       </TD>
                       <TD>
-                        {(!isSuper || isSelf) ? (
+                        {canChangeRoles && (!isSuper || isSelf) ? (
                           <BankingEditor
                             id={m.id}
                             defaults={{
@@ -272,9 +278,9 @@ export async function OrgTeamView({
                           />
                         ) : null}
                       </TD>
-                      {canManageMembers && (
+                      {canInvite && (
                         <TD className="text-right">
-                          {canRemove ? (
+                          {canRemoveMember ? (
                             <RemoveMemberModal
                               memberId={m.id}
                               memberName={m.full_name?.trim() || m.email}

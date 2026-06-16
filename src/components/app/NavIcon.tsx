@@ -58,6 +58,11 @@ const PATHS: Record<NavItem["icon"], React.ReactNode> = {
       <path d="M17 7h4v4" />
     </>
   ),
+  reports: (
+    <>
+      <path d="M6 20V10M12 20V4M18 20v-7" />
+    </>
+  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />

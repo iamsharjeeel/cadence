@@ -49,7 +49,7 @@ export async function inviteMember(payload: {
 
   // Admins can only invite employees; owners can invite any role.
   if (wsRole === "admin" && role !== "employee") {
-    return { ok: false, message: "Admins can only invite employees." };
+    return { ok: false, message: "Managers can only invite employees." };
   }
 
   const db = createAdminClient();

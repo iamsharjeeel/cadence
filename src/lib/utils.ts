@@ -17,6 +17,9 @@ export function roleLabel(role: string): string {
   return titleCase(role);
 }
 
+/** Alias for roleLabel — shared display helper for workspace roles. */
+export const getRoleLabel = roleLabel;
+
 /** Title-cases an enum-ish token, e.g. "biweekly" → "Biweekly". */
 export function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
