@@ -13,10 +13,22 @@ const HEX = /^#[0-9A-Fa-f]{6}$/;
 
 /** Org-wide projects + the current user's personal projects (for time entry dropdown). */
 export async function fetchProjectsForTimeEntry(
-  orgId: string,
+  orgId: string | null,
   userId: string,
 ): Promise<Project[]> {
   const db = createAdminClient();
+
+  if (!orgId) {
+    const { data: personal } = await db
+      .from("projects")
+      .select("*")
+      .is("org_id", null)
+      .eq("is_active", true)
+      .eq("owner_id", userId)
+      .order("name");
+    return (personal ?? []) as Project[];
+  }
+
   const [{ data: orgWide }, { data: personal }] = await Promise.all([
     db
       .from("projects")
@@ -69,9 +81,6 @@ export async function createProject(payload: {
   orgId?: string;
 }): Promise<ActionResult> {
   const profile = await requireRole(["admin", "superadmin", "employee"]);
-  if (!profile.org_id && profile.role !== "superadmin") {
-    return { ok: false, message: "Your account has no organization." };
-  }
 
   const name = payload.name.trim();
   if (!name || name.length > 80) {
@@ -83,12 +92,17 @@ export async function createProject(payload: {
 
   const isManager = profile.role === "admin" || profile.role === "superadmin";
   const isOrgWide = isManager ? Boolean(payload.isOrgWide) : false;
-  const orgId =
-    profile.role === "superadmin"
-      ? payload.orgId?.trim() || profile.org_id
-      : profile.org_id;
 
-  if (!orgId) {
+  let orgId: string | null;
+  if (profile.role === "superadmin") {
+    orgId = payload.orgId?.trim() || profile.org_id;
+  } else if (profile.org_id) {
+    orgId = profile.org_id;
+  } else {
+    orgId = null;
+  }
+
+  if (!orgId && profile.role === "superadmin") {
     return { ok: false, message: "Please select an organisation first." };
   }
   if (!isManager && isOrgWide) {
@@ -99,7 +113,7 @@ export async function createProject(payload: {
   const { data, error } = await db
     .from("projects")
     .insert({
-      org_id: orgId,
+      org_id: orgId as string,
       owner_id: isOrgWide ? null : profile.id,
       name,
       color,

@@ -33,17 +33,20 @@ const ACTIVE_STATUSES: TimesheetStatus[] = ["draft", "submitted", "rejected"];
 export async function linkOrphanEntriesToTimesheet(
   timesheetId: string,
   employeeId: string,
+  orgId: string | null,
   periodStart: string,
   periodEnd: string,
 ) {
   const db = createAdminClient();
-  await db
+  let query = db
     .from("time_entries")
     .update({ timesheet_id: timesheetId })
     .eq("employee_id", employeeId)
     .is("timesheet_id", null)
     .gte("entry_date", periodStart)
     .lte("entry_date", periodEnd);
+  query = orgId ? query.eq("org_id", orgId) : query.is("org_id", null);
+  await query;
 }
 
 export async function ensureTimesheetForWeekForProfile(
@@ -53,19 +56,22 @@ export async function ensureTimesheetForWeekForProfile(
   | { ok: true; timesheetId: string; status: TimesheetStatus }
   | { ok: false; message: string }
 > {
-  if (!profile.org_id) return { ok: false, message: "Your account has no organization." };
   if (!ISO_DATE.test(weekMonday)) return { ok: false, message: "Invalid week." };
 
+  const activeOrgId = profile.org_id ?? null;
   const periodEnd = addDays(weekMonday, 6);
   const db = createAdminClient();
 
-  const { data: existing } = await db
+  let existingQuery = db
     .from("timesheets")
     .select("id, status")
     .eq("employee_id", profile.id)
     .eq("period_start", weekMonday)
-    .in("status", ACTIVE_STATUSES)
-    .maybeSingle();
+    .in("status", ACTIVE_STATUSES);
+  existingQuery = activeOrgId
+    ? existingQuery.eq("org_id", activeOrgId)
+    : existingQuery.is("org_id", null);
+  const { data: existing } = await existingQuery.maybeSingle();
 
   if (existing) {
     return {
@@ -78,7 +84,7 @@ export async function ensureTimesheetForWeekForProfile(
   const { data: created, error } = await db
     .from("timesheets")
     .insert({
-      org_id: profile.org_id,
+      org_id: activeOrgId as string,
       employee_id: profile.id,
       period_start: weekMonday,
       period_end: periodEnd,
@@ -89,13 +95,16 @@ export async function ensureTimesheetForWeekForProfile(
 
   if (error) {
     if (error.code === "23505") {
-      const { data: retry } = await db
+      let retryQuery = db
         .from("timesheets")
         .select("id, status")
         .eq("employee_id", profile.id)
         .eq("period_start", weekMonday)
-        .in("status", ACTIVE_STATUSES)
-        .maybeSingle();
+        .in("status", ACTIVE_STATUSES);
+      retryQuery = activeOrgId
+        ? retryQuery.eq("org_id", activeOrgId)
+        : retryQuery.is("org_id", null);
+      const { data: retry } = await retryQuery.maybeSingle();
       if (retry) {
         return {
           ok: true,
@@ -121,16 +130,13 @@ export async function getTimeTrackingDataForProfile(
   profile: Profile,
   weekMonday: string,
 ): Promise<TimeTrackingResult> {
-  if (!profile.org_id) {
-    return { ok: false, message: "Your account has no organization." };
-  }
-
+  const activeOrgId = profile.org_id ?? null;
   const week = weekPeriodFromMonday(weekMonday);
   const db = createAdminClient();
 
   const [ensured, projects, asanaConnected, asanaImportedProjects] = await Promise.all([
     ensureTimesheetForWeekForProfile(profile, weekMonday),
-    fetchProjectsForTimeEntry(profile.org_id, profile.id),
+    fetchProjectsForTimeEntry(activeOrgId, profile.id),
     hasAsanaConnection(profile.id),
     loadAsanaImportedProjects(profile.id),
   ]);
@@ -141,6 +147,7 @@ export async function getTimeTrackingDataForProfile(
   await linkOrphanEntriesToTimesheet(
     timesheetId,
     profile.id,
+    activeOrgId,
     week.start,
     week.end,
   );
@@ -177,7 +184,7 @@ export async function getTimeTrackingDataForProfile(
   return {
     ok: true,
     timesheetId,
-    orgId: profile.org_id,
+    orgId: activeOrgId,
     employeeId: profile.id,
     status: ensured.status,
     entries,

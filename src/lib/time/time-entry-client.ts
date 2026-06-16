@@ -23,7 +23,7 @@ import {
  * display only; it must never be written to Supabase.
  */
 export type TimeEntryWriteRow = {
-  org_id: string;
+  org_id: string | null;
   employee_id: string;
   timesheet_id: string;
   project_id: string | null;
@@ -42,7 +42,7 @@ type BuiltWriteRow = { row: TimeEntryWriteRow; overnight: boolean };
 
 export type SaveTimeEntryInput = {
   id?: string;
-  orgId: string;
+  orgId: string | null;
   employeeId: string;
   timesheetId: string;
   entryDate: string;
@@ -61,15 +61,15 @@ export type SaveTimeEntryResult =
   | { ok: false; message: string };
 
 function buildWriteRow(input: SaveTimeEntryInput): BuiltWriteRow | SaveTimeEntryResult {
-  if (!input.orgId?.trim()) {
-    return { ok: false, message: "Missing organization — sign in again." };
-  }
   if (!input.employeeId?.trim()) {
     return { ok: false, message: "Missing employee profile — sign in again." };
   }
   if (!input.timesheetId?.trim()) {
     return { ok: false, message: "Timesheet not ready — refresh and try again." };
   }
+
+  const orgId =
+    input.orgId && String(input.orgId).trim() !== "" ? String(input.orgId) : null;
 
   const projectId =
     input.projectId && String(input.projectId).trim() !== ""
@@ -92,7 +92,7 @@ function buildWriteRow(input: SaveTimeEntryInput): BuiltWriteRow | SaveTimeEntry
     return {
       overnight: false,
       row: {
-        org_id: input.orgId,
+        org_id: orgId,
         employee_id: input.employeeId,
         timesheet_id: input.timesheetId,
         project_id: projectId,
@@ -121,7 +121,7 @@ function buildWriteRow(input: SaveTimeEntryInput): BuiltWriteRow | SaveTimeEntry
   return {
     overnight,
     row: {
-      org_id: input.orgId,
+      org_id: orgId,
       employee_id: input.employeeId,
       timesheet_id: input.timesheetId,
       project_id: projectId,
@@ -250,7 +250,7 @@ export async function saveTimeEntryClient(
 
   const { data, error } = await supabase
     .from("time_entries")
-    .insert(row)
+    .insert({ ...row, org_id: row.org_id as string })
     .select("id")
     .single();
 

@@ -23,7 +23,7 @@ import { TimesheetPageActions } from "./TimesheetPageActions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const profile = await getProfile();
-  if (profile?.role === "employee" && profile.org_id) {
+  if (profile?.role === "employee") {
     return { title: { absolute: "Log time · Cadence" } };
   }
   return { title: "Timesheets" };
@@ -49,7 +49,7 @@ export default async function TimesheetsPage({
   const isManager = profile.role === "admin" || profile.role === "superadmin";
   const isSuperadmin = profile.role === "superadmin";
 
-  if (!isManager && profile.org_id) {
+  if (!isManager) {
     const weekMonday = thisWeekMonday();
     const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
 
@@ -176,7 +176,7 @@ export default async function TimesheetsPage({
         action={
           <TimesheetPageActions
             showExport={isManager}
-            showLogTime={Boolean(profile.org_id)}
+            showLogTime
           />
         }
       />

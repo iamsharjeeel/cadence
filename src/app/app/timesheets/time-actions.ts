@@ -164,7 +164,7 @@ export async function upsertTimeEntry(
   payload: EntryPayload & { id?: string },
 ): Promise<SaveEntryResult> {
   const profile = await requireActiveProfile();
-  if (!profile.org_id) return { ok: false, message: "Your account has no organization." };
+  const activeOrgId = profile.org_id ?? null;
   if (!payload.timesheetId) {
     return { ok: false, message: "Timesheet not ready — refresh and try again." };
   }
@@ -197,7 +197,7 @@ export async function upsertTimeEntry(
   // derived locally (validated.overnight) for overlap skipping only — never
   // written to the DB. `total_hours` is a GENERATED column and likewise omitted.
   const row = {
-    org_id: profile.org_id,
+    org_id: activeOrgId as string,
     employee_id: profile.id,
     timesheet_id: payload.timesheetId,
     project_id: projectId,
@@ -276,7 +276,6 @@ export async function submitTimesheetForApproval(
   timesheetId: string,
 ): Promise<ActionResult> {
   const profile = await requireActiveProfile();
-  if (!profile.org_id) return { ok: false, message: "Your account has no organization." };
 
   const db = createAdminClient();
   const { data: ts } = await db
@@ -287,6 +286,12 @@ export async function submitTimesheetForApproval(
   if (!ts || ts.employee_id !== profile.id) {
     return { ok: false, message: "Timesheet not found." };
   }
+  if (!ts.org_id) {
+    return {
+      ok: false,
+      message: "Personal timesheets are not submitted for approval.",
+    };
+  }
   if (!editableStatus(ts.status as TimesheetStatus)) {
     return { ok: false, message: "This timesheet can't be submitted." };
   }
@@ -294,6 +299,7 @@ export async function submitTimesheetForApproval(
   await linkOrphanEntriesToTimesheet(
     timesheetId,
     profile.id,
+    ts.org_id,
     ts.period_start,
     ts.period_end,
   );
@@ -323,7 +329,7 @@ export async function submitTimesheetForApproval(
   const employeeName = profile.full_name?.trim() || profile.email;
   await writeAudit({
     actorId: profile.id,
-    orgId: profile.org_id,
+    orgId: ts.org_id,
     action: "timesheet_submitted",
     entity: "timesheets",
     payload: {
@@ -338,7 +344,7 @@ export async function submitTimesheetForApproval(
   });
 
   await notifyOrgAdmins({
-    orgId: profile.org_id,
+    orgId: ts.org_id,
     type: "timesheet_submitted",
     title: "New timesheet submitted",
     body: `${employeeName} · ${ts.period_start} – ${ts.period_end}${hasOvertime ? ` · Overtime +${otHours}h` : ""}`,
@@ -355,9 +361,7 @@ export async function submitTimesheetForApproval(
 
 export async function checkTimeLogReminder(): Promise<ActionResult> {
   const profile = await requireActiveProfile();
-  if (!profile.org_id) {
-    return { ok: true, message: "" };
-  }
+  const activeOrgId = profile.org_id ?? null;
 
   const today = toIsoDate(new Date());
   const weekMonday = mondayOfWeek(today);
@@ -386,7 +390,7 @@ export async function checkTimeLogReminder(): Promise<ActionResult> {
   if (existing && existing.length > 0) return { ok: true, message: "" };
 
   await db.from("notifications").insert({
-    org_id: profile.org_id,
+    org_id: activeOrgId as string,
     user_id: profile.id,
     type: "time_log_reminder",
     title: "Log your time",

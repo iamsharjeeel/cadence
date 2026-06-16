@@ -21,7 +21,7 @@ export type TimeEntryWithProject = TimeEntry & {
 export type TimeTrackingData = {
   ok: true;
   timesheetId: string;
-  orgId: string;
+  orgId: string | null;
   employeeId: string;
   status: TimesheetStatus;
   entries: TimeEntryWithProject[];

@@ -1471,3 +1471,17 @@ Prod still runs app code `8dfa2f2` (pre-Track-C) on the new DB. It **degrades gr
 - Spell out env vars relative to Vercel + Supabase; give SQL explicitly.
 - When producing specs/prompts/SQL — no direct code unless asked.
 - Don't mention brand/agency names in outputs unless brought up.
+
+## Current state (2026-06-16)
+
+### Personal time logging restored ✅ (app-layer only; no DB change)
+- **Problem:** After Track C, `profiles.org_id` is NULL for everyone by default. The app still gated time logging on `profile.org_id`, so the wizard and "Log my time" button disappeared for all personal users.
+- **Fix:** Removed app-layer `org_id` gates on the logging path. Org context for writes now comes from the **active workspace** (`requireActiveProfile()` → `getWorkspaceContext().effectiveProfile.org_id`, which mirrors `auth_org()`). Personal workspace → `org_id = null` on new timesheets/entries; org workspace → that org's id. Submit-for-approval UI and server action are hidden/refused for personal (`org_id IS NULL`) timesheets; org-context approval + admin notify unchanged.
+- **Touched:** `src/app/app/timesheets/page.tsx`, `TimeTrackingView.tsx`, `time-actions.ts`, `src/lib/time/get-time-tracking-data.ts`, `src/lib/time/time-entry-client.ts`, `src/app/app/timesheets/log/page.tsx`, `fetchProjectsForTimeEntry` / `createProject` (personal projects).
+- **Notifications:** `notifications.org_id` is nullable in DB (Track C1). `checkTimeLogReminder` now runs for personal users too (`org_id: null` via service-role insert).
+
+### Resolved bugs / feedback
+- ~~**Timesheets: lost ability to log time**~~ — fixed 2026-06-16 (see above).
+
+### Open bugs / feedback
+_(none logged)_

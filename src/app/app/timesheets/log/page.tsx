@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { requireActiveProfile } from "@/lib/auth";
 import { decodeGoogleCalendarPrefill } from "@/lib/google-calendar/prefill";
 import { getEventsForDay } from "@/lib/google-calendar/sync";
@@ -23,21 +22,6 @@ export default async function LogTimePage({
   searchParams?: { date?: string; prefill?: string };
 }) {
   const profile = await requireActiveProfile();
-
-  if (!profile.org_id) {
-    return (
-      <div>
-        <PageHeader
-          title="Log time"
-          description="Record your hours day by day."
-        />
-        <EmptyState
-          title="No organization assigned"
-          description="Your profile needs an organization before you can log time. Contact a platform administrator."
-        />
-      </div>
-    );
-  }
 
   const isManager = profile.role === "admin" || profile.role === "superadmin";
   const weekMonday = searchParams?.date

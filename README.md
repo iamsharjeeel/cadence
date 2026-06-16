@@ -69,8 +69,9 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - Enhanced landing page
 
 ### Phase 7 — In-app time tracking
-- Weekly submission (Mon–Sun): log time at `/app/timesheets/log` with auto-save via Supabase browser client (RLS-scoped)
-- Seven-day view (weekends optional); submit gate: 5 days logged or 40 hours; overtime flagged for manager review
+- Weekly submission (Mon–Sun): log time at `/app/timesheets` (employees) or `/app/timesheets/log` with auto-save via Supabase browser client (RLS-scoped)
+- **Personal (no-org) users** can log time in personal workspace: entries and timesheets save with `org_id = null`; no submit-for-approval flow (entries persist as drafts). Switching into an org via the workspace switcher scopes new entries to that org and restores the approval workflow.
+- Seven-day view (weekends optional); submit gate (org context only): 5 days logged or 40 hours; overtime flagged for manager review
 - Draft rows persist only with valid start/end; overlap guard excludes self and invalid DB rows
 - Branded **TimePicker** and **DatePicker** components (gold accent, Framer Motion popovers) replace native time/date inputs app-wide
 - SSR prefetch on timesheet log pages for near-instant first paint (no client waterfall on load)

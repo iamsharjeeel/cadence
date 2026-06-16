@@ -146,7 +146,7 @@ function applyTrackingData(
   },
 ) {
   setters.setTimesheetId(data.timesheetId);
-  setters.setOrgId(data.orgId);
+  setters.setOrgId(data.orgId ?? "");
   setters.setEmployeeId(data.employeeId);
   setters.setStatus(data.status);
   setters.setProjects(data.projects);
@@ -422,7 +422,7 @@ export function TimeTrackingView({
         const empId = employeeIdRef.current;
 
         if (!editableRef.current) return;
-        if (!tsId || !org || !empId) {
+        if (!tsId || !empId) {
           updateEntry(date, clientId, {
             saveState: "error",
             error: "Timesheet not ready.",
@@ -443,7 +443,7 @@ export function TimeTrackingView({
 
         const res = await saveTimeEntryClient({
           id: entry.id,
-          orgId: org,
+          orgId: org || null,
           employeeId: empId,
           timesheetId: tsId,
           entryDate: entry.entry_date,
@@ -577,6 +577,8 @@ export function TimeTrackingView({
       setAsanaSyncPending(false);
     }
   }
+
+  const hasOrgContext = Boolean(orgId);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -868,15 +870,17 @@ export function TimeTrackingView({
               </div>
             )}
 
-            <div className="border-t border-[var(--line)] pt-4">
-              <p className="text-xs text-muted">Submit progress</p>
-              <p className="tabular mt-0.5 text-sm font-medium text-ink">
-                {weekStats.daysLogged} / {SUBMIT_MIN_DAYS} days ·{" "}
-                {weekStats.totalHours.toFixed(1)} / {SUBMIT_MIN_HOURS}.0h
-              </p>
-            </div>
+            {hasOrgContext && (
+              <div className="border-t border-[var(--line)] pt-4">
+                <p className="text-xs text-muted">Submit progress</p>
+                <p className="tabular mt-0.5 text-sm font-medium text-ink">
+                  {weekStats.daysLogged} / {SUBMIT_MIN_DAYS} days ·{" "}
+                  {weekStats.totalHours.toFixed(1)} / {SUBMIT_MIN_HOURS}.0h
+                </p>
+              </div>
+            )}
 
-            {showOvertimeNotice && editable && (
+            {showOvertimeNotice && editable && hasOrgContext && (
               <p className="rounded-[var(--radius-card)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
                 <span className="tabular font-medium">
                   {(totalHours - OVERTIME_HOURS_THRESHOLD).toFixed(1)}h
@@ -885,7 +889,7 @@ export function TimeTrackingView({
               </p>
             )}
 
-            {editable && (
+            {editable && hasOrgContext && (
               <Button
                 className="w-full"
                 disabled={pending || !timesheetId || !weekStats.canSubmit}
