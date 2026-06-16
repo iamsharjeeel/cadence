@@ -96,6 +96,45 @@ export type Database = {
           },
         ]
       }
+      api_keys: {
+        Row: {
+          id: string
+          user_id: string
+          org_id: string | null
+          name: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          expires_at: string | null
+          revoked_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          org_id?: string | null
+          name: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          expires_at?: string | null
+          revoked_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          org_id?: string | null
+          name?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          expires_at?: string | null
+          revoked_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       memberships: {
         Row: {
           created_at: string
@@ -823,39 +862,90 @@ export type Database = {
           },
         ]
       }
+      webhook_endpoints: {
+        Row: {
+          id: string
+          org_id: string
+          url: string
+          secret: string
+          description: string | null
+          events: string[]
+          enabled: boolean
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          url: string
+          secret: string
+          description?: string | null
+          events?: string[]
+          enabled?: boolean
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          url?: string
+          secret?: string
+          description?: string | null
+          events?: string[]
+          enabled?: boolean
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       webhook_deliveries: {
         Row: {
           attempts: number
           created_at: string
           delivered_at: string | null
+          error_message: string | null
+          event_type: string | null
           id: string
           last_attempted_at: string | null
           org_id: string
           payload: Json
+          response_body: string | null
+          response_status: number | null
           status: string
-          timesheet_id: string
+          timesheet_id: string | null
+          webhook_endpoint_id: string | null
         }
         Insert: {
           attempts?: number
           created_at?: string
           delivered_at?: string | null
+          error_message?: string | null
+          event_type?: string | null
           id?: string
           last_attempted_at?: string | null
           org_id: string
-          payload: Json
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
           status?: string
-          timesheet_id: string
+          timesheet_id?: string | null
+          webhook_endpoint_id?: string | null
         }
         Update: {
           attempts?: number
           created_at?: string
           delivered_at?: string | null
+          error_message?: string | null
+          event_type?: string | null
           id?: string
           last_attempted_at?: string | null
           org_id?: string
           payload?: Json
+          response_body?: string | null
+          response_status?: number | null
           status?: string
-          timesheet_id?: string
+          timesheet_id?: string | null
+          webhook_endpoint_id?: string | null
         }
         Relationships: [
           {
@@ -1494,6 +1584,8 @@ export type Document = Tables<"documents">
 export type Timesheet = Tables<"timesheets">
 export type TimesheetRow = Tables<"timesheet_rows">
 export type WebhookDelivery = Tables<"webhook_deliveries">
+export type WebhookEndpoint = Tables<"webhook_endpoints">
+export type ApiKey = Tables<"api_keys">
 export type LeaveType = Tables<"leave_types">
 export type LeaveBalance = Tables<"leave_balances">
 export type LeaveRequest = Tables<"leave_requests">

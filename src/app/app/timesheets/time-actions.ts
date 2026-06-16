@@ -6,6 +6,7 @@ import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins } from "@/lib/notifications";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
 import {
   addDays,
   isoWeekLabel,
@@ -351,6 +352,21 @@ export async function submitTimesheetForApproval(
     entity: "timesheets",
     entityId: timesheetId,
     excludeUserId: profile.id,
+  });
+
+  void dispatchWebhookEvent(ts.org_id, {
+    type: "timesheet.submitted",
+    data: {
+      timesheet_id: timesheetId,
+      employee_id: profile.id,
+      org_id: ts.org_id,
+      period_start: ts.period_start,
+      period_end: ts.period_end,
+      days_logged: stats.daysLogged,
+      total_hours: stats.totalHours,
+      has_overtime: hasOvertime,
+      overtime_hours: otHours,
+    },
   });
 
   revalidatePath("/app/timesheets");

@@ -1686,41 +1686,31 @@ _(none logged)_
 - Approval `pending_approval` entries end-to-end with manager approval UI (enforcement UI deferred — settings only toggles status on timer save).
 
 #### Remaining roadmap
-- **F4 — Webhooks / external API** (own session): CFO webhook on timesheet approval, API keys, delivery retries.
+- None from F-track — next priorities TBD (CFO agent consumer, webhook retry/backoff, API rate limiting).
 
 #### Verification
 - `npm run typecheck` passes.
 
-### Session — F1 approval settings + F2 timer + F3 reporting + admin→Manager rename ✅ (2026-06-16)
+### Session — F4 public API v1, webhooks-out, developer settings ✅ (2026-06-16)
 
-#### F1 — org_settings + Organization page
-- Migration `20260616000001_org_settings.sql` (table + RLS + `get_or_create_org_settings` RPC). **Applied externally on live Supabase** — file committed for repo parity.
-- `OrgSettingsProvider` + `useOrgSettings()` — RPC fetch cached in React context (app shell).
-- `/app/employees` restructured: **Members | Settings** tabs. Settings tab owner-only (approval toggles, approver scope radio, plan badge). Members matrix: owner full manage; manager list-only; employee redirect; superadmin read-only audit view with role badges.
-- `updateOrgApprovalSettings` server action + optimistic save with toast; `org_settings_updated` audit.
-
-#### F2 — Floating timer
-- `TimerContext` + `FloatingTimer` in app shell (no localStorage).
-- Start/stop, project picker, idle 30m modal, midnight split save, running-timer conflict prompt.
-- `saveTimerEntries` server action; `time_entries.status` = `pending_approval` when `approvals_timesheets` on.
-- Migration `20260630000001_time_entries_approval_status.sql`.
-
-#### F3 — Reports
-- `/app/reports` + nav entry (personal always; org tab owner/manager only).
-- `src/lib/reports/queries.ts` — personal + org aggregates with explicit workspace filters.
-- recharts project bar chart; org CSV export client-side.
-
-#### UI rename
-- `getRoleLabel` / `roleLabel` — `admin` → “Manager” in all user-facing strings; `RolePill` uses display helper. DB role value unchanged.
+#### F4 — Public API + webhooks-out
+- **`api_keys` + `webhook_endpoints` tables** (applied externally on live Supabase — types in `src/types/db.ts` + `src/types/api.ts`).
+- **`generateApiKey` / `revokeApiKey`** server actions; `validateApiKey` middleware (`src/lib/api-auth.ts`).
+- **REST v1** under `src/app/api/v1/`: `time-entries` (GET/POST), `projects` (GET), `members` (GET, org key only).
+- **`dispatchWebhookEvent`** (`src/lib/webhook-dispatcher.ts`) — HMAC-SHA256 signed POST, delivery log in `webhook_deliveries`.
+- **Triggers wired** in timesheet submit/approve, leave request/approve/reject, invite send, invite accept/redeem.
+- **Developer UI**: Profile API keys panel; Organization Settings tab API keys + webhook endpoints (owner/manager); managers can access Settings tab for Developer section; approval toggles remain owner-only.
 
 #### Untested (manual QA recommended)
-- Live RPC + RLS on `org_settings` against production Supabase (migration assumed applied).
-- Timer midnight auto-stop across real timezone boundaries.
-- Org report utilization % with partial weeks.
-- Approval `pending_approval` entries end-to-end with manager approval UI (enforcement UI deferred — settings only toggles status on timer save).
+- Live RLS on `api_keys` / `webhook_endpoints` / extended `webhook_deliveries` against production.
+- API v1 routes with real keys on deployed URL.
+- Webhook signature verification on a test receiver.
+- No delivery retry (single attempt by design for this session).
 
 #### Remaining roadmap
-- **F4 — Webhooks / external API** (own session): CFO webhook on timesheet approval, API keys, delivery retries.
+- Webhook delivery retries / backoff.
+- API rate limiting and scoped permissions per key.
+- CFO Claude Agent consumer on `timesheet.approved`.
 
 #### Verification
 - `npm run typecheck` passes.

@@ -7,6 +7,7 @@ import { writeAudit } from "@/lib/audit";
 import { getOrgName } from "@/lib/invites";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getResendClient, getResendFromEmail } from "@/lib/resend";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
 import type { UserRole } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -166,6 +167,16 @@ export async function inviteMember(payload: {
     action: "member_invited",
     entity: "org_invites",
     payload: { email, role, org_id: orgId },
+  });
+
+  void dispatchWebhookEvent(orgId, {
+    type: "member.invited",
+    data: {
+      email,
+      role,
+      org_id: orgId,
+      invited_by: actorId,
+    },
   });
 
   revalidatePath("/app/employees");

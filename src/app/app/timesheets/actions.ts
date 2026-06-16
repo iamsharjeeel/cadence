@@ -8,6 +8,7 @@ import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { calculateTotal } from "@/lib/timesheets/calc";
 import { durationHours } from "@/lib/time/validation";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
 import type { RateType } from "@/types/db";
 
 export type ActionResult = {
@@ -103,26 +104,25 @@ export async function approveTimesheet(
     .eq("id", id);
   if (updErr) return { ok: false, message: "Couldn't approve the timesheet." };
 
-  await db.from("webhook_deliveries").insert({
-    org_id: ts.org_id,
-    timesheet_id: id,
-    status: "pending",
-    payload: {
-      event: "timesheet.approved",
-      timesheet_id: id,
-      employee_id: ts.employee_id,
-      org_id: ts.org_id,
-      period_start: ts.period_start,
-      period_end: ts.period_end,
-      total_hours: totalHours,
-      rate_snapshot: employee.rate,
-      rate_type_snapshot: employee.rate_type,
-      currency_snapshot: employee.currency,
-      calculated_total: total,
-      approved_by: actor.id,
-      approved_at: approvedAt,
-    },
-  });
+  if (ts.org_id) {
+    void dispatchWebhookEvent(ts.org_id, {
+      type: "timesheet.approved",
+      data: {
+        timesheet_id: id,
+        employee_id: ts.employee_id,
+        org_id: ts.org_id,
+        period_start: ts.period_start,
+        period_end: ts.period_end,
+        total_hours: totalHours,
+        rate_snapshot: employee.rate,
+        rate_type_snapshot: employee.rate_type,
+        currency_snapshot: employee.currency,
+        calculated_total: total,
+        approved_by: actor.id,
+        approved_at: approvedAt,
+      },
+    });
+  }
 
   await writeAudit({
     actorId: actor.id,
@@ -208,26 +208,25 @@ export async function bulkApproveTimesheets(
       .eq("id", id);
     if (updErr) continue;
 
-    await db.from("webhook_deliveries").insert({
-      org_id: ts.org_id,
-      timesheet_id: id,
-      status: "pending",
-      payload: {
-        event: "timesheet.approved",
-        timesheet_id: id,
-        employee_id: ts.employee_id,
-        org_id: ts.org_id,
-        period_start: ts.period_start,
-        period_end: ts.period_end,
-        total_hours: totalHours,
-        rate_snapshot: employee.rate,
-        rate_type_snapshot: employee.rate_type,
-        currency_snapshot: employee.currency,
-        calculated_total: total,
-        approved_by: actor.id,
-        approved_at: approvedAt,
-      },
-    });
+    if (ts.org_id) {
+      void dispatchWebhookEvent(ts.org_id, {
+        type: "timesheet.approved",
+        data: {
+          timesheet_id: id,
+          employee_id: ts.employee_id,
+          org_id: ts.org_id,
+          period_start: ts.period_start,
+          period_end: ts.period_end,
+          total_hours: totalHours,
+          rate_snapshot: employee.rate,
+          rate_type_snapshot: employee.rate_type,
+          currency_snapshot: employee.currency,
+          calculated_total: total,
+          approved_by: actor.id,
+          approved_at: approvedAt,
+        },
+      });
+    }
 
     await writeAudit({
       actorId: actor.id,

@@ -7,6 +7,7 @@ import { PlatformMembersAudit } from "./PlatformMembersAudit";
 import { OrgTeamView } from "./OrgTeamView";
 import { OrganizationTabs } from "./OrganizationTabs";
 import { OrgApprovalSettingsTab } from "./OrgApprovalSettingsTab";
+import { OrgDeveloperSettings } from "./OrgDeveloperSettings";
 
 export const metadata: Metadata = { title: "Organization" };
 
@@ -33,16 +34,20 @@ export default async function EmployeesPage({
 
   const tab = searchParams.tab === "settings" ? "settings" : "members";
   const isOwner = wsRole === "owner";
+  const canAccessSettings = isOwner || wsRole === "admin";
 
-  if (tab === "settings" && !isOwner) {
+  if (tab === "settings" && !canAccessSettings) {
     redirect("/app/employees?tab=members");
   }
 
   return (
     <div>
-      <OrganizationTabs tab={tab} showSettings={isOwner} />
-      {tab === "settings" && isOwner ? (
-        <OrgApprovalSettingsTab orgId={ctx.activeOrgId} />
+      <OrganizationTabs tab={tab} showSettings={canAccessSettings} />
+      {tab === "settings" && canAccessSettings ? (
+        <div className="space-y-6">
+          {isOwner && <OrgApprovalSettingsTab orgId={ctx.activeOrgId} />}
+          <OrgDeveloperSettings orgId={ctx.activeOrgId} />
+        </div>
       ) : (
         <OrgTeamView
           orgId={ctx.activeOrgId}

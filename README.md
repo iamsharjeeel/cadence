@@ -244,8 +244,23 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - Org: total hours, per-member (hours, billable %, utilization %), per-project table, client-side CSV export
 - Defense-in-depth workspace filters on all queries; employees in org context see personal tab only
 
-### F4 — Webhooks / API (next session)
-- Deferred: CFO webhook delivery, external API surface
+### F4 — Public API v1 + webhooks-out (shipped)
+- **API keys** (`api_keys` table): `cad_live_<hex>` format, SHA-256 hash stored, prefix shown in UI; `generateApiKey` server action; max 10 active keys per user/org scope
+- **`validateApiKey`** (`src/lib/api-auth.ts`) — Bearer token auth for REST routes; updates `last_used_at` fire-and-forget
+- **REST API v1** (API key only, header `X-Cadence-API-Version: 1`):
+  - `GET /api/v1/time-entries` — list with `from`, `to`, `project_id`, `limit`, `offset`
+  - `POST /api/v1/time-entries` — create decimal-hours entry (`date`, `hours`, optional `description`, `project_id`, `billable`)
+  - `GET /api/v1/projects` — workspace-scoped projects
+  - `GET /api/v1/members` — org key only; memberships with role display (`admin` → `manager`)
+- **Webhooks-out** (`webhook_endpoints`, extended `webhook_deliveries`): `dispatchWebhookEvent` POSTs signed payloads (`X-Cadence-Signature: sha256=…`), 10s timeout, single attempt recorded per delivery
+- **Event triggers** (fire-and-forget): `timesheet.submitted`, `timesheet.approved`, `leave.requested`, `leave.approved`, `leave.rejected`, `member.invited`, `member.joined`
+- **Developer settings UI**: Profile → API keys (personal); Organization → Settings tab → API keys + webhook endpoints (owner/manager); approval settings remain owner-only
+
+#### Untested (manual QA recommended)
+- Live `api_keys` / `webhook_endpoints` RLS against production Supabase (migrations assumed applied externally)
+- End-to-end API key auth against deployed `/api/v1/*` routes
+- Webhook delivery to external HTTPS endpoint (signature verification on receiver)
+- Delivery retry logic deferred (single attempt only)
 
 ## Design system v2
 

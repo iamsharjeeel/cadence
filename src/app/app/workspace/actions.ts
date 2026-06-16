@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireActiveProfile } from "@/lib/auth";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -87,7 +89,7 @@ export async function switchWorkspace(
  */
 export async function acceptInvite(inviteId: string): Promise<ActionResult> {
   try {
-    await requireActiveProfile();
+    const profile = await requireActiveProfile();
     const { supabase } = await authenticatedClient();
 
     const { data: orgId, error } = await supabase.rpc("accept_invite", {
@@ -95,6 +97,24 @@ export async function acceptInvite(inviteId: string): Promise<ActionResult> {
     });
     if (error) throw new Error(error.message);
     if (!orgId) throw new Error("Invite could not be accepted.");
+
+    const admin = createAdminClient();
+    const { data: membership } = await admin
+      .from("memberships")
+      .select("role")
+      .eq("org_id", orgId)
+      .eq("user_id", profile.id)
+      .maybeSingle();
+
+    void dispatchWebhookEvent(orgId, {
+      type: "member.joined",
+      data: {
+        user_id: profile.id,
+        org_id: orgId,
+        role: membership?.role ?? "employee",
+        invite_id: inviteId,
+      },
+    });
 
     await persistActiveWorkspace(orgId);
     revalidateAppShell();

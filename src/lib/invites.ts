@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
 import type { UserRole } from "@/types/db";
 
 export type OrgInvite = {
@@ -54,6 +55,17 @@ export async function redeemOrgInvites(
       .from("org_invites")
       .update({ accepted_at: new Date().toISOString() })
       .eq("id", invite.id);
+
+    void dispatchWebhookEvent(invite.org_id, {
+      type: "member.joined",
+      data: {
+        user_id: userId,
+        org_id: invite.org_id,
+        role: invite.role,
+        invite_id: invite.id,
+      },
+    });
+
     redeemed++;
   }
 

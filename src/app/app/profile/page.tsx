@@ -25,6 +25,7 @@ import { ProfileEmploymentForm } from "./ProfileEmploymentForm";
 import { ProfileRateForm } from "./ProfileRateForm";
 import { ProfileEmergencyForm } from "./ProfileEmergencyForm";
 import { ProfileCompleteness } from "./ProfileCompleteness";
+import { ProfileDeveloperSection } from "./ProfileDeveloperSection";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -181,6 +182,16 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           />
         </CardContent>
       </Card>
+
+      <div id="section-developer" className="mt-4 scroll-mt-20">
+        <Suspense
+          fallback={
+            <div className="h-40 animate-pulse rounded-[var(--radius-card)] bg-[var(--line)]" />
+          }
+        >
+          <ProfileDeveloperSection />
+        </Suspense>
+      </div>
     </div>
   );
 }

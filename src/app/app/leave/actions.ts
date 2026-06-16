@@ -9,6 +9,7 @@ import { requireActiveProfile } from "@/lib/auth";
 import { countBusinessDays } from "@/lib/leave/days";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
 import { pushLeaveToGoogleCalendar, removeLeaveFromGoogleCalendar } from "@/lib/google-calendar/push-leave";
+import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getWorkspaceContext } from "@/lib/workspace";
 import {
@@ -195,17 +196,21 @@ export async function requestLeave(input: {
     : { ok: true as const, value: "" };
   if (!noteV.ok) return { ok: false, message: noteV.error };
 
-  const { error } = await db.from("leave_requests").insert({
-    org_id: orgId,
-    employee_id: profile.id,
-    leave_type_id: leaveTypeId,
-    start_date: start,
-    end_date: end,
-    days_requested: days,
-    half_day: halfDay,
-    note: noteV.value || null,
-    status: "pending",
-  });
+  const { data: inserted, error } = await db
+    .from("leave_requests")
+    .insert({
+      org_id: orgId,
+      employee_id: profile.id,
+      leave_type_id: leaveTypeId,
+      start_date: start,
+      end_date: end,
+      days_requested: days,
+      half_day: halfDay,
+      note: noteV.value || null,
+      status: "pending",
+    })
+    .select("id")
+    .single();
   if (error) {
     console.error("[leave] request failed:", error.message);
     return { ok: false, message: "Couldn't submit request." };
@@ -227,6 +232,20 @@ export async function requestLeave(input: {
     action: "leave_requested",
     entity: "leave_requests",
     payload: { leave_type_id: leaveTypeId, days },
+  });
+
+  void dispatchWebhookEvent(orgId, {
+    type: "leave.requested",
+    data: {
+      request_id: inserted.id,
+      employee_id: profile.id,
+      org_id: orgId,
+      leave_type_id: leaveTypeId,
+      start_date: start,
+      end_date: end,
+      days_requested: days,
+      half_day: halfDay,
+    },
   });
 
   revalidatePath("/app/leave");
@@ -393,6 +412,18 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
     payload: { request_id: id },
   });
 
+  void dispatchWebhookEvent(req.org_id, {
+    type: "leave.approved",
+    data: {
+      request_id: id,
+      employee_id: req.employee_id,
+      org_id: req.org_id,
+      start_date: req.start_date,
+      end_date: req.end_date,
+      reviewed_by: actor.id,
+    },
+  });
+
   revalidatePath("/app/leave");
   return {
     ok: true,
@@ -463,6 +494,19 @@ export async function rejectLeaveRequest(
     action: "leave_rejected",
     entity: "leave_requests",
     payload: { request_id: id, note: note.trim() },
+  });
+
+  void dispatchWebhookEvent(req.org_id, {
+    type: "leave.rejected",
+    data: {
+      request_id: id,
+      employee_id: req.employee_id,
+      org_id: req.org_id,
+      start_date: req.start_date,
+      end_date: req.end_date,
+      rejection_note: note.trim(),
+      reviewed_by: actor.id,
+    },
   });
 
   revalidatePath("/app/leave");
