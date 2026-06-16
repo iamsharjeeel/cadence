@@ -164,6 +164,13 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
   - fixed "Billable by default" switch thumb alignment/animation to match the clean Google Calendar toggle pattern
 - Time-entry project picker no longer prepends `[Org]` to project names; it now shows plain project names.
 
+### Workspace switcher refresh + trends relocation by workspace context
+- **Workspace switcher visual refresh (`WorkspaceSwitcher`)**: redesigned to a denser GoHighLevel-style vertical row list (compact initial-letter badges, bold workspace name + muted secondary line, crisp row dividers, subtle active indicator). No large avatar/logo row blocks and no search input added. Existing switch/create/accept-invite behavior remains unchanged.
+- **Trends navigation and routing are now workspace-context aware**:
+  - **Personal context (`activeOrgId = null`)**: no standalone Trends nav item; personal trends are folded into Dashboard as a section using the existing trends view components.
+  - **Org context (`activeOrgId != null`)**: standalone Trends page and nav item remain available and unchanged.
+  - Direct personal-context hits to `/app/trends` redirect to `/app/dashboard`.
+
 ## Getting started
 
 ```bash

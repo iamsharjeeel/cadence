@@ -1534,3 +1534,19 @@ _(none logged)_
   - Reworked switch thumb positioning to the same clean `h-6 w-11` track + absolutely-positioned `h-5 w-5` thumb pattern used in Google Calendar toggles (`left-0.5` / `left-[22px]`), fixing misalignment and transition.
 - **Targeted visual fix 3 — Time-entry project picker label (`ProjectPicker.tsx`):**
   - Removed `[Org]` prefix from selected label and dropdown option rendering; picker now shows plain project names.
+
+### Session — Workspace switcher refresh + trends relocation (personal→Dashboard, org→standalone) ✅ (2026-06-16, app-layer only; no DB change)
+- **Workspace switcher visual refresh (`WorkspaceSwitcher.tsx`)**
+  - Restyled to a denser GoHighLevel-like list: compact initial-letter badges (no large `OrgLogo` row blocks), bold workspace name, muted secondary line (role / personal description), crisp row dividers, and a subtle active indicator.
+  - No search input added.
+  - **Logic unchanged**: existing `switchWorkspace`, `createOrganizationAction`, and `acceptInvite` paths are preserved; memberships/invite data source unchanged.
+- **Trends relocation by active workspace context**
+  - `nav.ts`: removed `/app/trends` from **personal** nav context only.
+  - `trends/page.tsx`: now gates via `getWorkspaceContext()` and redirects personal context (`ctx.isPersonal`) to `/app/dashboard` (route safety for old bookmarks).
+  - `dashboard/page.tsx` + `EmployeeDashboardContent.tsx`: personal context now folds in trends as a Dashboard section using existing `EmployeeTrendsView` (no chart rebuild).
+  - Org contexts (employee/manager/superadmin org views) keep standalone Trends page behavior.
+- **Workspace-scoped personal trend data**
+  - `lib/time/trends.ts` employee-trend query now scopes to the active workspace (`org_id = active org` or `org_id IS NULL` in personal context), preventing cross-context mixing.
+- **Verification**
+  - `npm run typecheck` and `npm run build` pass.
+  - Dashboard/Trends comfortable spacing remains intact from the previous comfortable-density overrides.
