@@ -1624,8 +1624,8 @@ _(none logged)_
 - Driven from `WorkspaceSwitcher` on switch, invite accept, and create-org paths; dismisses on route change or error.
 
 #### Fix D1 — Full-screen document viewer
-- `UserDocumentViewer.tsx` — full-screen overlay for PDF (iframe) and images; close + download controls.
-- `userDocPreviewKind()` helper; non-previewable types (docx, xlsx, etc.) fall back to download with toast.
+- `UserDocumentViewer.tsx` — full-screen overlay for PDF (iframe), images, and **DOCX** (mammoth.js client-side HTML conversion).
+- `userDocPreviewKind()` helper; DOCX conversion failures and non-previewable types (xlsx, etc.) fall back to download with toast.
 - Wired into `UserDocumentRowActions` as View/Open action on Official documents tab.
 
 #### Verification

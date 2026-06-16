@@ -58,7 +58,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - Pay advice and contractor invoice PDF generation (from approved timesheets)
 - Encrypted banking fields, Resend email delivery
 - Document status tracking and re-send
-- **User document library** (`user_documents`): personal uploads + org-assigned files in the Official documents tab; stored in the `documents` bucket under `user-docs/{owner_id}/`; private downloads via signed URLs; PDF/image full-screen in-app viewer (download fallback for other types)
+- **User document library** (`user_documents`): personal uploads + org-assigned files in the Official documents tab; stored in the `documents` bucket under `user-docs/{owner_id}/`; private downloads via signed URLs; full-screen in-app viewer for PDF, images, and DOCX (mammoth.js client-side HTML); download fallback for other types
 
 ### Phase 5 — Leave, onboarding & document hub
 - **Leave (workspace-scoped):** Personal workspace → standalone time-off calendar (mark days off, no approval, no categories). Org workspace → calendar + request/approve flow; leave categories optional when org has types configured (not required); balances never gate requests. Confirmed leave pushes one-way to Google Calendar when connected; `google_event_id` stored on confirm and removed on delete/cancel/reject.
