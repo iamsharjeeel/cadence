@@ -35,6 +35,7 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
   leave_rejected: XCircle,
   official_document_assigned: FileText,
   official_document_signed: CheckCircle2,
+  org_document_ack_reminder: FileText,
 };
 
 const BELL_PANEL_MOTION = {

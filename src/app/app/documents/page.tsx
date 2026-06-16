@@ -21,11 +21,17 @@ import { DocumentsTabs } from "@/components/documents/DocumentsTabs";
 import { GenerateFromTimesheetsButton } from "@/components/documents/GenerateFromTimesheetsButton";
 import { PayDocumentRowActions } from "@/components/documents/PayDocumentRowActions";
 import { UserDocumentsLibrary } from "@/components/documents/UserDocumentsLibrary";
+import { OrgDocumentLibrary } from "@/components/documents/OrgDocumentLibrary";
 import { MotionTR } from "@/components/motion/MotionTR";
 import { requireActiveProfile } from "@/lib/auth";
 import { getApprovedTimesheetsWithoutDocuments } from "@/lib/documents/queries";
 import {
-  listOrgMembersForAssign,
+  listOrgLibraryDocuments,
+  listAssignedOfficialDocumentsForMember,
+  listOrgMembersForOfficialAssign,
+  signedUrlsForOfficialDocuments,
+} from "@/lib/org-documents/queries";
+import {
   listUserDocumentsForOwner,
   signedUrlsForUserDocuments,
 } from "@/lib/user-documents/queries";
@@ -99,6 +105,36 @@ export default async function DocumentsPage({
     }
   }
 
+  if (tab === "org") {
+    const ctx = await getWorkspaceContext();
+    if (!ctx) redirect("/login");
+
+    const inOrg = Boolean(ctx.activeOrgId);
+    const isOrgManager =
+      inOrg &&
+      (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
+
+    if (!isOrgManager || !ctx.activeOrgId) {
+      redirect("/app/documents?tab=official");
+    }
+
+    const [libraryDocs, members] = await Promise.all([
+      listOrgLibraryDocuments(ctx.activeOrgId),
+      listOrgMembersForOfficialAssign(ctx.activeOrgId),
+    ]);
+
+    return (
+      <div>
+        <PageHeader
+          title="Documents"
+          description="Organization document library — upload master documents and assign to members."
+        />
+        <DocumentsTabs tab={tab} showOrgLibrary />
+        <OrgDocumentLibrary documents={libraryDocs} members={members} />
+      </div>
+    );
+  }
+
   if (tab === "official") {
     const ctx = await getWorkspaceContext();
     if (!ctx) redirect("/login");
@@ -110,14 +146,15 @@ export default async function DocumentsPage({
       (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
     const canUploadPersonal = !inOrg || ctx.isSuperadmin;
 
-    const [documents, members] = await Promise.all([
+    const [documents, assignedOfficial] = await Promise.all([
       listUserDocumentsForOwner(userId),
-      isOrgManager && ctx.activeOrgId
-        ? listOrgMembersForAssign(ctx.activeOrgId, userId)
-        : Promise.resolve([]),
+      listAssignedOfficialDocumentsForMember(userId),
     ]);
 
-    const downloadUrls = await signedUrlsForUserDocuments(documents);
+    const [downloadUrls, officialDownloadUrls] = await Promise.all([
+      signedUrlsForUserDocuments(documents),
+      signedUrlsForOfficialDocuments(assignedOfficial),
+    ]);
 
     return (
       <div>
@@ -125,13 +162,13 @@ export default async function DocumentsPage({
           title="Documents"
           description="Pay documents and your official document library."
         />
-        <DocumentsTabs tab={tab} />
+        <DocumentsTabs tab={tab} showOrgLibrary={isOrgManager} />
         <UserDocumentsLibrary
           documents={documents}
           downloadUrls={downloadUrls}
+          assignedOfficialDocs={assignedOfficial}
+          officialDownloadUrls={officialDownloadUrls}
           canUploadPersonal={canUploadPersonal}
-          canAssignToMember={isOrgManager}
-          members={members}
         />
       </div>
     );

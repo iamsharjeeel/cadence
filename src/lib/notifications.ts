@@ -12,7 +12,8 @@ export type NotificationType =
   | "leave_approved"
   | "leave_rejected"
   | "official_document_assigned"
-  | "official_document_signed";
+  | "official_document_signed"
+  | "org_document_ack_reminder";
 
 export async function notifyUser(params: {
   orgId: string;

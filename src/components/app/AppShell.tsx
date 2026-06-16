@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { Sidebar } from "@/components/app/Sidebar";
 import { WorkspaceSwitchProvider } from "@/components/app/WorkspaceSwitchContext";
+import { OrgDocumentReminderCheck } from "@/components/documents/OrgDocumentReminderCheck";
 import { Topbar } from "@/components/app/Topbar";
 import { NavigationProvider } from "@/components/app/NavigationProvider";
 import { PageTransition } from "@/components/motion/PageTransition";
@@ -61,6 +62,7 @@ export function AppShell({
   return (
     <NavigationProvider>
       <WorkspaceSwitchProvider>
+        <OrgDocumentReminderCheck />
         <div className="flex min-h-screen bg-background">
           <Sidebar
             navContext={navContext}

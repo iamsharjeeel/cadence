@@ -1609,6 +1609,35 @@ _(none logged)_
 #### Note — storage policies
 - User-doc uploads/deletes use the **service-role admin client** (same as generated pay PDFs), so existing `documents` bucket RLS path rules (`{org_id}/…`) do not block `user-docs/…` paths. If you later move uploads to the authenticated client, add storage policies for the `user-docs/` prefix.
 
+### Session — Org document library + multi-assign + acknowledge + daily reminder (Build B) ✅ (2026-06-16, app-layer only)
+
+#### Model (`official_documents` reused — onboarding compatibility preserved)
+- **Library masters:** `employee_id` null, `org_id` = active org, `status` = `acknowledged` (catalog row), `signing_type` = `acknowledgement`, files in **`org-documents`** bucket at `{orgId}/library/{docId}/{filename}`. Masters never appear in onboarding (`employee_id` must be set for onboarding pending query).
+- **Assigned copies:** one row per member on assign; same `file_path` as master; `employee_id` = member, `status` = `pending`, `signing_type` = `acknowledgement`. Acknowledge sets `status` = `acknowledged` + `signed_at` (no `signature_data`).
+- **Onboarding unchanged:** legacy paths in `official-documents` bucket (`{orgId}/{employeeId}/…`); `e_signature` + `acknowledgement` flows in `official-documents/actions.ts`; onboarding page still loads `employee_id` = user + `status` = `pending`.
+- **Personal library unchanged:** `user_documents` for personal uploads only; org-assign via `user_documents` UI removed in favour of org library.
+
+#### Storage — **owner action required**
+- New private bucket **`org-documents`** needed (not in migrations). Uploads fail until bucket + policies exist. Do **not** reuse `documents` or `official-documents` for library masters.
+
+#### UI
+- **Organization library** tab (owner/admin in org workspace): upload PDF/DOCX, list masters, multi-assign modal (select members or all).
+- **Official documents** tab: personal `user_documents` + org-assigned `official_documents` rows (Org-assigned badge, pending/acknowledged status, view via full-screen viewer, acknowledge button, no delete).
+- `OrgDocumentReminderCheck` in `AppShell` — opportunistic ack reminders (max one per doc per 24h via `org_document_ack_reminder` notification type).
+
+#### Auth / audit / notifications
+- Gated via `getWorkspaceContext()` + `auth_workspace_role()` (owner/admin); never `profiles.org_id` on this path.
+- Audit: `org_document_uploaded`, `org_document_assigned`, `org_document_acknowledged`.
+- Notify on assign (`official_document_assigned`); daily reminder while pending (`org_document_ack_reminder`).
+
+#### Touched
+- `src/lib/org-documents/{constants,queries,preview}.ts`
+- `src/app/app/org-documents/actions.ts`
+- `src/app/app/documents/page.tsx`
+- `src/components/documents/{OrgDocumentLibrary,UploadOrgDocumentModal,AssignOrgDocumentModal,OrgAssignedDocumentRowActions,OrgDocumentReminderCheck,UserDocumentsLibrary,DocumentsTabs}.tsx`
+- `src/components/app/{AppShell,NotificationsBell}.tsx`
+- `src/lib/{audit,notifications}.ts`, `README.md`
+
 ### Session — Polish batch A (leave calendar, GCal removal, workspace loader, doc viewer) ✅ (2026-06-16, app-layer only; no DB change)
 
 #### Fix L2 — Leave calendar rendering

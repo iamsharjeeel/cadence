@@ -6,7 +6,13 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { currentSearchParams } from "@/lib/search-params";
 
-export function DocumentsTabs({ tab = "pay" }: { tab?: string }) {
+export function DocumentsTabs({
+  tab = "pay",
+  showOrgLibrary = false,
+}: {
+  tab?: string;
+  showOrgLibrary?: boolean;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -16,12 +22,17 @@ export function DocumentsTabs({ tab = "pay" }: { tab?: string }) {
     return `${pathname}?${next.toString()}`;
   }
 
+  const tabs = [
+    { id: "pay", label: "Pay advices & invoices" },
+    { id: "official", label: "Official documents" },
+    ...(showOrgLibrary
+      ? [{ id: "org", label: "Organization library" }]
+      : []),
+  ];
+
   return (
     <div className="mb-6 flex gap-1 border-b border-[var(--line)]">
-      {[
-        { id: "pay", label: "Pay advices & invoices" },
-        { id: "official", label: "Official documents" },
-      ].map((t) => (
+      {tabs.map((t) => (
         <Link
           key={t.id}
           href={href(t.id)}

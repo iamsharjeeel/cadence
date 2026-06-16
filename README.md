@@ -58,12 +58,13 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - Pay advice and contractor invoice PDF generation (from approved timesheets)
 - Encrypted banking fields, Resend email delivery
 - Document status tracking and re-send
-- **User document library** (`user_documents`): personal uploads + org-assigned files in the Official documents tab; stored in the `documents` bucket under `user-docs/{owner_id}/`; private downloads via signed URLs; full-screen in-app viewer for PDF, images, and DOCX (mammoth.js client-side HTML); download fallback for other types
+- **User document library** (`user_documents`): personal uploads in the Official documents tab; stored in the `documents` bucket under `user-docs/{owner_id}/`; private downloads via signed URLs; full-screen in-app viewer for PDF, images, and DOCX (mammoth.js client-side HTML); download fallback for other types
+- **Org document library** (`official_documents`, workspace-scoped): owners/admins upload master documents to a dedicated `org-documents` storage bucket; multi-assign copies to members (one row per member); members acknowledge via button (no signature capture); assigned org docs appear in Official documents tab alongside personal uploads; opportunistic daily acknowledgement reminders (no cron); onboarding e-sign flow on `official_documents` preserved unchanged
 
 ### Phase 5 — Leave, onboarding & document hub
 - **Leave (workspace-scoped):** Personal workspace → standalone time-off calendar (mark days off, no approval, no categories). Org workspace → calendar + request/approve flow; leave categories optional when org has types configured (not required); balances never gate requests. Confirmed leave pushes one-way to Google Calendar when connected; `google_event_id` stored on confirm and removed on delete/cancel/reject.
 - Five-step employee onboarding wizard
-- Official documents tab: personal upload library + org→member assignment (`user_documents`); legacy e-sign `official_documents` flow remains for onboarding
+- Official documents tab: personal `user_documents` library + org-assigned copies from `official_documents` (acknowledge-only); Organization library tab (owner/admin) for upload + multi-assign; legacy e-sign `official_documents` onboarding flow unchanged
 
 ### Phase 6 — Performance, notifications & settings
 - Instant client-side navigation with progress bar and optimistic active states
