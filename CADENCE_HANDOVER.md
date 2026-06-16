@@ -1482,6 +1482,13 @@ Prod still runs app code `8dfa2f2` (pre-Track-C) on the new DB. It **degrades gr
 
 ### Resolved bugs / feedback
 - ~~**Timesheets: lost ability to log time**~~ — fixed 2026-06-16 (see above).
+- ~~**Employees: Unassigned/empty/wrong list, can't self-assign to org**~~ — fixed 2026-06-16 (see below).
 
 ### Open bugs / feedback
 _(none logged)_
+
+### Employees + workspace self-onboarding restored ✅ (2026-06-16, app-layer only; no DB change)
+- **Reconciliation (code vs live UI):** `setRole` / `removeMemberFromOrg` / `inviteMember` were already rewritten onto `memberships` + active workspace. The **page UI was stale**: superadmin still rendered the old global HR table with `profiles.org_id` "Unassigned" column and **Assign to org** (`assign-actions.ts` writing dead `profiles.org_id`). Workspace switcher + `create_organization` RPC were wired in `WorkspaceSwitcher` / `workspace/actions.ts` but unusable for superadmins (create hidden) and produced **zero memberships** when orgs were created via the superadmin **Organizations** page (`organizations/actions.ts` direct `organizations` insert — platform provisioning, no membership).
+- **Fix A — workspace:** Personal switch confirmed: `set_active_workspace(NULL)` deletes `active_workspace` (RPC already supported null; types allow `p_org_id: string | null`). Org create via sidebar → `create_organization` → `set_active_workspace(orgId)`. Switcher lists only caller's `memberships` + Personal.
+- **Fix B — Employees split:** Superadmin → `PlatformMembersAudit` (id, name, email, emergency_phone, audit link; no banking/rate/assign). Owner/manager in active org → `OrgTeamView` (memberships join; role/remove on `memberships`). Nav: superadmin label **Members**; employees hidden in personal/employee contexts (unchanged).
+- **Orphan orgs (needs owner SQL):** The 2 existing orgs created via superadmin Organizations page have **no `memberships` rows** (table still at 0 until someone uses sidebar create or accepts an invite). They cannot be claimed through app flows without a new RPC — **not auto-granted**. Owner must attach memberships via SQL or recreate via workspace switcher.

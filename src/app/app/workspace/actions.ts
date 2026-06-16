@@ -15,6 +15,7 @@ import { requireActiveProfile } from "@/lib/auth";
 export async function switchWorkspace(orgId: string | null): Promise<void> {
   await requireActiveProfile();
   const supabase = createClient();
+  // NULL p_org_id deletes active_workspace → personal (auth_org() returns null).
   const { error } = await supabase.rpc("set_active_workspace", {
     p_org_id: orgId,
   });

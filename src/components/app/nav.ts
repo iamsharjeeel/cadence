@@ -148,6 +148,13 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
 export function navForContext(ctx: NavContext): NavItem[] {
   const byHref = new Map(NAV_ITEMS.map((i) => [i.href, i]));
   return CONTEXT_HREFS[ctx]
-    .map((href) => byHref.get(href))
+    .map((href) => {
+      const item = byHref.get(href);
+      if (!item) return null;
+      if (ctx === "superadmin" && href === "/app/employees") {
+        return { ...item, label: "Members" };
+      }
+      return item;
+    })
     .filter((i): i is NavItem => Boolean(i));
 }

@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 
 import { writeAudit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireRole } from "@/lib/auth";
 import { getWorkspaceContext } from "@/lib/workspace";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -99,10 +98,16 @@ export async function removeMemberFromOrg(
 
 /** Cancel a pending invite (no profile yet, or profile not in org). */
 export async function cancelOrgInvite(inviteId: string): Promise<ActionResult> {
-  const actor = await requireRole(["admin", "owner"]);
+  const ctx = await getWorkspaceContext();
+  if (!ctx) return { ok: false, message: "Not signed in." };
 
-  if (!actor.org_id) {
-    return { ok: false, message: "Your account has no organization." };
+  const orgId = ctx.activeOrgId;
+  const wsRole = ctx.workspaceRole;
+  if (!orgId || (wsRole !== "owner" && wsRole !== "admin")) {
+    return {
+      ok: false,
+      message: "Switch to an organization you own or manage.",
+    };
   }
 
   const db = createAdminClient();
@@ -110,7 +115,7 @@ export async function cancelOrgInvite(inviteId: string): Promise<ActionResult> {
     .from("org_invites")
     .select("id, email, org_id, role")
     .eq("id", inviteId)
-    .eq("org_id", actor.org_id)
+    .eq("org_id", orgId)
     .is("accepted_at", null)
     .maybeSingle();
 
@@ -126,8 +131,8 @@ export async function cancelOrgInvite(inviteId: string): Promise<ActionResult> {
   }
 
   await writeAudit({
-    actorId: actor.id,
-    orgId: actor.org_id,
+    actorId: ctx.realProfile.id,
+    orgId,
     action: "member_invite_cancelled",
     entity: inviteId,
     payload: { email: invite.email, role: invite.role },
