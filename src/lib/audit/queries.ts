@@ -86,9 +86,24 @@ export async function fetchAuditLog(params: {
 
 export async function fetchAuditActors(orgId?: string | null) {
   const db = createAdminClient();
-  let query = db.from("profiles").select("id, full_name, email").order("full_name");
-  if (orgId) query = query.eq("org_id", orgId);
-  const { data } = await query;
+  if (orgId) {
+    const { data: members } = await db
+      .from("memberships")
+      .select("user_id")
+      .eq("org_id", orgId);
+    const userIds = (members ?? []).map((m) => m.user_id);
+    if (userIds.length === 0) return [];
+    const { data } = await db
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", userIds)
+      .order("full_name");
+    return data ?? [];
+  }
+  const { data } = await db
+    .from("profiles")
+    .select("id, full_name, email")
+    .order("full_name");
   return data ?? [];
 }
 

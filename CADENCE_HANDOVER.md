@@ -1483,9 +1483,18 @@ Prod still runs app code `8dfa2f2` (pre-Track-C) on the new DB. It **degrades gr
 ### Resolved bugs / feedback
 - ~~**Timesheets: lost ability to log time**~~ — fixed 2026-06-16 (see above).
 - ~~**Employees: Unassigned/empty/wrong list, can't self-assign to org**~~ — fixed 2026-06-16 (see below).
+- ~~**Workspace switcher changes UI but not context**~~ — fixed 2026-06-16 (see below).
 
 ### Open bugs / feedback
 _(none logged)_
+
+### Workspace switcher persistence + org cap + audit ✅ (2026-06-16, app-layer only; no DB change)
+- **Root cause (verified against live prod):** `WorkspaceSwitcher` called `switchWorkspace()` inside `startTransition(() => { void switchWorkspace(orgId) })`, which **discarded the promise** — RPC failures (`not authenticated`, `not a member`, etc.) were never surfaced, and `redirect()` inside the action did not reliably refresh the app shell. The dropdown closed and looked successful, but `active_workspace` stayed empty and `auth_org()` kept returning null (personal). The action already used the authenticated server client (not service-role); the bug was **silent failure + no post-switch revalidation**, not the wrong Supabase client.
+- **Fix:** `workspace/actions.ts` — explicit `authenticatedClient()` (`getUser()` before RPC), `persistActiveWorkspace()` with read-back verification, `ActionResult` returns (errors to toast), broad `revalidatePath` across `/app/**`. Client awaits the action, toasts errors, then `router.refresh()` + `router.push('/app/dashboard')` for a full Slack-style context switch.
+- **Create org:** `useFormStatus` debounce on submit; hide "Create organization" when non-superadmin already has an `owner` membership; surface DB cap `'You already own an organization'`; auto-switch + `org.create` audit via `writeAudit`.
+- **Audit:** Org Audit page scoped via active workspace (`profile.org_id` from `getWorkspaceContext`); `fetchAuditActors` reads org members from `memberships` (not vestigial `profiles.org_id`). Member invite/role/remove audits already present.
+- **Cleanup:** Deleted dead `assign-actions.ts` + `AssignMemberModal.tsx` (old `profiles.org_id` assign path).
+- **DB note:** One-owned-org cap is **live in production** (`create_organization` raises if non-superadmin already owns an org) — no migration in this pass.
 
 ### Employees + workspace self-onboarding restored ✅ (2026-06-16, app-layer only; no DB change)
 - **Reconciliation (code vs live UI):** `setRole` / `removeMemberFromOrg` / `inviteMember` were already rewritten onto `memberships` + active workspace. The **page UI was stale**: superadmin still rendered the old global HR table with `profiles.org_id` "Unassigned" column and **Assign to org** (`assign-actions.ts` writing dead `profiles.org_id`). Workspace switcher + `create_organization` RPC were wired in `WorkspaceSwitcher` / `workspace/actions.ts` but unusable for superadmins (create hidden) and produced **zero memberships** when orgs were created via the superadmin **Organizations** page (`organizations/actions.ts` direct `organizations` insert — platform provisioning, no membership).

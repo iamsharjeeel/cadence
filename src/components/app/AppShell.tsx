@@ -17,6 +17,7 @@ import type { Profile } from "@/types/db";
 export type SwitcherData = {
   activeOrgId: string | null;
   isSuperadmin: boolean;
+  canCreateOrg: boolean;
   memberships: SwitcherMembership[];
   pendingInvites: SwitcherInvite[];
   currentLabel: string;

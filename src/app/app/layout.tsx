@@ -18,9 +18,13 @@ export default async function AppLayout({
   const navContext = navContextFor(ctx);
 
   const inOrg = !ctx.isSuperadmin && ctx.activeOrg;
+  const canCreateOrg =
+    ctx.isSuperadmin ||
+    !ctx.memberships.some((m) => m.role === "owner");
   const switcher = {
     activeOrgId: ctx.activeOrgId,
     isSuperadmin: ctx.isSuperadmin,
+    canCreateOrg,
     memberships: ctx.memberships.map((m) => ({
       orgId: m.orgId,
       name: m.name,

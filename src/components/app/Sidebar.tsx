@@ -42,6 +42,7 @@ export function Sidebar({
           <WorkspaceSwitcher
             activeOrgId={switcher.activeOrgId}
             isSuperadmin={switcher.isSuperadmin}
+            canCreateOrg={switcher.canCreateOrg}
             memberships={switcher.memberships}
             pendingInvites={switcher.pendingInvites}
             currentLabel={switcher.currentLabel}

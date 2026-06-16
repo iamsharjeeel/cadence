@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useFormState, useFormStatus } from "react-dom";
 
 import { OrgLogo } from "@/components/brand/OrgLogo";
+import { useToast } from "@/components/ui/Toast";
 import { titleCase } from "@/lib/utils";
 import {
   switchWorkspace,
   createOrganizationAction,
   acceptInvite,
+  type ActionResult,
 } from "@/app/app/workspace/actions";
 
 export type SwitcherMembership = {
@@ -22,9 +26,23 @@ export type SwitcherInvite = {
   role: string;
 };
 
+function CreateOrgSubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex-1 rounded-[var(--radius-input)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? "Creating…" : "Create & switch"}
+    </button>
+  );
+}
+
 export function WorkspaceSwitcher({
   activeOrgId,
   isSuperadmin,
+  canCreateOrg,
   memberships,
   pendingInvites,
   currentLabel,
@@ -35,6 +53,7 @@ export function WorkspaceSwitcher({
 }: {
   activeOrgId: string | null;
   isSuperadmin: boolean;
+  canCreateOrg: boolean;
   memberships: SwitcherMembership[];
   pendingInvites: SwitcherInvite[];
   currentLabel: string;
@@ -43,10 +62,17 @@ export function WorkspaceSwitcher({
   currentLogoUrl: string | null;
   onNavigate?: () => void;
 }) {
+  const router = useRouter();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [pending, startTransition] = useTransition();
   const rootRef = useRef<HTMLDivElement>(null);
+  const [createState, createAction] = useFormState<ActionResult | null, FormData>(
+    createOrganizationAction,
+    null,
+  );
+  const lastCreateResult = useRef<ActionResult | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -70,6 +96,19 @@ export function WorkspaceSwitcher({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!createState || createState === lastCreateResult.current) return;
+    lastCreateResult.current = createState;
+    toast(createState.message, createState.ok ? "success" : "error");
+    if (createState.ok) {
+      setOpen(false);
+      setCreating(false);
+      onNavigate?.();
+      router.refresh();
+      router.push("/app/dashboard");
+    }
+  }, [createState, toast, router, onNavigate]);
+
   function choose(orgId: string | null) {
     if (orgId === activeOrgId) {
       setOpen(false);
@@ -77,16 +116,28 @@ export function WorkspaceSwitcher({
     }
     setOpen(false);
     onNavigate?.();
-    startTransition(() => {
-      void switchWorkspace(orgId);
+    startTransition(async () => {
+      const result = await switchWorkspace(orgId);
+      if (!result.ok) {
+        toast(result.message, "error");
+        return;
+      }
+      router.refresh();
+      router.push("/app/dashboard");
     });
   }
 
   function accept(inviteId: string) {
     setOpen(false);
     onNavigate?.();
-    startTransition(() => {
-      void acceptInvite(inviteId);
+    startTransition(async () => {
+      const result = await acceptInvite(inviteId);
+      if (!result.ok) {
+        toast(result.message, "error");
+        return;
+      }
+      router.refresh();
+      router.push("/app/dashboard");
     });
   }
 
@@ -157,7 +208,8 @@ export function WorkspaceSwitcher({
                   <button
                     type="button"
                     onClick={() => accept(inv.id)}
-                    className="rounded-[var(--radius-input)] bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-strong)]"
+                    disabled={pending}
+                    className="rounded-[var(--radius-input)] bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-strong)] disabled:opacity-60"
                   >
                     Accept
                   </button>
@@ -174,6 +226,7 @@ export function WorkspaceSwitcher({
             type="button"
             className={rowBase}
             onClick={() => choose(null)}
+            disabled={pending}
           >
             <OrgLogo name="Personal" logoUrl={null} size="sm" />
             <span className="min-w-0 flex-1">
@@ -193,6 +246,7 @@ export function WorkspaceSwitcher({
               type="button"
               className={rowBase}
               onClick={() => choose(m.orgId)}
+              disabled={pending}
             >
               <OrgLogo name={m.name} logoUrl={null} size="sm" />
               <span className="min-w-0 flex-1">
@@ -207,14 +261,11 @@ export function WorkspaceSwitcher({
             </button>
           ))}
 
-          {!isSuperadmin ? (
+          {!isSuperadmin && canCreateOrg ? (
             <>
               <div className="my-1 border-t border-[var(--line)]" />
               {creating ? (
-                <form
-                  action={createOrganizationAction}
-                  className="flex flex-col gap-2 p-2"
-                >
+                <form action={createAction} className="flex flex-col gap-2 p-2">
                   <input
                     name="name"
                     autoFocus
@@ -224,12 +275,7 @@ export function WorkspaceSwitcher({
                     className="w-full rounded-[var(--radius-input)] border border-[var(--line)] bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-[var(--accent)]"
                   />
                   <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      className="flex-1 rounded-[var(--radius-input)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-strong)]"
-                    >
-                      Create &amp; switch
-                    </button>
+                    <CreateOrgSubmitButton />
                     <button
                       type="button"
                       onClick={() => setCreating(false)}

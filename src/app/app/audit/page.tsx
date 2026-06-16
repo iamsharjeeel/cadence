@@ -53,11 +53,14 @@ async function AuditLogContent({
   const isSuperadmin = profile.role === "superadmin";
   const { filters, page } = parseFilters(searchParams);
 
+  // Org audit is scoped to the active workspace (auth_org() / effective profile).
   const orgId = isSuperadmin ? filters.org || null : profile.org_id;
 
   if (!isSuperadmin && !profile.org_id) {
     return (
-      <p className="text-sm text-muted">Your account has no organization.</p>
+      <p className="text-sm text-muted">
+        Switch into an organization workspace to view its audit log.
+      </p>
     );
   }
 
