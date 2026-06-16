@@ -1515,3 +1515,22 @@ _(none logged)_
 - **Fix A — workspace:** Personal switch confirmed: `set_active_workspace(NULL)` deletes `active_workspace` (RPC already supported null; types allow `p_org_id: string | null`). Org create via sidebar → `create_organization` → `set_active_workspace(orgId)`. Switcher lists only caller's `memberships` + Personal.
 - **Fix B — Employees split:** Superadmin → `PlatformMembersAudit` (id, name, email, emergency_phone, audit link; no banking/rate/assign). Owner/manager in active org → `OrgTeamView` (memberships join; role/remove on `memberships`). Nav: superadmin label **Members**; employees hidden in personal/employee contexts (unchanged).
 - **Orphan orgs (needs owner SQL):** The 2 existing orgs created via superadmin Organizations page have **no `memberships` rows** (table still at 0 until someone uses sidebar create or accepts an invite). They cannot be claimed through app flows without a new RPC — **not auto-granted**. Owner must attach memberships via SQL or recreate via workspace switcher.
+
+### Session — Global density + polish pass (Stripe/Vercel-light) + 3 targeted visual fixes ✅ (2026-06-16, app-layer only; no DB change)
+- **Central design-system tighten (shared primitives/tokens):**
+  - `src/app/globals.css`: lighter `--line`, softer/smaller `--shadow-card` + `--shadow-float`, slightly smaller `--radius-card` / `--radius-input`.
+  - `src/components/ui/Card.tsx`: compact default spacing/title scale via shared density vars, explicit hairline border, and lighter card feel; added `density="comfortable"` variant.
+  - `src/components/app/PageHeader.tsx`: reduced header spacing and title scale (including greeting mode) for less oversized section headers.
+  - `src/components/ui/{Input,Select,Table}.tsx`: denser form/control/table row spacing.
+  - `src/components/motion/MotionCard.tsx`: aligned visual surface (border + compact tokenized spacing defaults) with the new shared card system.
+- **Dashboard/Trends exception (kept breathable):**
+  - `src/app/app/dashboard/{page,AdminDashboardView,EmployeeDashboardContent,StatCard}.tsx`
+  - `src/app/app/trends/{TrendsCharts,TrendsClient}.tsx`
+  - These views explicitly opt into comfortable card density so charts/stats retain room while the rest of the app gets the compact pass.
+- **Targeted visual fix 1 — Project color row (`ProjectFormModal.tsx`):**
+  - Removed the near-duplicate preset swatch (`PROJECT_PRESET_COLORS` now distinct set).
+  - Replaced the final swatch position with a live custom color picker (`input[type=color]`) wired to `form.color` (still validates as `#RRGGBB` in existing server actions).
+- **Targeted visual fix 2 — Billable toggle alignment (`ProjectFormModal.tsx`):**
+  - Reworked switch thumb positioning to the same clean `h-6 w-11` track + absolutely-positioned `h-5 w-5` thumb pattern used in Google Calendar toggles (`left-0.5` / `left-[22px]`), fixing misalignment and transition.
+- **Targeted visual fix 3 — Time-entry project picker label (`ProjectPicker.tsx`):**
+  - Removed `[Org]` prefix from selected label and dropdown option rendering; picker now shows plain project names.

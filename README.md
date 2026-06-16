@@ -155,6 +155,15 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
   ```
   Compare the value to `git rev-parse origin/main`.
 
+### Global density polish (Stripe/Vercel-light) + project modal/picker fixes
+- Shared design-system primitives were tightened centrally for a denser, more intentional light UI: lighter `--line`, softer `--shadow-card`/`--shadow-float`, smaller `--radius-card`/`--radius-input`, compact `Card` spacing/title defaults, tighter `PageHeader`, and denser shared `Input`/`Select`/`Table` spacing.
+- `Card` now supports `density="comfortable"`; **Dashboard** and **Trends** explicitly opt into that mode so chart-heavy screens keep breathing room while the rest of the app gets the compact pass.
+- Project creator modal fixes:
+  - removed the near-duplicate preset color so all presets are distinct
+  - replaced the final swatch slot with a working custom color picker (`<input type="color">`) wired to the same `#RRGGBB` project color flow
+  - fixed "Billable by default" switch thumb alignment/animation to match the clean Google Calendar toggle pattern
+- Time-entry project picker no longer prepends `[Org]` to project names; it now shows plain project names.
+
 ## Getting started
 
 ```bash
