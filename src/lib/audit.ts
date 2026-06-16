@@ -32,6 +32,7 @@ export type AuditAction =
   | "official_document_signed"
   | "official_document_acknowledged"
   | "official_document_rejected"
+  | "user_document_assigned"
   | "onboarding_completed";
 
 /**

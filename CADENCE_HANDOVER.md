@@ -1578,3 +1578,33 @@ _(none logged)_
 
 #### Removed / deprecated on leave path
 - "No organization assigned" empty state, superadmin org picker (`LeaveOrgSelect` unused), balance cards, team balances table, GCal event chips on leave calendar, balance validation in request flow, vestigial `approve_leave_request` / `reject_leave_request` RPC calls (replaced with direct updates + workspace manager gate).
+
+### Session — User document library + org assignment ✅ (2026-06-16, app-layer only; DB `user_documents` + RLS already applied)
+
+#### Model (`user_documents`)
+- **Personal upload:** `owner_id` = self, `org_id` null, `source` = `personal`, `uploaded_by` = self. Available in **Personal** workspace (Official documents tab).
+- **Org-assigned:** owner/admin in active org uploads + picks target member → `owner_id` = target, `org_id` = active org, `source` = `org_assigned`, `uploaded_by` = admin. Appears in target's library; read-only to recipient (no delete).
+- Library list: all rows where `owner_id` = current user (personal + received org-assigned).
+- **Generated pay docs untouched:** "Pay advices & invoices" tab, `documents` table, `generate.tsx` unchanged.
+
+#### Storage
+- Reuses private `documents` bucket; user uploads at `user-docs/{owner_id}/{uuid}-{filename}` (generated pay PDFs keep `{org_id}/{employee_id}/…` scheme).
+- Upload via service-role admin client; signed URLs for download (1h). Rollback: storage upload first → row insert; on insert failure, remove uploaded object.
+
+#### UI
+- Official documents tab rebuilt → `UserDocumentsLibrary` (title, file, Personal/Org-assigned badge, date, download; delete personal only).
+- Personal: "Upload document" modal (title optional, PDF/Office/images/TXT, max 10MB).
+- Org owner/admin: "Assign to member" modal (member picker from `memberships`, same file validation).
+- Context via `getWorkspaceContext()` — no `profiles.org_id` on documents path.
+
+#### Audit
+- `user_document_assigned` on org assignment (`writeAudit`, active org_id).
+
+#### Touched
+- `src/lib/user-documents/{constants,queries,storage}.ts`
+- `src/app/app/documents/{page.tsx,user-doc-actions.ts}`
+- `src/components/documents/{UserDocumentsLibrary,UploadUserDocumentModal,AssignUserDocumentModal,UserDocumentRowActions}.tsx`
+- `src/lib/audit.ts`, `src/types/db.ts`, `README.md`
+
+#### Note — storage policies
+- User-doc uploads/deletes use the **service-role admin client** (same as generated pay PDFs), so existing `documents` bucket RLS path rules (`{org_id}/…`) do not block `user-docs/…` paths. If you later move uploads to the authenticated client, add storage policies for the `user-docs/` prefix.

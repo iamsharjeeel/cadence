@@ -718,6 +718,67 @@ export type Database = {
           },
         ]
       }
+      user_documents: {
+        Row: {
+          id: string
+          owner_id: string
+          org_id: string | null
+          uploaded_by: string | null
+          source: string
+          title: string
+          file_path: string
+          file_name: string | null
+          mime_type: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          owner_id: string
+          org_id?: string | null
+          uploaded_by?: string | null
+          source?: string
+          title: string
+          file_path: string
+          file_name?: string | null
+          mime_type?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          owner_id?: string
+          org_id?: string | null
+          uploaded_by?: string | null
+          source?: string
+          title?: string
+          file_path?: string
+          file_name?: string | null
+          mime_type?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_documents_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_documents_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_deliveries: {
         Row: {
           attempts: number
@@ -1384,6 +1445,7 @@ export type LeaveBalance = Tables<"leave_balances">
 export type LeaveRequest = Tables<"leave_requests">
 export type OnboardingStep = Tables<"onboarding_steps">
 export type OfficialDocument = Tables<"official_documents">
+export type UserDocument = Tables<"user_documents">
 export type Notification = Tables<"notifications">
 export type Project = Tables<"projects">
 export type TimeEntry = Tables<"time_entries">

@@ -55,14 +55,15 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - Start/end time resolution and payroll format auto-detection
 
 ### Phase 4 — Documents
-- Pay advice and contractor invoice PDF generation
+- Pay advice and contractor invoice PDF generation (from approved timesheets)
 - Encrypted banking fields, Resend email delivery
 - Document status tracking and re-send
+- **User document library** (`user_documents`): personal uploads + org-assigned files in the Official documents tab; stored in the `documents` bucket under `user-docs/{owner_id}/`; private downloads via signed URLs
 
 ### Phase 5 — Leave, onboarding & document hub
 - **Leave (workspace-scoped):** Personal workspace → standalone time-off calendar (mark days off, no approval, no categories). Org workspace → calendar + request/approve flow; leave categories optional when org has types configured (not required); balances never gate requests. Confirmed leave (personal mark or org approval) pushes one-way to Google Calendar when connected.
 - Five-step employee onboarding wizard
-- Official documents: upload, e-sign, acknowledge
+- Official documents tab: personal upload library + org→member assignment (`user_documents`); legacy e-sign `official_documents` flow remains for onboarding
 
 ### Phase 6 — Performance, notifications & settings
 - Instant client-side navigation with progress bar and optimistic active states

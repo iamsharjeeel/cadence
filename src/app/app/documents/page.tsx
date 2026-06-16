@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import {
@@ -19,10 +20,16 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { DocumentsTabs } from "@/components/documents/DocumentsTabs";
 import { GenerateFromTimesheetsButton } from "@/components/documents/GenerateFromTimesheetsButton";
 import { PayDocumentRowActions } from "@/components/documents/PayDocumentRowActions";
-import { OfficialDocumentsSection } from "@/components/official-docs/OfficialDocumentsSection";
+import { UserDocumentsLibrary } from "@/components/documents/UserDocumentsLibrary";
 import { MotionTR } from "@/components/motion/MotionTR";
 import { requireActiveProfile } from "@/lib/auth";
 import { getApprovedTimesheetsWithoutDocuments } from "@/lib/documents/queries";
+import {
+  listOrgMembersForAssign,
+  listUserDocumentsForOwner,
+  signedUrlsForUserDocuments,
+} from "@/lib/user-documents/queries";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -30,7 +37,6 @@ import type {
   Document,
   DocumentStatus,
   DocumentType,
-  OfficialDocument,
   Profile,
 } from "@/types/db";
 import {
@@ -94,51 +100,38 @@ export default async function DocumentsPage({
   }
 
   if (tab === "official") {
-    const officialOrgId = isSuperadmin ? searchParams.org : profile.org_id;
+    const ctx = await getWorkspaceContext();
+    if (!ctx) redirect("/login");
 
-    let oq = adminDb
-      .from("official_documents")
-      .select(
-        "id, org_id, employee_id, uploaded_by, name, category, file_path, file_type, signing_type, status, signed_at, employee_note, created_at, updated_at",
-      )
-      .order("created_at", { ascending: false });
-    if (!isManager) oq = oq.eq("employee_id", profile.id);
-    else if (!isSuperadmin) oq = oq.eq("org_id", profile.org_id!);
-    else if (officialOrgId) oq = oq.eq("org_id", officialOrgId);
+    const userId = ctx.effectiveProfile.id;
+    const inOrg = Boolean(ctx.activeOrgId);
+    const isOrgManager =
+      inOrg &&
+      (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
+    const canUploadPersonal = !inOrg || ctx.isSuperadmin;
 
-    const { data: officialDocs } = await oq;
-    const docs = (officialDocs ?? []) as OfficialDocument[];
+    const [documents, members] = await Promise.all([
+      listUserDocumentsForOwner(userId),
+      isOrgManager && ctx.activeOrgId
+        ? listOrgMembersForAssign(ctx.activeOrgId, userId)
+        : Promise.resolve([]),
+    ]);
 
-    const officialUrls: Record<string, string> = {};
-    for (const d of docs) {
-      const { data: signed } = await adminDb.storage
-        .from("official-documents")
-        .createSignedUrl(d.file_path, 60 * 60);
-      if (signed?.signedUrl) officialUrls[d.id] = signed.signedUrl;
-    }
-
-    const withNames = docs.map((d) => ({
-      ...d,
-      employee_name: d.employee_id
-        ? nameById.get(d.employee_id)
-        : "All",
-    }));
+    const downloadUrls = await signedUrlsForUserDocuments(documents);
 
     return (
       <div>
         <PageHeader
           title="Documents"
-          description="Pay documents and official contracts, policies, and offer letters."
+          description="Pay documents and your official document library."
         />
         <DocumentsTabs tab={tab} />
-        <OfficialDocumentsSection
-          documents={withNames}
-          isManager={isManager}
-          isSuperadmin={isSuperadmin}
-          employees={employeeOptions}
-          orgOptions={isSuperadmin ? orgOptions : undefined}
-          selectedOrgId={officialOrgId ?? undefined}
-          downloadUrls={officialUrls}
+        <UserDocumentsLibrary
+          documents={documents}
+          downloadUrls={downloadUrls}
+          canUploadPersonal={canUploadPersonal}
+          canAssignToMember={isOrgManager}
+          members={members}
         />
       </div>
     );
