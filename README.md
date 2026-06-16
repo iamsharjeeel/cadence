@@ -19,6 +19,7 @@ Cadence is **personal-by-default + true multi-workspace**:
 - **Invite-only joining.** Org owners/admins invite by email; the invitee accepts (`accept_invite()`) to get a membership with the assigned role. There is **no domain auto-attach** — signing up never lands you in an org by email domain.
 - **Superadmin** is a platform-oversight layer **outside** the workspace structure: it owns nothing, is in no org, and retains cross-tenant read for audit/support.
 - **Profile UX.** Start date is self-editable (set, change, or clear). Administrator-framing copy on Profile only appears in an **org workspace** context; personal workspace uses neutral wording. The top-right header identity shows name + email stacked and links to `/app/profile` (Sign out remains separate).
+- **Projects.** Standalone, workspace-scoped project management: personal workspace → user-owned projects (`org_id` null); org workspace → org-wide projects (owner/admin create only) plus the user's personal projects in that org. New fields: description, client name, billable-by-default. Premium single-panel create/edit modal; scannable list-row layout. Tagging a time entry to a project seeds billable from `billable_default` unless the user already toggled billable.
 
 Isolation is enforced at the database layer (RLS keyed on the validated active workspace) and re-verified as real `authenticated` sessions; see `SECURITY_AUDIT.md`. **The multi-workspace model is live in production** (merged to `main`; post-deploy isolation re-verification passed on the production database).
 

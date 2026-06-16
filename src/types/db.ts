@@ -1012,30 +1012,39 @@ export type Database = {
       projects: {
         Row: {
           id: string
-          org_id: string
+          org_id: string | null
           owner_id: string | null
           name: string
           color: string
+          description: string | null
+          client_name: string | null
+          billable_default: boolean
           is_org_wide: boolean
           is_active: boolean
           created_at: string
         }
         Insert: {
           id?: string
-          org_id: string
+          org_id?: string | null
           owner_id?: string | null
           name: string
           color?: string
+          description?: string | null
+          client_name?: string | null
+          billable_default?: boolean
           is_org_wide?: boolean
           is_active?: boolean
           created_at?: string
         }
         Update: {
           id?: string
-          org_id?: string
+          org_id?: string | null
           owner_id?: string | null
           name?: string
           color?: string
+          description?: string | null
+          client_name?: string | null
+          billable_default?: boolean
           is_org_wide?: boolean
           is_active?: boolean
           created_at?: string

@@ -1,196 +1,210 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
-import { PROJECT_PRESET_COLORS, type Project } from "@/types/time-tracking";
+import { cn } from "@/lib/utils";
 import {
   archiveProject,
   createProject,
+  updateProject,
+  type ProjectListItem,
 } from "./actions";
+import { ProjectFormModal, type ProjectFormValues } from "./ProjectFormModal";
 
 export function ProjectsManager({
   projects,
-  isManager,
-  orgId,
-  orgNameById,
-  requiresOrgSelection,
+  canCreate,
+  inOrg,
 }: {
-  projects: Project[];
-  isManager: boolean;
-  orgId?: string;
-  orgNameById?: Record<string, string>;
-  requiresOrgSelection?: boolean;
+  projects: ProjectListItem[];
+  canCreate: boolean;
+  inOrg: boolean;
 }) {
+  const router = useRouter();
   const { toast } = useToast();
   const [pending, startTransition] = useTransition();
-  const [name, setName] = useState("");
-  const [color, setColor] = useState<string>(PROJECT_PRESET_COLORS[0]);
-  const [orgWide, setOrgWide] = useState(false);
-  const [orgError, setOrgError] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [editingProject, setEditingProject] = useState<ProjectListItem | null>(
+    null,
+  );
 
-  const orgWideProjects = projects.filter((p) => p.is_org_wide);
-  const personalProjects = projects.filter((p) => !p.is_org_wide);
-  const showOrgColumn = Boolean(orgNameById && Object.keys(orgNameById).length > 0);
+  function refresh() {
+    router.refresh();
+  }
 
-  function onCreate() {
-    if (requiresOrgSelection && !orgId) {
-      setOrgError("Please select an organisation first.");
-      return;
-    }
-    setOrgError("");
+  function openCreate() {
+    setModalMode("create");
+    setEditingProject(null);
+    setModalOpen(true);
+  }
 
+  function openEdit(project: ProjectListItem) {
+    setModalMode("edit");
+    setEditingProject(project);
+    setModalOpen(true);
+  }
+
+  function handleSubmit(values: ProjectFormValues) {
     startTransition(async () => {
-      const res = await createProject({
-        name,
-        color,
-        isOrgWide: isManager ? orgWide : false,
-        orgId,
-      });
+      const payload = {
+        name: values.name,
+        color: values.color,
+        description: values.description,
+        clientName: values.clientName,
+        billableDefault: values.billableDefault,
+      };
+
+      const res =
+        modalMode === "create"
+          ? await createProject(payload)
+          : await updateProject({
+              id: editingProject!.id,
+              ...payload,
+            });
+
       toast(res.message, res.ok ? "success" : "error");
       if (res.ok) {
-        setName("");
-        window.location.reload();
-      } else if (res.message === "Please select an organisation first.") {
-        setOrgError(res.message);
+        setModalOpen(false);
+        setEditingProject(null);
+        refresh();
       }
     });
   }
 
+  function handleArchive(project: ProjectListItem) {
+    if (!confirm(`Archive "${project.name}"? It will be hidden from time entry.`)) {
+      return;
+    }
+    startTransition(async () => {
+      const res = await archiveProject(project.id);
+      toast(res.message, res.ok ? "success" : "error");
+      if (res.ok) refresh();
+    });
+  }
+
   return (
-    <div className="flex flex-col gap-8">
-      {requiresOrgSelection && !orgId && (
-        <p className="rounded-[var(--radius-card)] border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-4 py-3 text-sm text-[var(--danger)]">
-          Select an organisation above before creating projects.
-        </p>
+    <div className="flex flex-col gap-4">
+      {canCreate ? (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4" aria-hidden />
+            New project
+          </Button>
+        </div>
+      ) : null}
+
+      {projects.length === 0 ? (
+        <EmptyState
+          title="No projects yet"
+          description="Create your first project to tag time entries."
+          action={
+            canCreate ? (
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4" aria-hidden />
+                New project
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--line)] bg-surface shadow-card">
+          <ul className="divide-y divide-[var(--line)]">
+            {projects.map((project) => (
+              <li
+                key={project.id}
+                className="flex items-start gap-4 px-4 py-4 transition-colors hover:bg-[var(--accent-soft)]/20 sm:px-5"
+              >
+                <span
+                  className="mt-1.5 inline-block h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: project.color }}
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-display text-sm font-semibold text-ink">
+                      {project.name}
+                    </span>
+                    {project.client_name ? (
+                      <span className="text-sm text-muted">
+                        · {project.client_name}
+                      </span>
+                    ) : null}
+                    {inOrg ? (
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                          project.scope === "org"
+                            ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                            : "bg-surface-low text-muted",
+                        )}
+                      >
+                        {project.scope === "org" ? "Org" : "Personal"}
+                      </span>
+                    ) : null}
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        project.billable_default
+                          ? "bg-[var(--accent-soft)]/60 text-[var(--accent-strong)]"
+                          : "bg-surface-low text-muted",
+                      )}
+                    >
+                      {project.billable_default ? "Billable" : "Non-billable"}
+                    </span>
+                  </div>
+                  {project.description ? (
+                    <p className="mt-1 line-clamp-2 text-sm text-muted">
+                      {project.description}
+                    </p>
+                  ) : null}
+                </div>
+                {project.canEdit ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEdit(project)}
+                      disabled={pending}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleArchive(project)}
+                      disabled={pending}
+                    >
+                      Archive
+                    </Button>
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
-      <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-card">
-        <h3 className="font-display text-base font-semibold">Create project</h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-ink">Color</span>
-            <div className="flex flex-wrap gap-2">
-              {PROJECT_PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={`Color ${c}`}
-                  aria-pressed={color === c}
-                  onClick={() => setColor(c)}
-                  className={`h-9 w-9 rounded-full border-2 shadow-card transition-transform hover:scale-105 ${
-                    color === c
-                      ? "border-ink ring-2 ring-[var(--accent-soft)]"
-                      : "border-[var(--line)]"
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
-          </div>
-          {isManager && (
-            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input
-                type="checkbox"
-                checked={orgWide}
-                onChange={(e) => setOrgWide(e.target.checked)}
-              />
-              Org-wide project (visible to all employees)
-            </label>
-          )}
-        </div>
-        {orgError && (
-          <p className="mt-3 text-sm text-[var(--danger)]">{orgError}</p>
-        )}
-        <Button className="mt-4" size="sm" onClick={onCreate} loading={pending}>
-          Create project
-        </Button>
-      </section>
-
-      <ProjectSection
-        title="Org-wide projects"
-        projects={orgWideProjects}
-        readOnly={!isManager}
-        showOrgColumn={showOrgColumn}
-        orgNameById={orgNameById}
-        onArchive={(id) =>
-          startTransition(async () => {
-            const res = await archiveProject(id);
-            toast(res.message, res.ok ? "success" : "error");
-            if (res.ok) window.location.reload();
-          })
-        }
-      />
-
-      <ProjectSection
-        title={isManager ? "Personal projects" : "Your personal projects"}
-        projects={personalProjects}
-        readOnly={false}
-        showOrgColumn={showOrgColumn}
-        orgNameById={orgNameById}
-        onArchive={(id) =>
-          startTransition(async () => {
-            const res = await archiveProject(id);
-            toast(res.message, res.ok ? "success" : "error");
-            if (res.ok) window.location.reload();
-          })
-        }
+      <ProjectFormModal
+        open={modalOpen}
+        mode={modalMode}
+        project={editingProject}
+        pending={pending}
+        onClose={() => {
+          if (!pending) {
+            setModalOpen(false);
+            setEditingProject(null);
+          }
+        }}
+        onSubmit={handleSubmit}
       />
     </div>
-  );
-}
-
-function ProjectSection({
-  title,
-  projects,
-  readOnly,
-  showOrgColumn,
-  orgNameById,
-  onArchive,
-}: {
-  title: string;
-  projects: Project[];
-  readOnly: boolean;
-  showOrgColumn?: boolean;
-  orgNameById?: Record<string, string>;
-  onArchive: (id: string) => void;
-}) {
-  if (projects.length === 0) return null;
-  return (
-    <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-card">
-      <h3 className="font-display text-base font-semibold">{title}</h3>
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {projects.map((p) => (
-          <li
-            key={p.id}
-            className="flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface-low p-4 shadow-card"
-          >
-            <span className="flex min-w-0 items-center gap-3 text-sm">
-              <span
-                className="inline-block h-4 w-4 shrink-0 rounded-full shadow-card"
-                style={{ backgroundColor: p.color }}
-                aria-hidden
-              />
-              <span className="min-w-0">
-                <span className="block truncate font-medium text-ink">{p.name}</span>
-                {showOrgColumn && p.is_org_wide && orgNameById?.[p.org_id] && (
-                  <span className="block truncate text-xs text-muted">
-                    {orgNameById[p.org_id]}
-                  </span>
-                )}
-              </span>
-            </span>
-            {!readOnly && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => onArchive(p.id)}>
-                Archive
-              </Button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

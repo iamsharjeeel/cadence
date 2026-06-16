@@ -2,14 +2,40 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireActiveProfile, requireRole } from "@/lib/auth";
+import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getWorkspaceContext, type WorkspaceContext } from "@/lib/workspace";
 import type { Project } from "@/types/time-tracking";
 import { PROJECT_PRESET_COLORS } from "@/types/time-tracking";
 
 export type ActionResult = { ok: boolean; message: string; id?: string };
 
+export type ProjectListItem = Project & {
+  scope: "org" | "personal";
+  canEdit: boolean;
+};
+
 const HEX = /^#[0-9A-Fa-f]{6}$/;
+
+function projectPermissions(
+  project: Project,
+  ctx: WorkspaceContext,
+): { canEdit: boolean } {
+  const userId = ctx.realProfile.id;
+  const canManageAsOwner = project.owner_id === userId;
+  const canManageAsOrgAdmin =
+    project.is_org_wide &&
+    ctx.activeOrgId != null &&
+    project.org_id === ctx.activeOrgId &&
+    (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
+
+  return { canEdit: canManageAsOwner || canManageAsOrgAdmin };
+}
+
+function canCreateInContext(ctx: WorkspaceContext): boolean {
+  if (!ctx.activeOrgId) return true;
+  return ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin";
+}
 
 /** Org-wide projects + the current user's personal projects (for time entry dropdown). */
 export async function fetchProjectsForTimeEntry(
@@ -53,34 +79,78 @@ export async function fetchProjectsForTimeEntry(
   return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function listProjects(orgId?: string): Promise<Project[]> {
-  const profile = await requireActiveProfile();
+export async function listProjects(): Promise<ProjectListItem[]> {
+  await requireActiveProfile();
+  const ctx = await getWorkspaceContext();
+  if (!ctx) return [];
+
   const db = createAdminClient();
+  const userId = ctx.realProfile.id;
+  const activeOrgId = ctx.activeOrgId;
 
-  let query = db.from("projects").select("*").eq("is_active", true).order("name");
+  let projects: Project[] = [];
 
-  if (profile.role === "superadmin") {
-    if (orgId) query = query.eq("org_id", orgId);
-  } else if (profile.org_id) {
-    query = query.eq("org_id", profile.org_id);
-    if (profile.role === "employee") {
-      query = query.or(`is_org_wide.eq.true,owner_id.eq.${profile.id}`);
-    }
+  if (!activeOrgId) {
+    const { data } = await db
+      .from("projects")
+      .select("*")
+      .is("org_id", null)
+      .eq("owner_id", userId)
+      .eq("is_active", true)
+      .order("name");
+    projects = (data ?? []) as Project[];
   } else {
-    return [];
+    const [{ data: orgWide }, { data: personal }] = await Promise.all([
+      db
+        .from("projects")
+        .select("*")
+        .eq("org_id", activeOrgId)
+        .eq("is_active", true)
+        .eq("is_org_wide", true)
+        .order("name"),
+      db
+        .from("projects")
+        .select("*")
+        .eq("org_id", activeOrgId)
+        .eq("is_active", true)
+        .eq("owner_id", userId)
+        .order("name"),
+    ]);
+    const byId = new Map<string, Project>();
+    for (const p of [...(orgWide ?? []), ...(personal ?? [])] as Project[]) {
+      byId.set(p.id, p);
+    }
+    projects = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  const { data } = await query;
-  return (data ?? []) as Project[];
+  return projects.map((project) => ({
+    ...project,
+    scope: project.is_org_wide ? ("org" as const) : ("personal" as const),
+    canEdit: projectPermissions(project, ctx).canEdit,
+  }));
+}
+
+export async function getProjectsPageContext(): Promise<{
+  canCreate: boolean;
+  inOrg: boolean;
+}> {
+  const ctx = await getWorkspaceContext();
+  return {
+    canCreate: ctx ? canCreateInContext(ctx) : false,
+    inOrg: Boolean(ctx?.activeOrgId),
+  };
 }
 
 export async function createProject(payload: {
   name: string;
   color?: string;
-  isOrgWide?: boolean;
-  orgId?: string;
+  description?: string;
+  clientName?: string;
+  billableDefault?: boolean;
 }): Promise<ActionResult> {
-  const profile = await requireRole(["admin", "superadmin", "employee"]);
+  await requireActiveProfile();
+  const ctx = await getWorkspaceContext();
+  if (!ctx) return { ok: false, message: "Not signed in." };
 
   const name = payload.name.trim();
   if (!name || name.length > 80) {
@@ -90,34 +160,32 @@ export async function createProject(payload: {
   const color = payload.color?.trim() || PROJECT_PRESET_COLORS[0];
   if (!HEX.test(color)) return { ok: false, message: "Invalid color." };
 
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
-  const isOrgWide = isManager ? Boolean(payload.isOrgWide) : false;
+  const description = payload.description?.trim() || null;
+  const clientName = payload.clientName?.trim() || null;
+  const billableDefault = payload.billableDefault ?? true;
+  const activeOrgId = ctx.activeOrgId;
 
-  let orgId: string | null;
-  if (profile.role === "superadmin") {
-    orgId = payload.orgId?.trim() || profile.org_id;
-  } else if (profile.org_id) {
-    orgId = profile.org_id;
-  } else {
-    orgId = null;
-  }
-
-  if (!orgId && profile.role === "superadmin") {
-    return { ok: false, message: "Please select an organisation first." };
-  }
-  if (!isManager && isOrgWide) {
-    return { ok: false, message: "Only admins can create org-wide projects." };
+  if (activeOrgId) {
+    if (ctx.workspaceRole !== "owner" && ctx.workspaceRole !== "admin") {
+      return {
+        ok: false,
+        message: "Only owners and admins can create organization projects.",
+      };
+    }
   }
 
   const db = createAdminClient();
   const { data, error } = await db
     .from("projects")
     .insert({
-      org_id: orgId as string,
-      owner_id: isOrgWide ? null : profile.id,
+      org_id: activeOrgId,
+      owner_id: activeOrgId ? null : ctx.realProfile.id,
       name,
       color,
-      is_org_wide: isOrgWide,
+      description,
+      client_name: clientName,
+      billable_default: billableDefault,
+      is_org_wide: Boolean(activeOrgId),
     })
     .select("id")
     .single();
@@ -128,8 +196,60 @@ export async function createProject(payload: {
   return { ok: true, message: "Project created.", id: data.id };
 }
 
+export async function updateProject(payload: {
+  id: string;
+  name: string;
+  color?: string;
+  description?: string;
+  clientName?: string;
+  billableDefault?: boolean;
+}): Promise<ActionResult> {
+  await requireActiveProfile();
+  const ctx = await getWorkspaceContext();
+  if (!ctx) return { ok: false, message: "Not signed in." };
+
+  const db = createAdminClient();
+  const { data: project } = await db
+    .from("projects")
+    .select("*")
+    .eq("id", payload.id)
+    .single();
+  if (!project) return { ok: false, message: "Project not found." };
+
+  const { canEdit } = projectPermissions(project as Project, ctx);
+  if (!canEdit) return { ok: false, message: "Not authorized." };
+
+  const name = payload.name.trim();
+  if (!name || name.length > 80) {
+    return { ok: false, message: "Project name is required (max 80 chars)." };
+  }
+
+  const color = payload.color?.trim() || project.color;
+  if (!HEX.test(color)) return { ok: false, message: "Invalid color." };
+
+  const { error } = await db
+    .from("projects")
+    .update({
+      name,
+      color,
+      description: payload.description?.trim() || null,
+      client_name: payload.clientName?.trim() || null,
+      billable_default: payload.billableDefault ?? project.billable_default,
+    })
+    .eq("id", payload.id);
+
+  if (error) return { ok: false, message: "Couldn't update project." };
+
+  revalidatePath("/app/projects");
+  revalidatePath("/app/timesheets");
+  return { ok: true, message: "Project updated." };
+}
+
 export async function archiveProject(id: string): Promise<ActionResult> {
-  const profile = await requireActiveProfile();
+  await requireActiveProfile();
+  const ctx = await getWorkspaceContext();
+  if (!ctx) return { ok: false, message: "Not signed in." };
+
   const db = createAdminClient();
   const { data: project } = await db
     .from("projects")
@@ -138,17 +258,8 @@ export async function archiveProject(id: string): Promise<ActionResult> {
     .single();
   if (!project) return { ok: false, message: "Project not found." };
 
-  const isManager =
-    profile.role === "superadmin" ||
-    (profile.role === "admin" && project.org_id === profile.org_id);
-  const isOwner = project.owner_id === profile.id;
-
-  if (!isManager && !isOwner) {
-    return { ok: false, message: "Not authorized." };
-  }
-  if (!isManager && project.is_org_wide) {
-    return { ok: false, message: "Org-wide projects can only be archived by admins." };
-  }
+  const { canEdit } = projectPermissions(project as Project, ctx);
+  if (!canEdit) return { ok: false, message: "Not authorized." };
 
   const { error } = await db
     .from("projects")
@@ -159,42 +270,4 @@ export async function archiveProject(id: string): Promise<ActionResult> {
   revalidatePath("/app/projects");
   revalidatePath("/app/timesheets");
   return { ok: true, message: "Project archived." };
-}
-
-export async function updateProject(payload: {
-  id: string;
-  name: string;
-  color?: string;
-}): Promise<ActionResult> {
-  const profile = await requireActiveProfile();
-  const db = createAdminClient();
-  const { data: project } = await db
-    .from("projects")
-    .select("*")
-    .eq("id", payload.id)
-    .single();
-  if (!project) return { ok: false, message: "Project not found." };
-
-  const isManager =
-    profile.role === "superadmin" ||
-    (profile.role === "admin" && project.org_id === profile.org_id);
-  const isOwner = project.owner_id === profile.id;
-  if (!isManager && !isOwner) return { ok: false, message: "Not authorized." };
-  if (!isManager && project.is_org_wide) {
-    return { ok: false, message: "Org-wide projects are read-only." };
-  }
-
-  const name = payload.name.trim();
-  if (!name) return { ok: false, message: "Name is required." };
-  const color = payload.color?.trim() || project.color;
-
-  const { error } = await db
-    .from("projects")
-    .update({ name, color })
-    .eq("id", payload.id);
-  if (error) return { ok: false, message: "Couldn't update project." };
-
-  revalidatePath("/app/projects");
-  revalidatePath("/app/timesheets");
-  return { ok: true, message: "Project updated." };
 }

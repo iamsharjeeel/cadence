@@ -1485,6 +1485,7 @@ Prod still runs app code `8dfa2f2` (pre-Track-C) on the new DB. It **degrades gr
 - ~~**Employees: Unassigned/empty/wrong list, can't self-assign to org**~~ — fixed 2026-06-16 (see below).
 - ~~**Workspace switcher changes UI but not context**~~ — fixed 2026-06-16 (see below).
 - ~~**Profile: start date locked + "set by your administrator" copy**~~ — fixed 2026-06-16 (see below).
+- ~~**Projects: "Select an organisation" gate / pre-Track-C overhaul**~~ — fixed 2026-06-16 (see below).
 
 ### Open bugs / feedback
 _(none logged)_
@@ -1493,6 +1494,13 @@ _(none logged)_
 - **Start date double-lock removed:** `ProfileEmploymentForm` no longer disables the DatePicker once set; `updateOwnEmployment` no longer guards with `!profile.start_date` — users can set, change, or clear `start_date`.
 - **Admin copy softened:** Profile page uses `getWorkspaceContext().activeOrgId` for org vs personal context. PageHeader + Employment card administrator wording only when in an org workspace; personal users see neutral copy. Role/Status remain display-only; email stays read-only.
 - **Top-right identity:** `Topbar` shows name + email stacked (avatar + text on `sm+`), linked to `/app/profile`; Sign out unchanged.
+
+### Projects rebuild — workspace-scoped + premium wizard ✅ (2026-06-16, app-layer only; no DB change)
+- **Removed:** superadmin org-picker (`SuperadminOrgSelect`), `requiresOrgSelection`, all `profiles.org_id` reads on the projects path, card-grid layout, inline create form, `window.location.reload()`.
+- **Model:** Context from `getWorkspaceContext()` / active workspace. Personal → `org_id=null, owner_id=user, is_org_wide=false`. Org owner/admin → `org_id=active org, is_org_wide=true`. Org employee → no create (action rejects). Superadmin behaves as personal user.
+- **New fields wired:** `description`, `client_name`, `billable_default` (default true) in create/edit modal + list rows.
+- **UI:** Single-panel `ProjectFormModal` (create + edit), list-row layout with Org/Personal tags, `router.refresh()` after mutations.
+- **Time entry:** Picking a Cadence project seeds `billable` from `billable_default` when `billableTouched` is false; explicit user toggle preserved.
 
 ### Workspace switcher persistence + org cap + audit ✅ (2026-06-16, app-layer only; no DB change)
 - **Root cause (verified against live prod):** `WorkspaceSwitcher` called `switchWorkspace()` inside `startTransition(() => { void switchWorkspace(orgId) })`, which **discarded the promise** — RPC failures (`not authenticated`, `not a member`, etc.) were never surfaced, and `redirect()` inside the action did not reliably refresh the app shell. The dropdown closed and looked successful, but `active_workspace` stayed empty and `auth_org()` kept returning null (personal). The action already used the authenticated server client (not service-role); the bug was **silent failure + no post-switch revalidation**, not the wrong Supabase client.

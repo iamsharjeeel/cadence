@@ -34,6 +34,8 @@ export type EntryRowData = {
   asana_project_id: string | null;
   description: string;
   billable: boolean;
+  /** When false, picking a project may seed billable from project.billable_default. */
+  billableTouched?: boolean;
   total_hours?: number | null;
   saveState: SaveState;
   error?: string;

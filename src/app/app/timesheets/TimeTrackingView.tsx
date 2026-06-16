@@ -82,6 +82,7 @@ function newDraft(date: string, lastEnd?: string): DraftEntry {
     asana_project_id: null,
     description: "",
     billable: true,
+    billableTouched: false,
     saveState: "idle",
     collapsed: false,
   };
@@ -112,6 +113,7 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
     asana_project_id: e.asana_project_id ?? null,
     description: e.description ?? "",
     billable: e.billable,
+    billableTouched: true,
     total_hours: computedHours,
     saveState: "saved",
     collapsed: true,
@@ -702,6 +704,7 @@ export function TimeTrackingView({
                       onBillableChange={(next) => {
                         updateEntry(day.date, entry.clientId, {
                           billable: next,
+                          billableTouched: true,
                           saveState: "idle",
                         });
                         const cur = getEntry(day.date, entry.clientId);
@@ -712,9 +715,22 @@ export function TimeTrackingView({
                         }
                       }}
                       onProjectPick={(pick) => {
+                        const pickedProject = pick.projectId
+                          ? projects.find((p) => p.id === pick.projectId)
+                          : null;
+                        const seedBillable =
+                          pickedProject &&
+                          !entry.billableTouched &&
+                          pick.projectId
+                            ? (pickedProject.billable_default ?? true)
+                            : undefined;
+
                         updateEntry(day.date, entry.clientId, {
                           project_id: pick.projectId,
                           asana_project_id: pick.asanaProjectId,
+                          ...(seedBillable !== undefined
+                            ? { billable: seedBillable }
+                            : {}),
                           saveState: "idle",
                         });
                         const cur = getEntry(day.date, entry.clientId);
@@ -722,6 +738,9 @@ export function TimeTrackingView({
                           void persistEntry(day.date, entry.clientId, {
                             project_id: pick.projectId,
                             asana_project_id: pick.asanaProjectId,
+                            ...(seedBillable !== undefined
+                              ? { billable: seedBillable }
+                              : {}),
                           });
                         }
                       }}
