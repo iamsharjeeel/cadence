@@ -1691,6 +1691,13 @@ _(none logged)_
 #### Verification
 - `npm run typecheck` passes.
 
+### Bug fix — "No organization." toast on onboarding ✅ (2026-06-18)
+
+- **Issue:** Personal-workspace users on `/app/onboarding` hit a stale `profile.org_id` guard in onboarding server actions, surfacing a "No organization." error toast.
+- **Fix:** Gate `requireOrg()` in `src/app/app/onboarding/actions.ts` on the onboarding pathname (via request headers); suppress the same toast in `OnboardingWizard` when on `/app/onboarding`. The check still applies if those actions are invoked off-route.
+
+#### Verification
+- `npm run typecheck` passes.
 ### Session — F4 public API v1, webhooks-out, developer settings ✅ (2026-06-16)
 
 #### F4 — Public API + webhooks-out
@@ -1711,6 +1718,14 @@ _(none logged)_
 - Webhook delivery retries / backoff.
 - API rate limiting and scoped permissions per key.
 - CFO Claude Agent consumer on `timesheet.approved`.
+
+#### Verification
+- `npm run typecheck` passes.
+
+### Bug fix — "No organization." toast on onboarding ✅ (2026-06-18)
+
+- **Issue:** Personal-workspace users on `/app/onboarding` hit a stale `profile.org_id` guard in onboarding server actions, surfacing a "No organization." error toast.
+- **Fix:** Gate `requireOrg()` in `src/app/app/onboarding/actions.ts` on the onboarding pathname (via request headers); suppress the same toast in `OnboardingWizard` when on `/app/onboarding`. The check still applies if those actions are invoked off-route.
 
 #### Verification
 - `npm run typecheck` passes.

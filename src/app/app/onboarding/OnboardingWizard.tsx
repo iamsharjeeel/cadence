@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/Button";
@@ -47,6 +47,21 @@ export function OnboardingWizard({
   );
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
+  const isOnboardingRoute =
+    pathname.startsWith("/app/onboarding") ||
+    pathname.startsWith("/onboarding");
+
+  function showActionToast(result: { ok: boolean; message: string }) {
+    if (
+      !result.ok &&
+      isOnboardingRoute &&
+      result.message === "No organization."
+    ) {
+      return;
+    }
+    toast(result.message, result.ok ? "success" : "error");
+  }
 
   useEffect(() => {
     if (!done) return;
@@ -61,7 +76,7 @@ export function OnboardingWizard({
     setPending(true);
     try {
       const result = await action(fd);
-      toast(result.message, result.ok ? "success" : "error");
+      showActionToast(result);
       if (result.ok) {
         if (step >= 4) {
           const doneResult = await completeOnboarding();
@@ -79,7 +94,7 @@ export function OnboardingWizard({
     setPending(true);
     try {
       const r = await skipStep(stepKey);
-      toast(r.message, r.ok ? "success" : "error");
+      showActionToast(r);
       if (!r.ok) return;
       if (stepKey === "emergency") {
         setStep(4);

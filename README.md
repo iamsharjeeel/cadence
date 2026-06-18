@@ -172,6 +172,7 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
   - **Personal context (`activeOrgId = null`)**: no standalone Trends nav item; personal trends are folded into Dashboard as a section using the existing trends view components.
   - **Org context (`activeOrgId != null`)**: standalone Trends page and nav item remain available and unchanged.
   - Direct personal-context hits to `/app/trends` redirect to `/app/dashboard`.
+- **Onboarding:** the "No organization." error toast is suppressed on `/app/onboarding` (personal-workspace users completing setup).
 
 ## Getting started
 
