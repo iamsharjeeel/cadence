@@ -146,6 +146,7 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
 
 ### Modal portal, overnight duration, client-side trends filters
 - **Modals render via a portal to `document.body`** so `position: fixed` escapes transformed ancestors (the page-transition `motion.div`) — fixes off-center dialogs and hover flicker over the dimmed backdrop.
+- **DatePicker popover also portals to `document.body`** (same root cause as modals) — fixes the onboarding Employment start-date field being unresponsive in production when rendered inside `PageTransition`.
 - **Overnight duration** (e.g. 23:30→00:15 = 0.75h, 22:00→02:00 = 4h) is computed with a wrapping formula everywhere hours are shown/aggregated, instead of the DB generated column (which is negative for overnight).
 - **Trends filters** (time window + organization) update charts **in place** via client state + a server action — no full page reload.
 

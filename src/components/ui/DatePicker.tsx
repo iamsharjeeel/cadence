@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Calendar } from "lucide-react";
 
@@ -13,6 +14,9 @@ const PICKER_MOTION = {
   exit: { opacity: 0, y: 4, scale: 0.98 },
   transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
 };
+
+const POPOVER_WIDTH = 280; // 17.5rem
+const POPOVER_HEIGHT_ESTIMATE = 320;
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -63,28 +67,61 @@ export function DatePicker({
 }) {
   const autoId = useId();
   const inputId = id ?? name ?? autoId;
-  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
 
   const selected = parseIso(value);
   const [viewYear, setViewYear] = useState(selected?.getFullYear() ?? new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(selected?.getMonth() ?? new Date().getMonth());
 
+  useEffect(() => setMounted(true), []);
+
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp =
+      spaceBelow < POPOVER_HEIGHT_ESTIMATE + 8 && rect.top > POPOVER_HEIGHT_ESTIMATE;
+    const top = openUp
+      ? rect.top - POPOVER_HEIGHT_ESTIMATE - 4
+      : rect.bottom + 4;
+    const left = Math.min(
+      Math.max(8, rect.left),
+      window.innerWidth - POPOVER_WIDTH - 8,
+    );
+    setPosition({ top, left });
+  }, []);
+
   useEffect(() => {
     if (!open) return;
+    updatePosition();
     function onDoc(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        !triggerRef.current?.contains(target) &&
+        !popoverRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
     };
-  }, [open]);
+  }, [open, updatePosition]);
 
   useEffect(() => {
     if (selected) {
@@ -106,7 +143,9 @@ export function DatePicker({
     setOpen(false);
   }
 
-  function shiftMonth(delta: number) {
+  function shiftMonth(delta: number, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     const d = new Date(viewYear, viewMonth + delta, 1);
     setViewYear(d.getFullYear());
     setViewMonth(d.getMonth());
@@ -117,18 +156,101 @@ export function DatePicker({
     year: "numeric",
   });
 
+  const popover = (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          ref={popoverRef}
+          role="dialog"
+          aria-label="Choose date"
+          style={{ top: position.top, left: position.left, width: POPOVER_WIDTH }}
+          className="fixed z-[9998] rounded-[var(--radius-card)] bg-surface p-3 shadow-float"
+          {...PICKER_MOTION}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              aria-label="Previous month"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+              onClick={(e) => shiftMonth(-1, e)}
+            >
+              ‹
+            </button>
+            <span className="font-display text-sm font-semibold">{monthLabel}</span>
+            <button
+              type="button"
+              aria-label="Next month"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+              onClick={(e) => shiftMonth(1, e)}
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="mb-1 grid grid-cols-7 gap-1">
+            {WEEKDAYS.map((d) => (
+              <span
+                key={d}
+                className="text-center text-[10px] font-medium uppercase tracking-wide text-muted"
+              >
+                {d}
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {monthGrid(viewYear, viewMonth).map((day, i) => {
+              if (!day) return <span key={`e-${i}`} />;
+              const iso = toIso(day);
+              const isSelected = value === iso;
+              const isToday = iso === toIso(new Date());
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    pick(day);
+                  }}
+                  className={cn(
+                    "tabular flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors",
+                    isSelected
+                      ? "bg-[var(--accent-mid)] text-white"
+                      : "hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]",
+                    isToday && !isSelected && "ring-1 ring-[var(--accent)]",
+                  )}
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
-    <div ref={rootRef} className="relative flex flex-col gap-1.5">
+    <div className="relative flex flex-col gap-1.5">
       {label && (
         <label htmlFor={inputId} className="text-sm font-medium text-ink">
           {label}
         </label>
       )}
       <button
+        ref={triggerRef}
         id={inputId}
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen((v) => !v)}
+        onClick={(e) => {
+          e.preventDefault();
+          if (disabled) return;
+          setOpen((v) => {
+            if (!v) updatePosition();
+            return !v;
+          });
+        }}
         className={cn(
           fieldBase,
           "flex items-center justify-between gap-2 text-left",
@@ -140,73 +262,7 @@ export function DatePicker({
         <Calendar className="h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden />
       </button>
       {name && <input type="hidden" name={name} value={value} />}
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            role="dialog"
-            aria-label="Choose date"
-            className="absolute left-0 top-full z-50 mt-1 w-[17.5rem] rounded-[var(--radius-card)] bg-surface p-3 shadow-float"
-            {...PICKER_MOTION}
-          >
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                aria-label="Previous month"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
-                onClick={() => shiftMonth(-1)}
-              >
-                ‹
-              </button>
-              <span className="font-display text-sm font-semibold">{monthLabel}</span>
-              <button
-                type="button"
-                aria-label="Next month"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
-                onClick={() => shiftMonth(1)}
-              >
-                ›
-              </button>
-            </div>
-
-            <div className="mb-1 grid grid-cols-7 gap-1">
-              {WEEKDAYS.map((d) => (
-                <span
-                  key={d}
-                  className="text-center text-[10px] font-medium uppercase tracking-wide text-muted"
-                >
-                  {d}
-                </span>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 gap-1">
-              {monthGrid(viewYear, viewMonth).map((day, i) => {
-                if (!day) return <span key={`e-${i}`} />;
-                const iso = toIso(day);
-                const isSelected = value === iso;
-                const isToday = iso === toIso(new Date());
-                return (
-                  <button
-                    key={iso}
-                    type="button"
-                    onClick={() => pick(day)}
-                    className={cn(
-                      "tabular flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors",
-                      isSelected
-                        ? "bg-[var(--accent-mid)] text-white"
-                        : "hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]",
-                      isToday && !isSelected && "ring-1 ring-[var(--accent)]",
-                    )}
-                  >
-                    {day.getDate()}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {mounted && createPortal(popover, document.body)}
     </div>
   );
 }
