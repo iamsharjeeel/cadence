@@ -1698,6 +1698,7 @@ _(none logged)_
 
 #### Verification
 - `npm run typecheck` passes.
+
 ### Session — F4 public API v1, webhooks-out, developer settings ✅ (2026-06-16)
 
 #### F4 — Public API + webhooks-out
@@ -1722,10 +1723,11 @@ _(none logged)_
 #### Verification
 - `npm run typecheck` passes.
 
-### Bug fix — "No organization." toast on onboarding ✅ (2026-06-18)
+### Bug fix — DatePicker non-interactive on onboarding Employment step (production) ✅ (2026-06-19)
 
-- **Issue:** Personal-workspace users on `/app/onboarding` hit a stale `profile.org_id` guard in onboarding server actions, surfacing a "No organization." error toast.
-- **Fix:** Gate `requireOrg()` in `src/app/app/onboarding/actions.ts` on the onboarding pathname (via request headers); suppress the same toast in `OnboardingWizard` when on `/app/onboarding`. The check still applies if those actions are invoked off-route.
+- **Issue:** `DatePicker` on `/app/onboarding` (Employment step, `start_date`) was completely unresponsive in production — trigger click, month navigation, and day selection did nothing. Worked locally (dev hydration masked the bug).
+- **Root cause:** Same as the modal flicker fix — the calendar popover rendered as `position: absolute` inside `PageTransition`'s `<motion.div {...PAGE_TRANSITION}>` (animates `y` → `transform`). A transformed ancestor becomes the containing block for positioned descendants and can break pointer hit-testing in production builds.
+- **Fix:** `DatePicker` now `createPortal`s its popover to `document.body` with `position: fixed` + trigger `getBoundingClientRect()` positioning (matches `RowActionsMenu` / `MotionModal` pattern). Month nav and day buttons call `e.preventDefault()` + `e.stopPropagation()` so clicks inside the onboarding `<form>` do not submit accidentally. Outside-click handler checks both trigger and portaled popover refs.
 
 #### Verification
-- `npm run typecheck` passes.
+- `npm run build` passes.
