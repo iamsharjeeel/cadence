@@ -60,10 +60,10 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - `organizations`: id, name, slug, base_currency, allowed_domains[], default_cadence, logo_url, created_at
 - `profiles`: id=auth.users.id, org_id, full_name, email, role, status, rate, rate_type, currency, bank_name, bank_account_name, bank_account_number (encrypted), bank_bsb_swift (encrypted), tax_id, address, payment_terms_days, created_at
 - `audit_log`: id, org_id, actor_id, action, entity, payload jsonb, created_at
-- `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), has_overtime, overtime_hours, raw_file_path (legacy upload path), rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, created_at, updated_at
+- `timesheets`: id, org_id, employee_id, period_start, period_end, status (draft|submitted|approved|rejected), has_overtime, overtime_hours, raw_file_path (legacy upload path), rejection_note, approved_at, approved_by, rate_snapshot, rate_type_snapshot, currency_snapshot, calculated_total, total_entry_hours (sum of entry hours; maintained by `trg_sync_timesheet_hours` trigger), created_at, updated_at
 - `timesheet_rows`: id, timesheet_id, org_id, row_date, hours, project, description, billable, created_at — **legacy** (pre–Phase 7 uploads); kept for historical rows
 - `projects`: id, org_id, owner_id, name, color, is_org_wide, is_active, created_at — org-wide or personal projects for time entry
-- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, asana_project_id (FK → asana_imported_projects), entry_date, start_time, end_time, entry_mode (`time_range`|`decimal_hours`), decimal_hours, is_overnight, total_hours (generated column — never written from client), description, billable, created_at, updated_at — in-app time logging (replaces upload flow)
+- `time_entries`: id, org_id, employee_id, timesheet_id, project_id, asana_project_id (FK → asana_imported_projects), entry_date, start_time, end_time, entry_mode (`time_range`|`decimal_hours`), decimal_hours, is_overnight, total_hours (generated column — never written from client), description, billable, status (`pending_approval`|`approved`|`rejected`, default `pending_approval`), created_at, updated_at — in-app time logging (replaces upload flow)
 - `webhook_deliveries`: id, org_id, timesheet_id, payload jsonb, status (pending|delivered|failed), attempts, last_attempted_at, delivered_at, created_at
 - `documents`: id, org_id, timesheet_id, employee_id, type (pay_advice|invoice), status (draft|in_progress|verified|corrections_needed), document_number, gst_enabled, gst_rate, subtotal, gst_amount, total, currency, file_path, emailed_at, generated_by, status_changed_by, status_changed_at, created_at, updated_at
 - `org_invites`: id, org_id, email, role, invited_by, created_at, expires_at, accepted_at — pending email invites
@@ -74,10 +74,11 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - `google_calendar_events`: id, user_id, google_event_id, calendar_id, title, description, location, start_at, end_at, organizer_email/name, guests jsonb, html_link, synced_at — persisted synced events
 
 ### Helper functions (SECURITY DEFINER)
-`auth_role()`, `auth_org()`, `is_active()`, `next_document_number(org_id, type)`
+`auth_role()`, `auth_org()`, `is_active()`, `next_document_number(org_id, type)`, `get_org_admin_ids(p_org_id)` (returns `TABLE(user_id uuid)` — owner/admin user_ids from `memberships`)
 
 ### Trigger
 `on_auth_user_created` — auto-creates a pending profile on signup
+`trg_sync_timesheet_hours` — keeps `timesheets.total_entry_hours` in sync on every `time_entries` insert/update/delete
 
 ### Storage
 - Private bucket: `timesheets`. Paths: `{org_id}/{employee_id}/{timesheet_id}/raw`. Signed URLs only (1hr expiry).
@@ -1730,4 +1731,29 @@ _(none logged)_
 - **Fix:** `DatePicker` now `createPortal`s its popover to `document.body` with `position: fixed` + trigger `getBoundingClientRect()` positioning (matches `RowActionsMenu` / `MotionModal` pattern). Month nav and day buttons call `e.preventDefault()` + `e.stopPropagation()` so clicks inside the onboarding `<form>` do not submit accidentally. Outside-click handler checks both trigger and portaled popover refs.
 
 #### Verification
+- `npm run build` passes.
+
+### Session — G1 / G3 / G4 production-gap wiring (timer status, export hours, admin notifications) ✅ (2026-06-19)
+
+Three DB gaps from the feature-inventory audit were fixed via migration (applied externally on live Supabase `irybkcryeywmwpcmhlaa`); this session wires the **app code** to match. No RLS, trigger, or DB-function changes — code only.
+
+#### G1 — `time_entries.status` (RESOLVED — no code change needed)
+- Column now live: `text NOT NULL default 'pending_approval'`, check constraint `pending_approval | approved | rejected`. Existing entries under approved timesheets were backfilled to `approved`.
+- `saveTimerEntries` (`src/app/app/timer-actions.ts`) already inserts `status` as `'pending_approval'` / `'approved'` (via `resolveEntryStatus`) — both satisfy the constraint. **Confirmed compatible.**
+- Manual entry (`src/app/app/timesheets/time-actions.ts upsertTimeEntry`) and the v1 API insert omit `status`, so they take the DB default (`pending_approval`). No reads/filters on `time_entries.status` exist elsewhere in the app, so nothing else required updating.
+
+#### G3 — CSV export hours (RESOLVED)
+- New column `timesheets.total_entry_hours numeric default 0`, kept current by trigger **`trg_sync_timesheet_hours`** on every `time_entries` insert/update/delete (backfilled via `durationHours` logic).
+- `src/app/api/timesheets/export/route.ts`: the `total_hours` CSV column now reads `timesheets.total_entry_hours` directly instead of summing the legacy (empty) `timesheet_rows` table — which is the bug that made every modern timesheet export `0` hours. `calculated_total` logic is unchanged.
+
+#### G4 — `notifyOrgAdmins` (RESOLVED)
+- New DB function **`get_org_admin_ids(p_org_id uuid)`** → `TABLE(user_id uuid)` — owner/admin user_ids from `memberships`.
+- `src/lib/notifications.ts`: `notifyOrgAdmins` now calls `db.rpc("get_org_admin_ids", { p_org_id })` instead of the broken `profiles WHERE org_id = ? AND role = 'admin'` query (`profiles.org_id` is null for everyone under Track C). Function signature and all callers unchanged. Now reaches owners too, not just admins.
+
+#### Schema / type updates
+- `src/types/db.ts`: added `timesheets.total_entry_hours` (Row/Insert/Update) and the `get_org_admin_ids` function type (`Args: { p_org_id: string }`, `Returns: { user_id: string }[]`).
+- **Note:** the live function arg is `p_org_id` (the task brief said `org_id`); the RPC is wired to the real signature, consistent with the other `p_`-prefixed RPCs.
+
+#### Verification
+- `npm run typecheck` passes.
 - `npm run build` passes.

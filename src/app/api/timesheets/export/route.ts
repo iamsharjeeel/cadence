@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   let query = db
     .from("timesheets")
     .select(
-      "id, employee_id, period_start, period_end, calculated_total, currency_snapshot, rate_snapshot, rate_type_snapshot, approved_at, approved_by, org_id",
+      "id, employee_id, period_start, period_end, total_entry_hours, calculated_total, currency_snapshot, rate_snapshot, rate_type_snapshot, approved_at, approved_by, org_id",
     )
     .eq("status", "approved")
     .gte("period_start", from)
@@ -84,20 +84,7 @@ export async function GET(request: NextRequest) {
 
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-  const timesheetIds = timesheets.map((t) => t.id);
-  const { data: rowData } = await db
-    .from("timesheet_rows")
-    .select("timesheet_id, hours")
-    .in("timesheet_id", timesheetIds);
-
-  const hoursByTimesheet = new Map<string, number>();
-  for (const row of rowData ?? []) {
-    hoursByTimesheet.set(
-      row.timesheet_id,
-      (hoursByTimesheet.get(row.timesheet_id) ?? 0) + Number(row.hours),
-    );
-  }
-
+  // total_entry_hours is maintained by trg_sync_timesheet_hours trigger
   const columns = [
     "employee_name",
     "email",
@@ -130,7 +117,7 @@ export async function GET(request: NextRequest) {
         csvEscape(t.currency_snapshot ?? emp?.currency),
         csvEscape(t.period_start),
         csvEscape(t.period_end),
-        csvEscape(hoursByTimesheet.get(t.id) ?? 0),
+        csvEscape(t.total_entry_hours ?? 0),
         csvEscape(t.calculated_total),
         csvEscape(t.approved_at),
         csvEscape(approver?.full_name?.trim() || approver?.email),

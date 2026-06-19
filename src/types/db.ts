@@ -644,6 +644,7 @@ export type Database = {
           raw_file_path: string | null
           rejection_note: string | null
           status: string
+          total_entry_hours: number | null
           updated_at: string
         }
         Insert: {
@@ -664,6 +665,7 @@ export type Database = {
           raw_file_path?: string | null
           rejection_note?: string | null
           status?: string
+          total_entry_hours?: number | null
           updated_at?: string
         }
         Update: {
@@ -684,6 +686,7 @@ export type Database = {
           raw_file_path?: string | null
           rejection_note?: string | null
           status?: string
+          total_entry_hours?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -1420,6 +1423,10 @@ export type Database = {
       get_or_create_org_settings: {
         Args: { p_org_id: string }
         Returns: Database["public"]["Tables"]["org_settings"]["Row"]
+      }
+      get_org_admin_ids: {
+        Args: { p_org_id: string }
+        Returns: { user_id: string }[]
       }
       set_active_workspace: {
         Args: { p_org_id: string | null }
