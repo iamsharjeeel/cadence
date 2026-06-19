@@ -2,7 +2,8 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { durationHours } from "@/lib/time/validation";
-import type { Profile, Timesheet } from "@/types/db";
+import { calculateTotal } from "@/lib/timesheets/calc";
+import type { Profile, RateType, Timesheet } from "@/types/db";
 import { currentMonthRange, isoWeekKey, lastNWeeks } from "./period";
 
 /** Time-entry columns needed to compute hours with overnight wrapping. */
@@ -87,9 +88,54 @@ function monthRange() {
 /** Employee dashboard — own data only. */
 export async function getEmployeeDashboard(
   profile: Profile,
+  isPersonal = false,
 ): Promise<EmployeeDashboardData> {
   const db = createAdminClient();
   const { start } = monthRange();
+
+  if (isPersonal) {
+    // Personal scope has no approval flow (timesheets stay draft), so an
+    // approved-only query always returns nothing. Surface actual logged hours
+    // (total_entry_hours, trigger-maintained) and estimated earnings instead.
+    const { data: tsRows } = await db
+      .from("timesheets")
+      .select("*")
+      .is("org_id", null)
+      .eq("employee_id", profile.id)
+      .order("period_start", { ascending: false });
+    const all = (tsRows ?? []) as Timesheet[];
+
+    const monthHours =
+      Math.round(
+        all
+          .filter((t) => t.period_start >= start)
+          .reduce((s, t) => s + Number(t.total_entry_hours ?? 0), 0) * 100,
+      ) / 100;
+
+    const estimated = calculateTotal(
+      monthHours,
+      profile.rate,
+      profile.rate_type as RateType,
+    );
+    const currency = profile.currency ?? "USD";
+    const earningsByCurrency: CurrencyTotals =
+      monthHours > 0 && estimated != null ? { [currency]: estimated } : {};
+
+    const hoursByPeriod = all
+      .slice(0, 6)
+      .map((t) => ({
+        label: t.period_start.slice(5),
+        hours: Math.round(Number(t.total_entry_hours ?? 0) * 100) / 100,
+      }))
+      .reverse();
+
+    return {
+      approvedHoursMonth: monthHours,
+      earningsByCurrency,
+      recentTimesheets: all.slice(0, 5),
+      hoursByPeriod,
+    };
+  }
 
   const { data: timesheets } = await db
     .from("timesheets")

@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins } from "@/lib/notifications";
 import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
+import { calculateTotal } from "@/lib/timesheets/calc";
+import { getOrgApprovalFlags } from "@/lib/org-settings/flags";
 import {
   addDays,
   isoWeekLabel,
@@ -27,7 +29,7 @@ import {
   rangesOverlap,
   toRange,
 } from "@/lib/time/validation";
-import type { TimesheetStatus } from "@/types/db";
+import type { RateType, TimesheetStatus } from "@/types/db";
 import {
   ensureTimesheetForWeekForProfile,
   getTimeTrackingDataForProfile,
@@ -315,64 +317,134 @@ export async function submitTimesheetForApproval(
 
   const hasOvertime = stats.totalHours > 40;
   const otHours = overtimeHours(stats.totalHours);
+  const nowIso = new Date().toISOString();
+  const employeeName = profile.full_name?.trim() || profile.email;
 
+  // G2: org_settings.approvals_timesheets decides whether submission enters the
+  // manager approval queue ('submitted') or auto-approves ('approved', bypassing
+  // the queue). A missing org_settings row resolves to the permissive default
+  // (false) via getOrgApprovalFlags, so submission is never blocked.
+  const { timesheets: approvalsRequired } = await getOrgApprovalFlags(ts.org_id);
+
+  if (approvalsRequired) {
+    const { error } = await db
+      .from("timesheets")
+      .update({
+        status: "submitted",
+        has_overtime: hasOvertime,
+        overtime_hours: hasOvertime ? otHours : 0,
+        updated_at: nowIso,
+      })
+      .eq("id", timesheetId);
+    if (error) return { ok: false, message: "Couldn't submit timesheet." };
+
+    await writeAudit({
+      actorId: profile.id,
+      orgId: ts.org_id,
+      action: "timesheet_submitted",
+      entity: "timesheets",
+      payload: {
+        timesheet_id: timesheetId,
+        period_start: ts.period_start,
+        period_end: ts.period_end,
+        days_logged: stats.daysLogged,
+        total_hours: stats.totalHours,
+        has_overtime: hasOvertime,
+        overtime_hours: otHours,
+      },
+    });
+
+    await notifyOrgAdmins({
+      orgId: ts.org_id,
+      type: "timesheet_submitted",
+      title: "New timesheet submitted",
+      body: `${employeeName} · ${ts.period_start} – ${ts.period_end}${hasOvertime ? ` · Overtime +${otHours}h` : ""}`,
+      entity: "timesheets",
+      entityId: timesheetId,
+      excludeUserId: profile.id,
+    });
+
+    void dispatchWebhookEvent(ts.org_id, {
+      type: "timesheet.submitted",
+      data: {
+        timesheet_id: timesheetId,
+        employee_id: profile.id,
+        org_id: ts.org_id,
+        period_start: ts.period_start,
+        period_end: ts.period_end,
+        days_logged: stats.daysLogged,
+        total_hours: stats.totalHours,
+        has_overtime: hasOvertime,
+        overtime_hours: otHours,
+      },
+    });
+
+    revalidatePath("/app/timesheets");
+    revalidatePath("/app/timesheets/log");
+    revalidatePath("/app/dashboard");
+    return { ok: true, message: "Timesheet submitted for approval." };
+  }
+
+  // Approvals off → auto-approve on submit. Snapshot the employee's rate and
+  // compute the total exactly like approveTimesheet, so dashboards and the CSV
+  // export read correct pay figures. approved_by is the submitter (self-approve).
+  const calculatedTotal = calculateTotal(
+    stats.totalHours,
+    profile.rate,
+    profile.rate_type as RateType,
+  );
   const { error } = await db
     .from("timesheets")
     .update({
-      status: "submitted",
+      status: "approved",
+      approved_at: nowIso,
+      approved_by: profile.id,
+      rate_snapshot: profile.rate,
+      rate_type_snapshot: profile.rate_type,
+      currency_snapshot: profile.currency,
+      calculated_total: calculatedTotal,
       has_overtime: hasOvertime,
       overtime_hours: hasOvertime ? otHours : 0,
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     })
     .eq("id", timesheetId);
   if (error) return { ok: false, message: "Couldn't submit timesheet." };
 
-  const employeeName = profile.full_name?.trim() || profile.email;
   await writeAudit({
     actorId: profile.id,
     orgId: ts.org_id,
-    action: "timesheet_submitted",
+    action: "timesheet_approved",
     entity: "timesheets",
     payload: {
       timesheet_id: timesheetId,
-      period_start: ts.period_start,
-      period_end: ts.period_end,
-      days_logged: stats.daysLogged,
       total_hours: stats.totalHours,
-      has_overtime: hasOvertime,
-      overtime_hours: otHours,
+      calculated_total: calculatedTotal,
+      auto_approved: true,
     },
   });
 
-  await notifyOrgAdmins({
-    orgId: ts.org_id,
-    type: "timesheet_submitted",
-    title: "New timesheet submitted",
-    body: `${employeeName} · ${ts.period_start} – ${ts.period_end}${hasOvertime ? ` · Overtime +${otHours}h` : ""}`,
-    entity: "timesheets",
-    entityId: timesheetId,
-    excludeUserId: profile.id,
-  });
-
   void dispatchWebhookEvent(ts.org_id, {
-    type: "timesheet.submitted",
+    type: "timesheet.approved",
     data: {
       timesheet_id: timesheetId,
       employee_id: profile.id,
       org_id: ts.org_id,
       period_start: ts.period_start,
       period_end: ts.period_end,
-      days_logged: stats.daysLogged,
       total_hours: stats.totalHours,
-      has_overtime: hasOvertime,
-      overtime_hours: otHours,
+      rate_snapshot: profile.rate,
+      rate_type_snapshot: profile.rate_type,
+      currency_snapshot: profile.currency,
+      calculated_total: calculatedTotal,
+      approved_by: profile.id,
+      approved_at: nowIso,
     },
   });
 
   revalidatePath("/app/timesheets");
   revalidatePath("/app/timesheets/log");
   revalidatePath("/app/dashboard");
-  return { ok: true, message: "Timesheet submitted for approval." };
+  return { ok: true, message: "Timesheet submitted and approved." };
 }
 
 export async function checkTimeLogReminder(): Promise<ActionResult> {
@@ -412,6 +484,72 @@ export async function checkTimeLogReminder(): Promise<ActionResult> {
     title: "Log your time",
     body: `You haven't logged time in the last 3 days (${week.label}).`,
     entity: "timesheets",
+  });
+
+  return { ok: true, message: "Reminder sent." };
+}
+
+/**
+ * G6: pre-deadline submission nudge (in-app only, no cron). On app load, if it's
+ * the Thursday or Friday of the current Mon–Sun week and the employee has logged
+ * time this week but not yet submitted, insert one reminder — deduped to once per
+ * week. Org context only (personal timesheets have no submission step). The
+ * day-of-week check short-circuits before any DB read on Mon–Wed/Sat–Sun.
+ */
+export async function checkTimesheetSubmitReminder(): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  const orgId = profile.org_id ?? null;
+  if (!orgId) return { ok: true, message: "" };
+
+  const today = toIsoDate(new Date());
+  const weekMonday = mondayOfWeek(today);
+  // Last two working days of the week only: Thursday (Mon+3) or Friday (Mon+4).
+  const isThursdayOrFriday =
+    today === addDays(weekMonday, 3) || today === addDays(weekMonday, 4);
+  if (!isThursdayOrFriday) return { ok: true, message: "" };
+
+  const week = weekPeriodFromMonday(weekMonday);
+  const db = createAdminClient();
+
+  // Already submitted (or beyond) for this week? Nothing to nudge.
+  const { data: ts } = await db
+    .from("timesheets")
+    .select("id, status")
+    .eq("employee_id", profile.id)
+    .eq("period_start", weekMonday)
+    .maybeSingle();
+  if (ts && ts.status !== "draft" && ts.status !== "rejected") {
+    return { ok: true, message: "" };
+  }
+
+  // Must have logged at least one entry this week.
+  const { data: entries } = await db
+    .from("time_entries")
+    .select("id")
+    .eq("employee_id", profile.id)
+    .gte("entry_date", week.start)
+    .lte("entry_date", week.end)
+    .limit(1);
+  if (!entries || entries.length === 0) return { ok: true, message: "" };
+
+  // Dedupe: one submission reminder per user per week.
+  const { data: existing } = await db
+    .from("notifications")
+    .select("id")
+    .eq("user_id", profile.id)
+    .eq("type", "timesheet_submit_reminder")
+    .gte("created_at", `${weekMonday}T00:00:00Z`)
+    .limit(1);
+  if (existing && existing.length > 0) return { ok: true, message: "" };
+
+  await db.from("notifications").insert({
+    org_id: orgId,
+    user_id: profile.id,
+    type: "timesheet_submit_reminder",
+    title: "Timesheet due soon",
+    body: "Submit your timesheet before the week closes.",
+    entity: "timesheets",
+    entity_id: ts?.id ?? null,
   });
 
   return { ok: true, message: "Reminder sent." };

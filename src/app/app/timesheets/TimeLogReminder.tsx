@@ -2,11 +2,12 @@
 
 import { useEffect } from "react";
 
-import { checkTimeLogReminder } from "./time-actions";
+import { checkTimeLogReminder, checkTimesheetSubmitReminder } from "./time-actions";
 
 export function TimeLogReminder() {
   useEffect(() => {
     checkTimeLogReminder();
+    checkTimesheetSubmitReminder();
   }, []);
   return null;
 }

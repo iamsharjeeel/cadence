@@ -1757,3 +1757,32 @@ Three DB gaps from the feature-inventory audit were fixed via migration (applied
 #### Verification
 - `npm run typecheck` passes.
 - `npm run build` passes.
+
+### Session — G2 / G6 / G7 / G9 bug + dead-wiring fixes ✅ (2026-06-19)
+
+Five audit findings resolved — bugs / dead wiring only, no new features. App-layer + types; no RLS, trigger, or DB-function changes. `tsc --noEmit` and `next build` pass.
+
+#### G2 — Approval-settings enforcement wired (was a dead end)
+- New helper `src/lib/org-settings/flags.ts` → `getOrgApprovalFlags(orgId)` reads `approvals_timesheets` / `approvals_leave` via the **service-role** client (employees can't use the owner/admin-gated `get_or_create_org_settings` RPC). Missing `org_settings` row or null org ⇒ `{ false, false }` — **permissive default, never blocks submission**.
+- **Timesheets** (`src/app/app/timesheets/time-actions.ts submitTimesheetForApproval`): `approvals_timesheets = true` → status `'submitted'` (existing manager queue, ApprovalControls/TimesheetStatusActions unchanged). `false` → **auto-approve on submit**: status `'approved'`, rate/currency snapshot + `calculated_total` computed (same as `approveTimesheet`), `approved_by` = submitter, `timesheet.approved` webhook + `timesheet_approved` audit (`auto_approved: true`).
+- **Leave** (`src/app/app/leave/actions.ts requestLeave`): `approvals_leave = true` → `'pending'` (notify admins, `leave.requested`). `false` → `'approved'` on submit, GCal push + `google_event_id`, `leave.approved` webhook. Personal leave (`markPersonalLeave`) already auto-approves — unchanged.
+
+#### G7 — Personal dashboard headline stats (were always 0)
+- `src/lib/dashboard/queries.ts getEmployeeDashboard(profile, isPersonal)`: personal branch queries `timesheets WHERE org_id IS NULL AND employee_id = me` (no `status='approved'` filter), sums `total_entry_hours` for the month, and shows **estimated earnings** (`calculateTotal(hours, rate, rate_type)`) since personal timesheets carry no `calculated_total`. Org-context behaviour unchanged.
+- `EmployeeDashboardContent` + `dashboard/page.tsx`: new `isPersonal` prop drives the query and relabels the cards for personal ("Hours this month" / "Estimated earnings this month", "Last 6 weeks").
+
+#### G9 — Login copy (stale domain-auto-join claim)
+- `src/app/login/page.tsx`: copy now reads "Join a team using an invite link from your manager" — reflects the invite-only model (domain auto-join was removed in Track C). Copy only; no redesign.
+
+#### G6 — Pre-deadline submission reminder (in-app, no cron)
+- New `'timesheet_submit_reminder'` notification type (`src/lib/notifications.ts`).
+- New `checkTimesheetSubmitReminder()` (`time-actions.ts`), called from `TimeLogReminder` (mounts on `/app/timesheets` + `/app/timesheets/log`) alongside `checkTimeLogReminder`. Fires only on **Thu/Fri** of the current Mon–Sun week, when the employee has ≥1 entry this week but no submitted/approved timesheet, deduped to once per week (notifications type + `created_at >= Monday`). Org context only; day-of-week check short-circuits before any DB read. Title "Timesheet due soon", body "Submit your timesheet before the week closes."
+
+#### U1 — Mystery migrations documented (no code change)
+Two migrations were in the **live** migration history with no handover record:
+- **`task_c_resubmit_count`** (`20260612114239`) — added `timesheets.resubmit_count smallint DEFAULT 0` (confirmed in live `information_schema`). Tracks how many times a rejected timesheet has been resubmitted.
+- **`feedback_batch_schema_prep`** (`20260619013810`) — **schema-prep migration, no net schema change visible in `information_schema`** (no new tables; no visible columns on `profiles`/`timesheets`); likely staged enum values / RLS as part of a batch. Safe to leave as applied.
+
+#### Verification
+- `npm run typecheck` passes.
+- `npm run build` passes.

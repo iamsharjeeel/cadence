@@ -133,6 +133,7 @@ export default async function DashboardPage({
       <EmployeeDashboardContent
         profile={profile}
         firstName={firstName}
+        isPersonal={ctx.isPersonal}
         includeTrendsSection={ctx.isPersonal}
       />
     </div>

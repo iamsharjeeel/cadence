@@ -7,6 +7,7 @@ export type NotificationType =
   | "timesheet_approved"
   | "timesheet_rejected"
   | "time_log_reminder"
+  | "timesheet_submit_reminder"
   | "asana_reconnect_required"
   | "leave_requested"
   | "leave_approved"

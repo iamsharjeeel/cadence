@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
+import { getOrgApprovalFlags } from "@/lib/org-settings/flags";
 import { requireActiveProfile } from "@/lib/auth";
 import { countBusinessDays } from "@/lib/leave/days";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
@@ -143,17 +144,19 @@ export async function requestLeave(input: {
   let end: string;
   let halfDay = false;
   let leaveTypeId: string | null = input.leaveTypeId?.trim() || null;
+  let categoryName: string | null = null;
 
   if (leaveTypeId) {
     const { data: lt } = await db
       .from("leave_types")
-      .select("id, org_id, unit")
+      .select("id, org_id, unit, name")
       .eq("id", leaveTypeId)
       .single();
     if (!lt || lt.org_id !== orgId) {
       return { ok: false, message: "Invalid leave category." };
     }
     unit = lt.unit === "hours" ? "hours" : "days";
+    categoryName = lt.name ?? null;
   }
 
   if (unit === "hours") {
@@ -196,6 +199,13 @@ export async function requestLeave(input: {
     : { ok: true as const, value: "" };
   if (!noteV.ok) return { ok: false, message: noteV.error };
 
+  // G2: org_settings.approvals_leave gates whether the request needs manager
+  // sign-off ('pending') or auto-approves on submit ('approved'). Missing
+  // org_settings row ⇒ permissive default (auto-approve).
+  const { leave: approvalsRequired } = await getOrgApprovalFlags(orgId);
+  const employeeName = profile.full_name?.trim() || profile.email;
+  const nowIso = new Date().toISOString();
+
   const { data: inserted, error } = await db
     .from("leave_requests")
     .insert({
@@ -207,7 +217,10 @@ export async function requestLeave(input: {
       days_requested: days,
       half_day: halfDay,
       note: noteV.value || null,
-      status: "pending",
+      status: approvalsRequired ? "pending" : "approved",
+      ...(approvalsRequired
+        ? {}
+        : { reviewed_by: profile.id, reviewed_at: nowIso }),
     })
     .select("id")
     .single();
@@ -216,7 +229,47 @@ export async function requestLeave(input: {
     return { ok: false, message: "Couldn't submit request." };
   }
 
-  const employeeName = profile.full_name?.trim() || profile.email;
+  if (!approvalsRequired) {
+    // Auto-approved on submit — push to the employee's calendar and record the
+    // event id, mirroring approveLeaveRequest / markPersonalLeave.
+    const push = await pushLeaveToGoogleCalendar({
+      userId: profile.id,
+      startDate: start,
+      endDate: end,
+      categoryName,
+      note: noteV.value || null,
+    });
+    if (push.pushed) {
+      await db
+        .from("leave_requests")
+        .update({ google_event_id: push.eventId })
+        .eq("id", inserted.id);
+    }
+
+    await writeAudit({
+      actorId: profile.id,
+      orgId,
+      action: "leave_requested",
+      entity: "leave_requests",
+      payload: { leave_type_id: leaveTypeId, days, auto_approved: true },
+    });
+
+    void dispatchWebhookEvent(orgId, {
+      type: "leave.approved",
+      data: {
+        request_id: inserted.id,
+        employee_id: profile.id,
+        org_id: orgId,
+        start_date: start,
+        end_date: end,
+        reviewed_by: profile.id,
+      },
+    });
+
+    revalidatePath("/app/leave");
+    return { ok: true, message: `Leave approved.${gcalWarningSuffix(push)}` };
+  }
+
   await notifyOrgAdmins({
     orgId,
     type: "leave_requested",

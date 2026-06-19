@@ -24,14 +24,16 @@ export async function EmployeeDashboardContent({
   firstName,
   extraAction,
   includeTrendsSection = false,
+  isPersonal = false,
 }: {
   profile: Profile;
   firstName: string;
   extraAction?: React.ReactNode;
   includeTrendsSection?: boolean;
+  isPersonal?: boolean;
 }) {
   const [data, trendData] = await Promise.all([
-    getEmployeeDashboard(profile),
+    getEmployeeDashboard(profile, isPersonal),
     includeTrendsSection ? getEmployeeTrends(profile, "monthly") : Promise.resolve(null),
   ]);
 
@@ -39,7 +41,11 @@ export async function EmployeeDashboardContent({
     <>
       <PageHeader
         title={`Good to see you, ${firstName}.`}
-        description="Your approved hours and earnings this month."
+        description={
+          isPersonal
+            ? "Your logged hours and estimated earnings this month."
+            : "Your approved hours and earnings this month."
+        }
         greeting
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -53,7 +59,7 @@ export async function EmployeeDashboardContent({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard
-          label="Approved hours this month"
+          label={isPersonal ? "Hours this month" : "Approved hours this month"}
           value={data.approvedHoursMonth}
           decimals={1}
         />
@@ -63,7 +69,7 @@ export async function EmployeeDashboardContent({
         >
           <CardContent className="flex flex-col gap-0 py-6">
             <span className="font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted sm:text-[11px] dark:text-[var(--ink-muted)]">
-              Total earnings this month
+              {isPersonal ? "Estimated earnings this month" : "Total earnings this month"}
             </span>
             <div className="py-4">
               <CurrencyTotalsDisplay totals={data.earningsByCurrency} />
@@ -76,7 +82,9 @@ export async function EmployeeDashboardContent({
         <Card density="comfortable">
           <CardHeader>
             <CardTitle className="text-[18px] font-semibold">My hours by period</CardTitle>
-            <CardDescription>Last 6 approved pay periods.</CardDescription>
+            <CardDescription>
+              {isPersonal ? "Last 6 weeks." : "Last 6 approved pay periods."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <HoursLineChart data={data.hoursByPeriod} xKey="label" />
@@ -86,7 +94,9 @@ export async function EmployeeDashboardContent({
         <Card density="comfortable">
           <CardHeader>
             <CardTitle className="text-[18px] font-semibold">Recent timesheets</CardTitle>
-            <CardDescription>Your last 5 submissions.</CardDescription>
+            <CardDescription>
+              {isPersonal ? "Your last 5 weeks." : "Your last 5 submissions."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {data.recentTimesheets.length === 0 ? (
