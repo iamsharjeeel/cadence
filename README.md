@@ -75,9 +75,11 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - Enhanced landing page
 
 ### Phase 7 — In-app time tracking
-- Weekly submission (Mon–Sun): log time at `/app/timesheets` (employees) or `/app/timesheets/log` with auto-save via Supabase browser client (RLS-scoped)
+- Pay-period cadence follows org `default_cadence` (`weekly` / `biweekly` / `biweekly_15` / `monthly`); personal workspace always uses weekly (Mon–Sun)
+- Log time at `/app/timesheets/log`; timesheet list at `/app/timesheets` with From/To date filters and expandable day-by-day entry summaries
+- Submit gate scales with cadence (weekly: 5 days or 40h; biweekly/15-day: 10 days or 80h; monthly: 20 days or 160h)
 - **Personal (no-org) users** can log time in personal workspace: entries and timesheets save with `org_id = null`; no submit-for-approval flow (entries persist as drafts). Switching into an org via the workspace switcher scopes new entries to that org and restores the approval workflow.
-- Seven-day view (weekends optional); submit gate (org context only): 5 days logged or 40 hours; overtime flagged for manager review
+- Non-billable entries (`billable = false`) save normally
 - Draft rows persist only with valid start/end; overlap guard excludes self and invalid DB rows
 - Branded **TimePicker** and **DatePicker** components (gold accent, Framer Motion popovers) replace native time/date inputs app-wide
 - SSR prefetch on timesheet log pages for near-instant first paint (no client waterfall on load)
@@ -231,7 +233,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - Members tab respects role matrix: owner manages roles/invite/remove; manager read-only list; employee redirected; superadmin platform audit view
 
 ### F2 — Toggl-style timer (shipped)
-- **Floating timer** in app shell (all `/app/*` pages) — bottom-right, collapsible
+- **Floating timer** in app shell (all `/app/*` pages) — draggable, viewport-constrained, position in `sessionStorage`
 - Start → project prompt (Cadence `ProjectPicker`, skippable); running state with elapsed HH:MM:SS + pulsing indicator
 - Stop saves `time_entries` via server action; persists in `TimerContext` (no localStorage)
 - Mid-session project reassignment; 30-minute idle modal; midnight auto-stop with day split

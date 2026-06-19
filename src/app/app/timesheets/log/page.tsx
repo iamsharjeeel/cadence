@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { requireActiveProfile } from "@/lib/auth";
 import { decodeGoogleCalendarPrefill } from "@/lib/google-calendar/prefill";
 import { getEventsForDay } from "@/lib/google-calendar/sync";
-import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
-import { mondayOfWeek, thisWeekMonday, weekDays } from "@/lib/time/periods";
+import {
+  getTimeTrackingDataForProfile,
+  resolvePeriodCadence,
+} from "@/lib/time/get-time-tracking-data";
+import { periodDays, periodForDate, toIsoDate } from "@/lib/time/periods";
 import type { GoogleCalendarEventWithMeta } from "@/lib/google-calendar/sync";
 import { TimeTrackingView } from "../TimeTrackingView";
 import { TimeLogReminder } from "../TimeLogReminder";
@@ -24,10 +27,11 @@ export default async function LogTimePage({
   const profile = await requireActiveProfile();
 
   const isManager = profile.role === "admin" || profile.role === "superadmin";
-  const weekMonday = searchParams?.date
-    ? mondayOfWeek(searchParams.date)
-    : thisWeekMonday();
-  const days = weekDays(weekMonday);
+  const today = toIsoDate(new Date());
+  const anchorDate = searchParams?.date ?? today;
+  const cadence = await resolvePeriodCadence(profile);
+  const period = periodForDate(anchorDate, cadence);
+  const days = periodDays(period);
 
   const calendarEventsByDay: Record<string, GoogleCalendarEventWithMeta[]> = {};
   await Promise.all(
@@ -36,7 +40,7 @@ export default async function LogTimePage({
     }),
   );
 
-  const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
+  const initialData = await getTimeTrackingDataForProfile(profile, anchorDate, cadence);
   const initialPrefill = decodeGoogleCalendarPrefill(searchParams?.prefill);
 
   return (
@@ -44,19 +48,17 @@ export default async function LogTimePage({
       <TimeLogReminder />
       <PageHeader
         title="Log time"
-        description="Log your hours for the week (Mon–Sun), then submit for approval."
+        description="Log your hours for the pay period, then submit for approval."
         action={
-          isManager ? (
-            <Link href="/app/timesheets">
-              <Button variant="ghost" size="sm">
-                Back to timesheets
-              </Button>
-            </Link>
-          ) : undefined
+          <Link href="/app/timesheets">
+            <Button variant="ghost" size="sm">
+              {isManager ? "Back to timesheets" : "View timesheets"}
+            </Button>
+          </Link>
         }
       />
       <TimeTrackingView
-        initialWeekMonday={weekMonday}
+        initialPeriodAnchor={period.start}
         initialData={initialData.ok ? initialData : null}
         calendarEventsByDay={calendarEventsByDay}
         initialPrefill={initialPrefill}

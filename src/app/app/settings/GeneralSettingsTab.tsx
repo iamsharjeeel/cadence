@@ -10,8 +10,6 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { MotionModal } from "@/components/motion/MotionModal";
 import { useToast } from "@/components/ui/Toast";
-import { PERIOD_CADENCES } from "@/types/db";
-import { titleCase } from "@/lib/utils";
 import { COMMON_CURRENCIES } from "@/lib/constants";
 import { formatAllowedDomains, normalizeAllowedDomains } from "@/lib/org-utils";
 import type { Organization } from "@/types/db";
@@ -79,12 +77,12 @@ export function GeneralSettingsTab({
   const currencyOptions = Array.isArray(COMMON_CURRENCIES)
     ? COMMON_CURRENCIES.map((c) => ({ label: c, value: c }))
     : [];
-  const cadenceOptions = Array.isArray(PERIOD_CADENCES)
-    ? PERIOD_CADENCES.map((c) => ({
-        label: titleCase(c),
-        value: c,
-      }))
-    : [];
+  const cadenceOptions = [
+    { label: "Weekly", value: "weekly" as const },
+    { label: "Biweekly", value: "biweekly" as const },
+    { label: "15-day", value: "biweekly_15" as const },
+    { label: "Monthly", value: "monthly" as const },
+  ];
 
   return (
     <div className="flex flex-col gap-8">

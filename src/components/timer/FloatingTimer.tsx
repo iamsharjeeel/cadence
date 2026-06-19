@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { Pause, Play } from "lucide-react";
 
 import { ProjectPicker } from "@/components/time/ProjectPicker";
@@ -16,6 +17,8 @@ import {
 import { cn } from "@/lib/utils";
 import { saveTimerEntries } from "@/app/app/timer-actions";
 import { splitTimerAtMidnight } from "@/lib/timer-utils";
+
+const TIMER_POSITION_KEY = "cadence-floating-timer-position";
 
 function ModalTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -55,6 +58,25 @@ export function FloatingTimer() {
   const [saving, setSaving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const midnightHandledRef = useRef<string | null>(null);
+  const constraintsRef = useRef<HTMLDivElement>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [positionReady, setPositionReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(TIMER_POSITION_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { x?: number; y?: number };
+        setDragOffset({
+          x: typeof parsed.x === "number" ? parsed.x : 0,
+          y: typeof parsed.y === "number" ? parsed.y : 0,
+        });
+      }
+    } catch {
+      /* ignore corrupt session value */
+    }
+    setPositionReady(true);
+  }, []);
 
   useEffect(() => {
     if (!running && !showProjectPrompt) return;
@@ -132,18 +154,37 @@ export function FloatingTimer() {
   return (
     <>
       <div
-        className={cn(
-          "fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-2",
-          "pointer-events-none",
-        )}
-      >
-        <div
+        ref={constraintsRef}
+        className="pointer-events-none fixed inset-0 z-[60]"
+        aria-hidden
+      />
+      {positionReady ? (
+        <motion.div
+          drag
+          dragConstraints={constraintsRef}
+          dragElastic={0}
+          dragMomentum={false}
+          style={{ x: dragOffset.x, y: dragOffset.y }}
+          onDragEnd={(_, info) => {
+            const next = {
+              x: dragOffset.x + info.offset.x,
+              y: dragOffset.y + info.offset.y,
+            };
+            setDragOffset(next);
+            sessionStorage.setItem(TIMER_POSITION_KEY, JSON.stringify(next));
+          }}
           className={cn(
-            "pointer-events-auto overflow-hidden rounded-[var(--radius-card)] border bg-surface shadow-lg",
-            "dark:border-[var(--line)]",
-            expanded && running ? "w-80" : "w-auto",
+            "fixed bottom-6 right-6 z-[61] flex flex-col items-end gap-2",
+            "cursor-grab active:cursor-grabbing",
           )}
         >
+          <div
+            className={cn(
+              "overflow-hidden rounded-[var(--radius-card)] border bg-surface shadow-lg",
+              "dark:border-[var(--line)]",
+              expanded && running ? "w-80" : "w-auto",
+            )}
+          >
           {running && expanded && (
             <div className="border-b px-4 py-3">
               <button
@@ -197,8 +238,9 @@ export function FloatingTimer() {
               </button>
             )}
           </div>
-        </div>
-      </div>
+          </div>
+        </motion.div>
+      ) : null}
 
       <MotionModal
         open={showProjectPrompt && Boolean(running)}

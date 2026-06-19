@@ -87,6 +87,7 @@ export function LeaveEmployeeView({
   calendarMonth: string;
 }) {
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestSeedDate, setRequestSeedDate] = useState<string | undefined>();
   const [actingId, setActingId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -139,7 +140,14 @@ export function LeaveEmployeeView({
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{description}</p>
-        <Button onClick={() => setRequestModalOpen(true)}>{ctaLabel}</Button>
+        <Button
+          onClick={() => {
+            setRequestSeedDate(undefined);
+            setRequestModalOpen(true);
+          }}
+        >
+          {ctaLabel}
+        </Button>
       </div>
 
       <MotionCard className="overflow-hidden">
@@ -168,11 +176,16 @@ export function LeaveEmployeeView({
               const visible = hits.slice(0, 2);
               const overflow = hits.length - visible.length;
               return (
-                <div
+                <button
                   key={day}
+                  type="button"
+                  onClick={() => {
+                    setRequestSeedDate(iso);
+                    setRequestModalOpen(true);
+                  }}
                   className={cn(
-                    "relative flex min-h-[80px] flex-col gap-1 bg-surface p-1.5 transition-colors",
-                    hits.length === 0 && "hover:bg-container",
+                    "relative flex min-h-[80px] flex-col gap-1 bg-surface p-1.5 text-left transition-colors",
+                    "cursor-pointer hover:bg-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)]",
                     hasApproved &&
                       "bg-[var(--accent-soft)]/50 ring-1 ring-inset ring-[var(--accent)]/25",
                     hasPending &&
@@ -202,7 +215,7 @@ export function LeaveEmployeeView({
                       ) : null}
                     </div>
                   ) : null}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -302,7 +315,11 @@ export function LeaveEmployeeView({
         <RequestLeaveModal
           mode={mode}
           leaveTypes={leaveTypes}
-          onClose={() => setRequestModalOpen(false)}
+          initialStartDate={requestSeedDate}
+          onClose={() => {
+            setRequestModalOpen(false);
+            setRequestSeedDate(undefined);
+          }}
         />
       ) : null}
     </div>

@@ -1427,7 +1427,7 @@ export type Database = {
       }
     }
     Enums: {
-      period_cadence: "weekly" | "biweekly" | "monthly"
+      period_cadence: "weekly" | "biweekly" | "biweekly_15" | "monthly"
       rate_type: "hourly" | "salaried" | "fixed"
       user_role: "superadmin" | "owner" | "admin" | "employee"
       user_status: "pending" | "active" | "suspended"
@@ -1558,7 +1558,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      period_cadence: ["weekly", "biweekly", "monthly"],
+      period_cadence: ["weekly", "biweekly", "biweekly_15", "monthly"],
       rate_type: ["hourly", "salaried", "fixed"],
       user_role: ["superadmin", "owner", "admin", "employee"],
       user_status: ["pending", "active", "suspended"],

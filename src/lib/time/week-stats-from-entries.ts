@@ -1,7 +1,7 @@
+import type { PeriodCadence } from "@/types/db";
 import {
-  OVERTIME_HOURS_THRESHOLD,
-  SUBMIT_MIN_DAYS,
-  SUBMIT_MIN_HOURS,
+  canSubmitPeriod,
+  submitThresholds,
   type WeekStats,
 } from "@/lib/time/week-constants";
 import { durationHours } from "@/lib/time/validation";
@@ -31,20 +31,24 @@ function sliceHours(e: EntrySlice): number {
   return Number(e.total_hours ?? 0);
 }
 
-/** Derive week stats from entry rows already in hand — avoids a redundant DB query. */
-export function weekStatsFromEntries(entries: EntrySlice[]): WeekStats {
+/** Derive period stats from entry rows already in hand — avoids a redundant DB query. */
+export function weekStatsFromEntries(
+  entries: EntrySlice[],
+  cadence: PeriodCadence = "weekly",
+): WeekStats {
   const daysLogged = new Set(entries.map((r) => r.entry_date)).size;
   const totalHours =
     Math.round(entries.reduce((sum, r) => sum + sliceHours(r), 0) * 100) / 100;
+  const threshold = submitThresholds(cadence).overtimeHours;
   const overtime =
-    totalHours > OVERTIME_HOURS_THRESHOLD
-      ? Math.round((totalHours - OVERTIME_HOURS_THRESHOLD) * 100) / 100
+    totalHours > threshold
+      ? Math.round((totalHours - threshold) * 100) / 100
       : 0;
 
   return {
     daysLogged,
     totalHours,
-    canSubmit: daysLogged >= SUBMIT_MIN_DAYS || totalHours >= SUBMIT_MIN_HOURS,
+    canSubmit: canSubmitPeriod(daysLogged, totalHours, cadence),
     overtimeHours: overtime,
   };
 }

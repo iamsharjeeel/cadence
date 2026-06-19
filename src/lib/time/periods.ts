@@ -37,11 +37,26 @@ export function thisWeekMonday(today = toIsoDate(new Date())): string {
   return mondayOfWeek(today);
 }
 
+export function periodLengthDays(cadence: PeriodCadence): number {
+  switch (cadence) {
+    case "weekly":
+      return 7;
+    case "biweekly":
+      return 14;
+    case "biweekly_15":
+      return 15;
+    case "monthly":
+      return 30;
+    default:
+      return 7;
+  }
+}
+
 export function shiftWeekMonday(weekMonday: string, direction: -1 | 1): string {
   return addDays(weekMonday, direction * 7);
 }
 
-/** Mon–Sun week used as the timesheet submission unit. */
+/** Mon–Sun week used as the personal-workspace timesheet unit. */
 export function weekPeriodFromMonday(weekMonday: string): PayPeriod {
   const end = addDays(weekMonday, 6);
   return {
@@ -51,7 +66,13 @@ export function weekPeriodFromMonday(weekMonday: string): PayPeriod {
   };
 }
 
-/** ISO-8601 week label, e.g. 2026-W24 */
+/** Human-readable pay-period range label, e.g. "9 Jun – 23 Jun 2026". */
+export function periodLabel(start: string, cadence: PeriodCadence): string {
+  const period = periodForDate(start, cadence);
+  return period.label;
+}
+
+/** @deprecated Use periodLabel — kept for callers not yet migrated. */
 export function isoWeekLabel(weekMonday: string): string {
   const d = parseIso(weekMonday);
   const thursday = new Date(d);
@@ -75,7 +96,7 @@ export type WeekDayRow = {
   isWeekend: boolean;
 };
 
-/** Monday–Sunday rows for the weekly log view. */
+/** Monday–Sunday rows for a weekly personal log view. */
 export function weekDays(weekMonday: string): WeekDayRow[] {
   const today = toIsoDate(new Date());
   const days: WeekDayRow[] = [];
@@ -93,6 +114,21 @@ export function weekDays(weekMonday: string): WeekDayRow[] {
   return days;
 }
 
+/** All calendar days in a pay period (org cadence or personal week). */
+export function periodDays(period: PayPeriod): WeekDayRow[] {
+  const today = toIsoDate(new Date());
+  return datesInRange(period.start, period.end).map((date) => {
+    const dow = parseIso(date).getDay();
+    return {
+      date,
+      dayName: dayName(date),
+      isFuture: date > today,
+      isToday: date === today,
+      isWeekend: dow === 0 || dow === 6,
+    };
+  });
+}
+
 /** @deprecated Use weekDays — Mon–Sun including optional weekends. */
 export function workingWeekDays(weekMonday: string): WeekDayRow[] {
   return weekDays(weekMonday).filter((d) => !d.isWeekend);
@@ -102,7 +138,6 @@ function formatLabel(start: string, end: string): string {
   const s = parseIso(start);
   const e = parseIso(end);
   const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
-  const year = e.getFullYear();
   const startStr = s.toLocaleDateString("en-AU", opts);
   const endStr = e.toLocaleDateString("en-AU", { ...opts, year: "numeric" });
   if (start === end) return endStr;
@@ -123,7 +158,7 @@ function weeklyPeriod(iso: string): PayPeriod {
   return {
     start,
     end,
-    label: `Week of ${parseIso(start).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}`,
+    label: formatLabel(start, end),
   };
 }
 
@@ -139,12 +174,25 @@ function biweeklyPeriod(iso: string): PayPeriod {
   return { start, end, label: formatLabel(start, end) };
 }
 
+function biweekly15Period(iso: string): PayPeriod {
+  const d = parseIso(iso);
+  const anchor = `${d.getFullYear()}-01-01`;
+  const diffDays = Math.floor(
+    (parseIso(iso).getTime() - parseIso(anchor).getTime()) / 86_400_000,
+  );
+  const block = Math.floor(diffDays / 15);
+  const start = addDays(anchor, block * 15);
+  const end = addDays(start, 14);
+  return { start, end, label: formatLabel(start, end) };
+}
+
 export function periodForDate(
   isoDate: string,
   cadence: PeriodCadence,
 ): PayPeriod {
   if (cadence === "monthly") return monthPeriod(isoDate);
   if (cadence === "biweekly") return biweeklyPeriod(isoDate);
+  if (cadence === "biweekly_15") return biweekly15Period(isoDate);
   return weeklyPeriod(isoDate);
 }
 
@@ -153,13 +201,17 @@ export function shiftPeriod(
   cadence: PeriodCadence,
   direction: -1 | 1,
 ): PayPeriod {
-  const mid = addDays(period.start, Math.floor(
-    (parseIso(period.end).getTime() - parseIso(period.start).getTime()) /
-      86_400_000 /
-      2,
-  ));
-  const pivot = addDays(mid, direction * (cadence === "monthly" ? 15 : cadence === "biweekly" ? 14 : 7));
-  return periodForDate(pivot, cadence);
+  const span =
+    Math.floor(
+      (parseIso(period.end).getTime() - parseIso(period.start).getTime()) /
+        86_400_000,
+    ) + 1;
+  const pivot = addDays(period.start, Math.floor(span / 2));
+  const step =
+    cadence === "monthly"
+      ? 15
+      : periodLengthDays(cadence);
+  return periodForDate(addDays(pivot, direction * step), cadence);
 }
 
 export function datesInRange(start: string, end: string): string[] {

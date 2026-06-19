@@ -76,7 +76,7 @@ export function TimesheetStatusPill({
   if (status === "submitted") return <Badge tone="pending">Submitted</Badge>;
   if (status === "draft") {
     if (live) return <Badge tone="pending">Live</Badge>;
-    return <Badge tone="muted">In progress</Badge>;
+    return <Badge tone="muted">Draft</Badge>;
   }
   return <Badge tone="muted">Draft</Badge>;
 }

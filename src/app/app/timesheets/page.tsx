@@ -12,19 +12,20 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { getProfile, requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
-import { thisWeekMonday } from "@/lib/time/periods";
 import type { Organization, Profile, Timesheet, TimesheetStatus } from "@/types/db";
-import { TimesheetFilters } from "./controls";
+import { TimesheetListFilters } from "./TimesheetListFilters";
+import {
+  TimesheetAccordionRow,
+  type TimesheetAccordionRow as AccordionRow,
+} from "./TimesheetAccordionRow";
 import { TimesheetListTable, type TimesheetListRow } from "./TimesheetListTable";
-import { TimeTrackingView } from "./TimeTrackingView";
 import { TimeLogReminder } from "./TimeLogReminder";
 import { TimesheetPageActions } from "./TimesheetPageActions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const profile = await getProfile();
   if (profile?.role === "employee") {
-    return { title: { absolute: "Log time · Cadence" } };
+    return { title: { absolute: "Timesheets · Cadence" } };
   }
   return { title: "Timesheets" };
 }
@@ -43,30 +44,12 @@ export default async function TimesheetsPage({
     org?: string;
     sort?: string;
     dir?: string;
+    view?: string;
   };
 }) {
   const profile = await requireActiveProfile();
   const isManager = profile.role === "admin" || profile.role === "superadmin";
   const isSuperadmin = profile.role === "superadmin";
-
-  if (!isManager) {
-    const weekMonday = thisWeekMonday();
-    const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
-
-    return (
-      <div>
-        <TimeLogReminder />
-        <PageHeader
-          title="Timesheets"
-          description="Log your hours for the week (Mon–Sun), then submit for approval."
-        />
-        <TimeTrackingView
-          initialWeekMonday={weekMonday}
-          initialData={initialData.ok ? initialData : null}
-        />
-      </div>
-    );
-  }
 
   const statusFilter = (searchParams.status ?? "") as TimesheetStatus | "";
   const employeeFilter = searchParams.employee ?? "";
@@ -75,6 +58,7 @@ export default async function TimesheetsPage({
   const orgFilter = isSuperadmin ? searchParams.org ?? "" : "";
   const sort = (searchParams.sort ?? "period") as SortKey;
   const dir = searchParams.dir === "asc" ? "asc" : "desc";
+  const useTableView = isManager && searchParams.view === "table";
 
   const db = isSuperadmin ? createAdminClient() : createClient();
   let query = db
@@ -168,11 +152,24 @@ export default async function TimesheetsPage({
     overtime_hours: t.overtime_hours,
   }));
 
+  const accordionRows: AccordionRow[] = listRows.map((t) => ({
+    id: t.id,
+    period_start: t.period_start,
+    period_end: t.period_end,
+    status: t.status,
+    employeeName: isManager ? t.employeeName : undefined,
+  }));
+
   return (
     <div>
+      {!isManager && <TimeLogReminder />}
       <PageHeader
         title="Timesheets"
-        description="Review employee timesheets — including live drafts in progress."
+        description={
+          isManager
+            ? "Review employee timesheets — filter by date range and expand a row for day-by-day entries."
+            : "Your submitted and in-progress timesheets. Log time from the button below."
+        }
         action={
           <TimesheetPageActions
             showExport={isManager}
@@ -181,22 +178,21 @@ export default async function TimesheetsPage({
         }
       />
 
-      {isManager && (
-        <Card className="mb-4">
-          <CardContent>
-            <TimesheetFilters
-              status={statusFilter}
-              employee={employeeFilter}
-              employees={employeeOptions}
-              from={fromFilter}
-              to={toFilter}
-              org={orgFilter}
-              orgs={orgOptions}
-              isSuperadmin={isSuperadmin}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <Card className="mb-4">
+        <CardContent>
+          <TimesheetListFilters
+            status={statusFilter}
+            employee={employeeFilter}
+            employees={employeeOptions}
+            from={fromFilter}
+            to={toFilter}
+            org={orgFilter}
+            orgs={orgOptions}
+            isSuperadmin={isSuperadmin}
+            showEmployeeFilter={isManager}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -204,6 +200,7 @@ export default async function TimesheetsPage({
           <CardDescription>
             {timesheets.length}{" "}
             {timesheets.length === 1 ? "timesheet" : "timesheets"}
+            {fromFilter || toFilter ? " in selected range" : ""}
           </CardDescription>
         </CardHeader>
         <CardContent className="overflow-hidden p-0">
@@ -214,7 +211,7 @@ export default async function TimesheetsPage({
                 description="Submitted and draft timesheets will appear here."
               />
             </div>
-          ) : (
+          ) : useTableView ? (
             <TimesheetListTable
               timesheets={listRows}
               isManager={isManager}
@@ -225,6 +222,16 @@ export default async function TimesheetsPage({
               sort={sort}
               dir={dir}
             />
+          ) : (
+            <div>
+              {accordionRows.map((row) => (
+                <TimesheetAccordionRow
+                  key={row.id}
+                  row={row}
+                  showEmployee={isManager}
+                />
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>

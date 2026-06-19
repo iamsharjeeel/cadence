@@ -145,7 +145,7 @@ function isPersistableTimePair(start: string | null, end: string | null): boolea
   const overnight = isOvernightShift(s, e);
   if (!overnight && e <= s) return false;
   const h = hoursBetween(s, e, overnight);
-  return h !== null && h > 0;
+  return h !== null && h >= 0;
 }
 
 /** True when an entry has valid start + end and may be written to the DB. */

@@ -6,8 +6,7 @@ import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { hasAsanaConnection } from "@/lib/asana/connection";
-import { mondayOfWeek } from "@/lib/time/periods";
-import { ensureTimesheetForWeekForProfile, loadAsanaImportedProjects } from "@/lib/time/get-time-tracking-data";
+import { ensureTimesheetForPeriodForProfile, loadAsanaImportedProjects } from "@/lib/time/get-time-tracking-data";
 import type { TimerSaveSegment } from "@/lib/timer-utils";
 import type { OrgSettings } from "@/types/org-settings";
 
@@ -52,8 +51,7 @@ export async function saveTimerEntries(
   const ids: string[] = [];
 
   for (const seg of payload.segments) {
-    const weekMonday = mondayOfWeek(seg.entryDate);
-    const tsResult = await ensureTimesheetForWeekForProfile(profile, weekMonday);
+    const tsResult = await ensureTimesheetForPeriodForProfile(profile, seg.entryDate);
     if (!tsResult.ok) {
       return { ok: false, message: tsResult.message };
     }

@@ -1729,3 +1729,18 @@ _(none logged)_
 
 #### Verification
 - `npm run typecheck` passes.
+
+### Feedback batch — 6 fixes (schema already live) ✅ (2026-06-19)
+
+**DB (repo parity only — already applied on production):** `supabase/migrations/20260619000001_feedback_batch_schema_prep.sql` — `period_cadence` + `biweekly_15`, nullable `leave_requests.leave_type_id`, `leave_requests.google_event_id`.
+
+1. **Billable = false valid:** `canPersistTimeEntry()` no longer requires `hours > 0` (allows non-billable / zero-hour edge cases without blocking save).
+2. **Pay period cadence:** Settings dropdown shows Weekly / Biweekly / 15-day / Monthly. `periodLengthDays()`, `periodForDate()` + `biweekly_15`, `ensureTimesheetForPeriodForProfile()` uses org `default_cadence` (personal always weekly). Log view period nav + submit gates scale with cadence; `periodLabel()` replaces ISO week label in UI.
+3. **Timesheet range list:** `/app/timesheets` — From/To `DatePicker` filters, accordion rows with read-only day-by-day entry summary, status pills (Draft/Submitted/Approved/Rejected). Managers can still use `?view=table` for bulk approve.
+4. **Leave calendar click:** `LeaveEmployeeView` day cells open `RequestLeaveModal` pre-filled with that date.
+5. **Draggable timer:** `FloatingTimer` — Framer Motion drag, viewport constraints, `sessionStorage` position.
+6. **Log view status pill:** `TimeTrackingView` period summary panel shows current timesheet status (hidden when no timesheet yet).
+
+#### Verification
+- `npm run typecheck` passes
+- `npm run build` passes

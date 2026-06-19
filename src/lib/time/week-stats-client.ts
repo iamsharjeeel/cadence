@@ -1,7 +1,7 @@
+import type { PeriodCadence } from "@/types/db";
 import {
-  OVERTIME_HOURS_THRESHOLD,
-  SUBMIT_MIN_DAYS,
-  SUBMIT_MIN_HOURS,
+  canSubmitPeriod,
+  submitThresholds,
   type WeekStats,
 } from "@/lib/time/week-constants";
 
@@ -17,6 +17,7 @@ export type PersistedEntrySlice = {
 
 export function computeWeekStatsFromPersisted(
   entries: PersistedEntrySlice[],
+  cadence: PeriodCadence = "weekly",
 ): WeekStats {
   const persisted = entries.filter(
     (e): e is PersistedEntrySlice & { id: string; total_hours: number } =>
@@ -25,15 +26,16 @@ export function computeWeekStatsFromPersisted(
 
   const daysLogged = new Set(persisted.map((e) => e.entry_date)).size;
   const totalHours = persisted.reduce((sum, e) => sum + e.total_hours, 0);
+  const threshold = submitThresholds(cadence).overtimeHours;
   const overtime =
-    totalHours > OVERTIME_HOURS_THRESHOLD
-      ? Math.round((totalHours - OVERTIME_HOURS_THRESHOLD) * 100) / 100
+    totalHours > threshold
+      ? Math.round((totalHours - threshold) * 100) / 100
       : 0;
 
   return {
     daysLogged,
     totalHours,
-    canSubmit: daysLogged >= SUBMIT_MIN_DAYS || totalHours >= SUBMIT_MIN_HOURS,
+    canSubmit: canSubmitPeriod(daysLogged, totalHours, cadence),
     overtimeHours: overtime,
   };
 }

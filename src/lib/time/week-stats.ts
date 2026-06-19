@@ -2,10 +2,10 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { durationHours } from "@/lib/time/validation";
+import type { PeriodCadence } from "@/types/db";
 import {
-  OVERTIME_HOURS_THRESHOLD,
-  SUBMIT_MIN_DAYS,
-  SUBMIT_MIN_HOURS,
+  canSubmitPeriod,
+  submitThresholds,
   type WeekStats,
 } from "@/lib/time/week-constants";
 
@@ -13,20 +13,30 @@ export {
   OVERTIME_HOURS_THRESHOLD,
   SUBMIT_MIN_DAYS,
   SUBMIT_MIN_HOURS,
+  canSubmitPeriod,
+  submitThresholds,
   type WeekStats,
 } from "@/lib/time/week-constants";
 
+/** @deprecated Use canSubmitPeriod with cadence */
 export function canSubmitWeek(daysLogged: number, totalHours: number): boolean {
-  return daysLogged >= SUBMIT_MIN_DAYS || totalHours >= SUBMIT_MIN_HOURS;
+  return canSubmitPeriod(daysLogged, totalHours, "weekly");
 }
 
-export function overtimeHours(totalHours: number): number {
-  if (totalHours <= OVERTIME_HOURS_THRESHOLD) return 0;
-  return Math.round((totalHours - OVERTIME_HOURS_THRESHOLD) * 100) / 100;
+export function overtimeHours(
+  totalHours: number,
+  cadence: PeriodCadence = "weekly",
+): number {
+  const threshold = submitThresholds(cadence).overtimeHours;
+  if (totalHours <= threshold) return 0;
+  return Math.round((totalHours - threshold) * 100) / 100;
 }
 
-/** Server-side week totals from persisted time_entries. */
-export async function computeWeekStats(timesheetId: string): Promise<WeekStats> {
+/** Server-side period totals from persisted time_entries. */
+export async function computeWeekStats(
+  timesheetId: string,
+  cadence: PeriodCadence = "weekly",
+): Promise<WeekStats> {
   const db = createAdminClient();
   const { data: entries } = await db
     .from("time_entries")
@@ -35,8 +45,6 @@ export async function computeWeekStats(timesheetId: string): Promise<WeekStats> 
 
   const rows = entries ?? [];
   const daysLogged = new Set(rows.map((r) => r.entry_date)).size;
-  // Compute with overnight wrapping — never sum the generated `total_hours`
-  // column, which is negative for overnight ranges (end < start).
   const totalHours =
     Math.round(
       rows.reduce((sum, r) => {
@@ -50,12 +58,12 @@ export async function computeWeekStats(timesheetId: string): Promise<WeekStats> 
         return sum + hrs;
       }, 0) * 100,
     ) / 100;
-  const ot = overtimeHours(totalHours);
+  const ot = overtimeHours(totalHours, cadence);
 
   return {
     daysLogged,
     totalHours,
-    canSubmit: canSubmitWeek(daysLogged, totalHours),
+    canSubmit: canSubmitPeriod(daysLogged, totalHours, cadence),
     overtimeHours: ot,
   };
 }

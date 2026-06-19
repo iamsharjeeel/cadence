@@ -5,6 +5,7 @@ import type {
   TimesheetStatus,
 } from "@/types/db";
 import type { PayPeriod } from "@/lib/time/periods";
+import type { PeriodCadence } from "@/types/db";
 import type { WeekStats } from "@/lib/time/week-constants";
 
 export type { Project, TimeEntry };
@@ -30,7 +31,8 @@ export type TimeTrackingData = {
   asanaImportedProjects: AsanaImportedProject[];
   asanaProjectNamesSyncedAt: string | null;
   week: PayPeriod;
-  isoWeek: string;
+  cadence: PeriodCadence;
+  periodLabel: string;
   weekStats: WeekStats;
   rate: number | null;
   rateType: string;

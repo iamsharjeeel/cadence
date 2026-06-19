@@ -9,15 +9,16 @@ import { notifyOrgAdmins } from "@/lib/notifications";
 import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
 import {
   addDays,
-  isoWeekLabel,
   mondayOfWeek,
+  periodForDate,
   toIsoDate,
   weekPeriodFromMonday,
 } from "@/lib/time/periods";
 import {
-  canSubmitWeek,
+  canSubmitPeriod,
   computeWeekStats,
   overtimeHours,
+  submitThresholds,
   type WeekStats,
 } from "@/lib/time/week-stats";
 import {
@@ -27,11 +28,12 @@ import {
   rangesOverlap,
   toRange,
 } from "@/lib/time/validation";
-import type { TimesheetStatus } from "@/types/db";
+import type { PeriodCadence, TimesheetStatus } from "@/types/db";
 import {
-  ensureTimesheetForWeekForProfile,
+  ensureTimesheetForPeriodForProfile,
   getTimeTrackingDataForProfile,
   linkOrphanEntriesToTimesheet,
+  resolvePeriodCadence,
 } from "@/lib/time/get-time-tracking-data";
 import type { TimeEntry, TimeEntryWithProject } from "@/types/time-tracking";
 
@@ -42,24 +44,40 @@ export type SaveEntryResult = ActionResult & { weekStats?: WeekStats };
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ACTIVE_STATUSES: TimesheetStatus[] = ["draft", "submitted", "rejected"];
 
+async function resolveOrgCadence(orgId: string): Promise<PeriodCadence> {
+  const db = createAdminClient();
+  const { data } = await db
+    .from("organizations")
+    .select("default_cadence")
+    .eq("id", orgId)
+    .single();
+  return (data?.default_cadence as PeriodCadence | undefined) ?? "weekly";
+}
+
 function editableStatus(status: TimesheetStatus): boolean {
   return status === "draft" || status === "submitted" || status === "rejected";
 }
 
-/** Fetch-or-create the single active draft timesheet for (employee, week Monday). */
+/** Fetch-or-create the single active draft timesheet for (employee, period). */
 export async function ensureTimesheetForWeek(
-  weekMonday: string,
+  anchorDate: string,
 ): Promise<{ ok: true; timesheetId: string; status: TimesheetStatus } | ActionResult> {
   const profile = await requireActiveProfile();
+  const cadence = await resolvePeriodCadence(profile);
+  const period = periodForDate(anchorDate, cadence);
   const hadTimesheet = await createAdminClient()
     .from("timesheets")
     .select("id")
     .eq("employee_id", profile.id)
-    .eq("period_start", weekMonday)
+    .eq("period_start", period.start)
     .in("status", ACTIVE_STATUSES)
     .maybeSingle();
 
-  const result = await ensureTimesheetForWeekForProfile(profile, weekMonday);
+  const result = await ensureTimesheetForPeriodForProfile(
+    profile,
+    anchorDate,
+    cadence,
+  );
   if (result.ok && !hadTimesheet.data) {
     revalidatePath("/app/timesheets");
     revalidatePath("/app/timesheets/log");
@@ -67,9 +85,9 @@ export async function ensureTimesheetForWeek(
   return result;
 }
 
-export async function getTimeTrackingData(weekMonday: string) {
+export async function getTimeTrackingData(anchorDate: string) {
   const profile = await requireActiveProfile();
-  return getTimeTrackingDataForProfile(profile, weekMonday);
+  return getTimeTrackingDataForProfile(profile, anchorDate);
 }
 
 async function assertEditableTimesheet(timesheetId: string, employeeId: string) {
@@ -305,16 +323,18 @@ export async function submitTimesheetForApproval(
     ts.period_end,
   );
 
-  const stats = await computeWeekStats(timesheetId);
-  if (!canSubmitWeek(stats.daysLogged, stats.totalHours)) {
+  const cadence = await resolveOrgCadence(ts.org_id);
+  const stats = await computeWeekStats(timesheetId, cadence);
+  const thresholds = submitThresholds(cadence);
+  if (!canSubmitPeriod(stats.daysLogged, stats.totalHours, cadence)) {
     return {
       ok: false,
-      message: `Submit requires at least 5 days logged or 40 hours (currently ${stats.daysLogged} days · ${stats.totalHours.toFixed(1)}h).`,
+      message: `Submit requires at least ${thresholds.minDays} days logged or ${thresholds.minHours} hours (currently ${stats.daysLogged} days · ${stats.totalHours.toFixed(1)}h).`,
     };
   }
 
-  const hasOvertime = stats.totalHours > 40;
-  const otHours = overtimeHours(stats.totalHours);
+  const hasOvertime = stats.totalHours > thresholds.overtimeHours;
+  const otHours = overtimeHours(stats.totalHours, cadence);
 
   const { error } = await db
     .from("timesheets")

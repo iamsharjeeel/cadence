@@ -38,19 +38,18 @@ import {
   groupHoursByProject,
 } from "@/lib/time/week-stats-client";
 import {
-  isoWeekLabel,
-  shiftWeekMonday,
-  thisWeekMonday,
-  weekDays,
+  periodDays,
+  periodForDate,
+  periodLabel,
+  shiftPeriod,
+  toIsoDate,
   type PayPeriod,
 } from "@/lib/time/periods";
 import {
-  OVERTIME_HOURS_THRESHOLD,
-  SUBMIT_MIN_DAYS,
-  SUBMIT_MIN_HOURS,
+  submitThresholds,
   type WeekStats,
 } from "@/lib/time/week-constants";
-import type { TimesheetStatus } from "@/types/db";
+import type { PeriodCadence, TimesheetStatus } from "@/types/db";
 import type { AsanaImportedProject } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
 import type { TimeTrackingData } from "@/types/time-tracking";
@@ -141,6 +140,7 @@ function applyTrackingData(
     setAsanaImportedProjects: (v: AsanaImportedProject[]) => void;
     setAsanaProjectNamesSyncedAt: (v: string | null) => void;
     setWeek: (v: PayPeriod) => void;
+    setCadence: (v: PeriodCadence) => void;
     setRate: (v: number | null) => void;
     setRateType: (v: string) => void;
     setCurrency: (v: string | null) => void;
@@ -156,6 +156,7 @@ function applyTrackingData(
   setters.setAsanaImportedProjects(data.asanaImportedProjects);
   setters.setAsanaProjectNamesSyncedAt(data.asanaProjectNamesSyncedAt);
   setters.setWeek(data.week);
+  setters.setCadence(data.cadence);
   setters.setRate(data.rate);
   setters.setRateType(data.rateType);
   setters.setCurrency(data.currency);
@@ -163,12 +164,15 @@ function applyTrackingData(
 }
 
 export function TimeTrackingView({
+  initialPeriodAnchor,
   initialWeekMonday,
   initialData,
   calendarEventsByDay = {},
   initialPrefill = null,
   initialFocusDate = null,
 }: {
+  initialPeriodAnchor?: string;
+  /** @deprecated Use initialPeriodAnchor */
   initialWeekMonday?: string;
   initialData?: TimeTrackingData | null;
   calendarEventsByDay?: Record<string, GoogleCalendarEventWithMeta[]>;
@@ -176,10 +180,11 @@ export function TimeTrackingView({
   initialFocusDate?: string | null;
 }) {
   const { toast } = useToast();
-  const [weekMonday, setWeekMonday] = useState(
-    initialWeekMonday ?? thisWeekMonday(),
-  );
+  const today = toIsoDate(new Date());
+  const defaultAnchor = initialPeriodAnchor ?? initialWeekMonday ?? today;
+  const [periodAnchor, setPeriodAnchor] = useState(defaultAnchor);
   const [week, setWeek] = useState<PayPeriod | null>(null);
+  const [cadence, setCadence] = useState<PeriodCadence>("weekly");
   const [timesheetId, setTimesheetId] = useState("");
   const [orgId, setOrgId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -203,7 +208,7 @@ export function TimeTrackingView({
   const [loading, setLoading] = useState(!initialData);
   const skipInitialFetch = useRef(Boolean(initialData));
   const prefillApplied = useRef(false);
-  const ssrWeekMonday = initialWeekMonday ?? thisWeekMonday();
+  const ssrPeriodAnchor = defaultAnchor;
 
   const loadSeq = useRef(0);
   const entriesByDayRef = useRef(entriesByDay);
@@ -223,9 +228,20 @@ export function TimeTrackingView({
   editableRef.current = status === "draft" || status === "submitted" || status === "rejected";
 
   const editable = status === "draft" || status === "submitted" || status === "rejected";
-  const days = useMemo(() => weekDays(weekMonday), [weekMonday]);
-  const isoWeek = useMemo(() => isoWeekLabel(weekMonday), [weekMonday]);
-  const isCurrentWeek = weekMonday === thisWeekMonday();
+  const days = useMemo(
+    () => (week ? periodDays(week) : []),
+    [week],
+  );
+  const rangeLabel = useMemo(
+    () => (week ? periodLabel(week.start, cadence) : "…"),
+    [week, cadence],
+  );
+  const currentPeriod = useMemo(
+    () => periodForDate(today, cadence),
+    [today, cadence],
+  );
+  const isCurrentPeriod = week?.start === currentPeriod.start;
+  const thresholds = useMemo(() => submitThresholds(cadence), [cadence]);
 
   const allEntries = useMemo(
     () => Object.values(entriesByDay).flat(),
@@ -233,8 +249,8 @@ export function TimeTrackingView({
   );
 
   const weekStats: WeekStats = useMemo(
-    () => computeWeekStatsFromPersisted(allEntries),
-    [allEntries],
+    () => computeWeekStatsFromPersisted(allEntries, cadence),
+    [allEntries, cadence],
   );
 
   const byProject = useMemo(
@@ -264,7 +280,7 @@ export function TimeTrackingView({
 
   const totalHours = weekStats.totalHours;
   const showEarnings = rateType === "hourly" && rate != null;
-  const showOvertimeNotice = totalHours > OVERTIME_HOURS_THRESHOLD;
+  const showOvertimeNotice = totalHours > thresholds.overtimeHours;
 
   function entryIsPersistable(entry: DraftEntry): boolean {
     return entry.entry_mode === "decimal_hours"
@@ -277,7 +293,7 @@ export function TimeTrackingView({
     // quickly — only the latest request is allowed to apply its result.
     const seq = ++loadSeq.current;
     setLoading(true);
-    const res = await getTimeTrackingData(weekMonday);
+    const res = await getTimeTrackingData(periodAnchor);
     if (seq !== loadSeq.current) return;
     setLoading(false);
     if (!res.ok || !("entries" in res)) {
@@ -294,18 +310,19 @@ export function TimeTrackingView({
       setAsanaImportedProjects,
       setAsanaProjectNamesSyncedAt,
       setWeek,
+      setCadence,
       setRate,
       setRateType,
       setCurrency,
       setEntriesByDay,
     });
-  }, [weekMonday, toast]);
+  }, [periodAnchor, toast]);
 
   useEffect(() => {
     if (
       skipInitialFetch.current &&
       initialData &&
-      weekMonday === ssrWeekMonday
+      periodAnchor === ssrPeriodAnchor
     ) {
       skipInitialFetch.current = false;
       applyTrackingData(initialData, {
@@ -318,6 +335,7 @@ export function TimeTrackingView({
         setAsanaImportedProjects,
         setAsanaProjectNamesSyncedAt,
         setWeek,
+        setCadence,
         setRate,
         setRateType,
         setCurrency,
@@ -327,7 +345,7 @@ export function TimeTrackingView({
       return;
     }
     load();
-  }, [load, weekMonday, initialData, ssrWeekMonday]);
+  }, [load, periodAnchor, initialData, ssrPeriodAnchor]);
 
   useEffect(() => {
     const timers = debounceTimers.current;
@@ -590,35 +608,40 @@ export function TimeTrackingView({
             <p className="font-display text-lg font-medium tracking-tightest text-ink">
               {week?.label ?? "…"}
             </p>
-            <p className="tabular text-sm text-muted">{isoWeek}</p>
-            <div className="mt-1">
-              <TimesheetStatusPill status={status} />
-            </div>
+            <p className="tabular text-sm text-muted">{rangeLabel}</p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-card)] bg-surface p-1.5 shadow-card">
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setWeekMonday((m) => shiftWeekMonday(m, -1))}
+              onClick={() => {
+                if (!week) return;
+                const prev = shiftPeriod(week, cadence, -1);
+                setPeriodAnchor(prev.start);
+              }}
             >
-              ← Prev week
+              ← Prev
             </Button>
             <Button
               type="button"
-              variant={isCurrentWeek ? "secondary" : "ghost"}
+              variant={isCurrentPeriod ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setWeekMonday(thisWeekMonday())}
+              onClick={() => setPeriodAnchor(currentPeriod.start)}
             >
-              This week
+              This period
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setWeekMonday((m) => shiftWeekMonday(m, 1))}
+              onClick={() => {
+                if (!week) return;
+                const next = shiftPeriod(week, cadence, 1);
+                setPeriodAnchor(next.start);
+              }}
             >
-              Next week →
+              Next →
             </Button>
           </div>
         </div>
@@ -803,9 +826,12 @@ export function TimeTrackingView({
           <LogSummarySkeleton />
         ) : (
           <>
-            <h3 className="font-display text-base font-medium tracking-tightest text-ink">
-              Week summary
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-display text-base font-medium tracking-tightest text-ink">
+                Period summary
+              </h3>
+              {timesheetId ? <TimesheetStatusPill status={status} /> : null}
+            </div>
 
             <div className="border-b border-[var(--line)] pb-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted">
@@ -893,8 +919,8 @@ export function TimeTrackingView({
               <div className="border-t border-[var(--line)] pt-4">
                 <p className="text-xs text-muted">Submit progress</p>
                 <p className="tabular mt-0.5 text-sm font-medium text-ink">
-                  {weekStats.daysLogged} / {SUBMIT_MIN_DAYS} days ·{" "}
-                  {weekStats.totalHours.toFixed(1)} / {SUBMIT_MIN_HOURS}.0h
+                  {weekStats.daysLogged} / {thresholds.minDays} days ·{" "}
+                  {weekStats.totalHours.toFixed(1)} / {thresholds.minHours}.0h
                 </p>
               </div>
             )}
@@ -902,7 +928,7 @@ export function TimeTrackingView({
             {showOvertimeNotice && editable && hasOrgContext && (
               <p className="rounded-[var(--radius-card)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
                 <span className="tabular font-medium">
-                  {(totalHours - OVERTIME_HOURS_THRESHOLD).toFixed(1)}h
+                  {(totalHours - thresholds.overtimeHours).toFixed(1)}h
                 </span>{" "}
                 overtime — your manager will approve the extra time.
               </p>
@@ -914,7 +940,7 @@ export function TimeTrackingView({
                 disabled={pending || !timesheetId || !weekStats.canSubmit}
                 title={
                   !weekStats.canSubmit
-                    ? `Log at least ${SUBMIT_MIN_DAYS} days or ${SUBMIT_MIN_HOURS} hours`
+                    ? `Log at least ${thresholds.minDays} days or ${thresholds.minHours} hours`
                     : undefined
                 }
                 onClick={() => {
