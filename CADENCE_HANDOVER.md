@@ -1731,3 +1731,74 @@ _(none logged)_
 
 #### Verification
 - `npm run build` passes.
+
+### Session — Small Fixes + Investigation Batch (B+C) ✅ (2026-06-20)
+
+#### Part 1 — Confirmed bugs fixed
+- **Dashboard connect-accounts banner (`src/components/asana/AsanaConnectBanner.tsx`, `src/app/app/dashboard/page.tsx`)**
+  - Banner compacted (reduced padding/spacing).
+  - Added **Google Calendar icon** next to Asana icon.
+  - CTA copy updated from **"Connected accounts"** to **"Connect accounts"**.
+  - Banner visibility now checks both integrations (shown when Asana or Google Calendar is not connected).
+- **Profile OAuth connect/reconnect buttons now open in new tab**
+  - Updated Asana + Google Calendar connect/reconnect links with `target="_blank"` + `rel="noopener noreferrer"`:
+    - `src/app/app/profile/ConnectedAccountsSection.tsx`
+    - `src/app/app/profile/AsanaConnectionPanel.tsx`
+    - `src/app/app/profile/AsanaImportModal.tsx`
+    - `src/app/app/profile/GoogleCalendarConnectionPanel.tsx`
+- **Leave calendar day-cell click preselect (`src/app/app/leave/LeaveEmployeeView.tsx`, `src/app/app/leave/RequestLeaveModal.tsx`)**
+  - Day cells are now clickable.
+  - Clicked ISO date is passed into `RequestLeaveModal` as `initialDate`.
+  - Modal pre-fills start/end dates with the clicked day on open.
+- **Documents upload CTA duplication (`src/components/documents/UserDocumentsLibrary.tsx`, `src/components/documents/OrgDocumentLibrary.tsx`)**
+  - Header upload button hidden when list is empty.
+  - Empty-state upload action remains as the only CTA for empty lists.
+  - Header upload button shown and right-aligned when rows exist.
+- **Buttons-only pill exception**
+  - Shared button primitive updated at source: `src/components/ui/buttonStyles.ts` now uses `rounded-full`.
+  - Key non-shared shell buttons also aligned to pill shape:
+    - `src/components/app/Topbar.tsx`
+    - `src/components/app/NotificationsBell.tsx`
+    - `src/components/app/WorkspaceSwitcher.tsx`
+
+#### Part 2 — Investigations
+
+##### 6) Google Calendar OAuth verification error (personal Gmail fails, work account succeeds)
+- **What code confirms:**
+  - Calendar OAuth uses a single env-configured client tuple:
+    - `GOOGLE_CLIENT_ID`
+    - `GOOGLE_CLIENT_SECRET`
+    - `GOOGLE_CALENDAR_REDIRECT_URI`
+    - Source: `src/lib/google-calendar/config.ts`
+  - Requested scopes are:
+    - `https://www.googleapis.com/auth/calendar.readonly`
+    - `https://www.googleapis.com/auth/calendar.events`
+    - `openid`
+    - `https://www.googleapis.com/auth/userinfo.email`
+  - No code path branches by account type (Workspace vs personal Gmail); no `hd`/domain-based OAuth parametering in calendar connect flow.
+  - OAuth connect/callback endpoints are generic and identical for all users:
+    - `src/app/api/google-calendar/connect/route.ts`
+    - `src/app/api/google-calendar/callback/route.ts`
+- **What cannot be confirmed in this environment:**
+  - Google Cloud Console OAuth consent screen mode/state (Testing vs Production).
+  - Whether the affected personal Gmail is in the OAuth app's test-user allowlist.
+  - Whether verification/publication has been completed for sensitive scopes.
+- **Conclusion:** App code does not indicate account-type-specific behavior. The observed pattern is consistent with Google Cloud Console consent/test-user configuration, not a code-side account-type gate.
+
+##### 7) Leave calendar synced-event regression
+- **Root cause confirmed via git history:**
+  - Synced Google Calendar event rendering on leave was introduced in:
+    - `e031262` (`feat: google calendar integration — oauth, sync, leave calendar...`)
+  - It was removed during leave rebuild in:
+    - `f0c1c07` (`Rebuild leave: workspace-scoped personal calendar + org approval, GCal push`)
+  - Follow-up polish (`2c7df7f`) further refined leave day-pill rendering but did not restore GCal display.
+- **Small/obvious fix applied in this session:**
+  - Restored leave-page load of synced events for current month:
+    - `src/app/app/leave/page.tsx` (`hasGCalConnection`, `hasSyncedCalendars`, `getEventsForDateRange`)
+  - Restored day-cell rendering of synced GCal events as blue pills:
+    - `src/app/app/leave/LeaveEmployeeView.tsx`
+  - Result: synced events appear again on leave calendar cells without altering leave approval/push semantics.
+
+#### Verification
+- `npm run typecheck` passes.
+- `npm run build` passes (existing Next.js `no-img-element` warnings unchanged; no new build errors).

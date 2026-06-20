@@ -130,7 +130,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - **Per-user OAuth:** Google Calendar `calendar.readonly` + `calendar.events` scopes; tokens encrypted at rest (`cadence-gcal-v1` salt). Users who connected before the events scope was added must reconnect to enable leave push.
 - **Profile → Connected accounts:** side-by-side Asana + Google Calendar tiles; Manage modals for each integration
 - **Calendar sync:** select calendars, sync events (−7 to +60 days), persisted in `google_calendar_events`
-- **Leave → Google Calendar (one-way):** confirmed personal time off and org-approved leave create all-day events in the user's primary calendar; leave view does not pull GCal events in
+- **Leave → Google Calendar (one-way):** confirmed personal time off and org-approved leave create all-day events in the user's primary calendar; leave calendar also surfaces synced GCal events as blue day pills (read-only)
 - **Log time:** “From calendar” suggestions per day; prefill via `?date=&prefill=` query params
 - **Mobile nav:** sidebar overlay below 768px; topbar hamburger + Cadence wordmark + avatar/bell
 
@@ -174,6 +174,14 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
   - **Org context (`activeOrgId != null`)**: standalone Trends page and nav item remain available and unchanged.
   - Direct personal-context hits to `/app/trends` redirect to `/app/dashboard`.
 - **Onboarding:** the "No organization." error toast is suppressed on `/app/onboarding` (personal-workspace users completing setup).
+
+### Session B+C — small fixes + investigations
+- **Dashboard connect banner:** compacted layout, dual Asana + Google Calendar icon treatment, CTA copy updated to **Connect accounts**.
+- **Profile OAuth UX:** Asana and Google Calendar connect/reconnect links open in a new tab.
+- **Leave request UX:** clicking a leave calendar day opens `RequestLeaveModal` with that day pre-selected.
+- **Documents upload CTA behavior:** top "Upload document" button is hidden when list is empty (empty-state action remains) and shown right-aligned when rows exist.
+- **Buttons-only shape exception:** shared `buttonStyles()` now uses `rounded-full`; key non-shared shell buttons were aligned to the same pill shape without changing non-button surfaces.
+- **Regression fix:** leave calendar once again renders synced Google Calendar events (blue pills) after the workspace-scoped leave rebuild had removed that render path.
 
 ## Getting started
 
