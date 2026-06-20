@@ -1789,3 +1789,27 @@ _(none logged)_
 - `npm run build` passes.
 - Manual QA recommended: preset avatar persist across reload (Profile + Topbar); timesheets nav → list → Log time → back; copy in week / 15-day / month views.
 
+### Session — Topbar dropdown, avatar preset redesign, Leave calendar fixes ✅ (2026-06-20, app-layer only; no DB change)
+
+**Pushed directly to `main`** (no PR — asset/UI-only, no migration).
+
+#### Item 1 — Topbar avatar dropdown (never actually shipped in PR #24)
+- **Root cause:** PR #24 only wired `resolveAvatarUrl(profile.avatar_url)` into the existing `Avatar` inside the old inline layout (name + email + separate `SignOutButton`). The dropdown redesign described in earlier sessions was never implemented on `main`.
+- **Fix:** New `TopbarUserMenu` — avatar + chevron trigger, portaled dropdown (same click-outside/Escape pattern as `RowActionsMenu`). Menu items: **View profile** → `/app/profile`, **Logout** → existing `POST /auth/signout` form. Removed visible name/email/`SignOutButton` from `Topbar`.
+
+#### Item 2 — Avatar preset asset redesign
+- **Root cause:** N/A (design refresh, not a bug). Prior presets were uniform gold silhouettes on dark circles.
+- **Fix:** Replaced `preset-1.svg`…`preset-5.svg` only — cartoon-style characters (3 male, 2 female) on distinct backgrounds (gold `#C8973E`, teal `#4A8F8F`, terracotta `#C97B5E`, sage `#7A9B76`, plum `#6B4E71`). Paths unchanged; `AVATAR_PRESETS` / persistence logic untouched.
+
+#### Item 3a — Leave day-click → Mark Time Off dialog
+- **Root cause:** `LeaveEmployeeView` day cells were plain `<div>` elements with no `onClick`. `RequestLeaveModal` had no `initialStartDate` prop. The feedback-batch fix (button cells + seed date) existed on a branch but never merged to `main` — handover claims were incorrect.
+- **Fix:** Day cells are `<button>` with `onClick` → `setRequestSeedDate(iso)` + open modal. `RequestLeaveModal` accepts `initialStartDate` and pre-fills start/end dates.
+
+#### Item 3b — Google Calendar events on Leave calendar
+- **Root cause:** Leave page never fetched or passed GCal data. `leave/page.tsx` only loaded `leave_requests`; `LeaveEmployeeView` had no calendar-events prop. GCal sync writes to `google_calendar_events` (used by timesheets log via `getEventsForDay`) but the Leave route never read that table. Intentionally removed during the 2026-06-16 leave rebuild; never re-wired.
+- **Fix:** `leave/page.tsx` SSR-fetches `getEventsForDateRange(profile.id, monthStart, monthEnd)` and passes `calendarEvents` to `LeaveEmployeeView`. Blue chips render synced events per day (overlap-aware); legend updated.
+
+#### Verification
+- `npm run build` passes.
+
+

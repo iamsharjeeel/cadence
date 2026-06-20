@@ -16,6 +16,7 @@ import {
 } from "@/lib/leave/types";
 import type { LeaveType } from "@/types/db";
 import type { RequestWithMeta } from "@/lib/leave/queries";
+import type { GoogleCalendarEventWithMeta } from "@/lib/google-calendar/sync";
 import {
   cancelLeaveRequest,
   deletePersonalLeave,
@@ -53,6 +54,30 @@ function requestsOnDay(requests: RequestWithMeta[], iso: string) {
   );
 }
 
+function calendarEventsOnDay(
+  events: GoogleCalendarEventWithMeta[],
+  iso: string,
+) {
+  const dayStart = new Date(`${iso}T00:00:00`).getTime();
+  const dayEnd = new Date(`${iso}T23:59:59.999`).getTime();
+  return events.filter((e) => {
+    const start = new Date(e.start_at).getTime();
+    const end = new Date(e.end_at).getTime();
+    return start <= dayEnd && end >= dayStart;
+  });
+}
+
+function GCalDayChip({ title }: { title: string }) {
+  return (
+    <span
+      className="block w-full truncate rounded-[var(--radius-chip)] border border-[#4285F4]/30 bg-[#E8F0FE] px-1.5 py-0.5 text-[10px] font-medium leading-snug text-[#1A73E8] dark:border-[#8AB4F8]/30 dark:bg-[#1A2B45] dark:text-[#8AB4F8]"
+      title={title}
+    >
+      {title}
+    </span>
+  );
+}
+
 function LeaveDayPill({ hit }: { hit: RequestWithMeta }) {
   const label = entryLabel(hit);
   const pending = hit.status === "pending";
@@ -80,13 +105,16 @@ export function LeaveEmployeeView({
   requests,
   leaveTypes = [],
   calendarMonth,
+  calendarEvents = [],
 }: {
   mode: "personal" | "org";
   requests: RequestWithMeta[];
   leaveTypes?: LeaveType[];
   calendarMonth: string;
+  calendarEvents?: GoogleCalendarEventWithMeta[];
 }) {
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestSeedDate, setRequestSeedDate] = useState<string | undefined>();
   const [actingId, setActingId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -139,7 +167,14 @@ export function LeaveEmployeeView({
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{description}</p>
-        <Button onClick={() => setRequestModalOpen(true)}>{ctaLabel}</Button>
+        <Button
+          onClick={() => {
+            setRequestSeedDate(undefined);
+            setRequestModalOpen(true);
+          }}
+        >
+          {ctaLabel}
+        </Button>
       </div>
 
       <MotionCard className="overflow-hidden">
@@ -163,16 +198,27 @@ export function LeaveEmployeeView({
               const day = i + 1;
               const iso = dateStr(calendarMonth, day);
               const hits = requestsOnDay(calendarRequests, iso);
+              const gcalHits = calendarEventsOnDay(calendarEvents, iso);
               const hasApproved = hits.some((h) => h.status === "approved");
               const hasPending = hits.some((h) => h.status === "pending");
               const visible = hits.slice(0, 2);
-              const overflow = hits.length - visible.length;
+              const gcalSlots = Math.max(0, 2 - visible.length);
+              const visibleGcal = gcalHits.slice(0, gcalSlots);
+              const totalItems = hits.length + gcalHits.length;
+              const shownCount = visible.length + visibleGcal.length;
+              const moreCount = totalItems - shownCount;
               return (
-                <div
+                <button
                   key={day}
+                  type="button"
+                  onClick={() => {
+                    setRequestSeedDate(iso);
+                    setRequestModalOpen(true);
+                  }}
                   className={cn(
-                    "relative flex min-h-[80px] flex-col gap-1 bg-surface p-1.5 transition-colors",
-                    hits.length === 0 && "hover:bg-container",
+                    "relative flex min-h-[80px] flex-col gap-1 bg-surface p-1.5 text-left transition-colors",
+                    "cursor-pointer hover:bg-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)]",
+                    totalItems === 0 && "hover:bg-container",
                     hasApproved &&
                       "bg-[var(--accent-soft)]/50 ring-1 ring-inset ring-[var(--accent)]/25",
                     hasPending &&
@@ -190,26 +236,32 @@ export function LeaveEmployeeView({
                   >
                     {day}
                   </span>
-                  {hits.length > 0 ? (
+                  {hits.length > 0 || gcalHits.length > 0 ? (
                     <div className="flex min-h-0 flex-1 flex-col gap-0.5">
                       {visible.map((hit) => (
                         <LeaveDayPill key={hit.id} hit={hit} />
                       ))}
-                      {overflow > 0 ? (
+                      {visibleGcal.map((event) => (
+                        <GCalDayChip
+                          key={event.id}
+                          title={event.title?.trim() || "Calendar event"}
+                        />
+                      ))}
+                      {(moreCount > 0) ? (
                         <span className="truncate px-0.5 text-[10px] font-medium text-muted">
-                          +{overflow} more
+                          +{moreCount} more
                         </span>
                       ) : null}
                     </div>
                   ) : null}
-                </div>
+                </button>
               );
             })}
           </div>
           <p className="px-4 py-3 text-xs text-muted">
             {mode === "personal"
-              ? "Gold pills show your marked time off."
-              : "Solid gold pills are approved leave; dashed pills are pending."}
+              ? "Gold pills show your marked time off. Blue pills are synced Google Calendar events. Click a day to mark time off."
+              : "Solid gold pills are approved leave; dashed pills are pending. Blue pills are Google Calendar events. Click a day to request leave."}
           </p>
         </CardContent>
       </MotionCard>
@@ -302,7 +354,11 @@ export function LeaveEmployeeView({
         <RequestLeaveModal
           mode={mode}
           leaveTypes={leaveTypes}
-          onClose={() => setRequestModalOpen(false)}
+          initialStartDate={requestSeedDate}
+          onClose={() => {
+            setRequestModalOpen(false);
+            setRequestSeedDate(undefined);
+          }}
         />
       ) : null}
     </div>

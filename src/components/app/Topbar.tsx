@@ -1,12 +1,9 @@
 "use client";
 
-import Link from "next/link";
-
-import { Avatar } from "@/components/ui/Avatar";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { SignOutButton } from "@/components/auth/SignOutButton";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
+import { TopbarUserMenu } from "@/components/app/TopbarUserMenu";
 import { useNavigation } from "./NavigationProvider";
 import { resolveAvatarUrl } from "@/lib/avatar-url";
 import type { Profile } from "@/types/db";
@@ -63,26 +60,7 @@ export function Topbar({
         <div className="flex items-center justify-end gap-2 sm:gap-3">
           <ThemeToggle />
           <NotificationsBell userId={profile.id} />
-          <Link
-            href="/app/profile"
-            className="flex min-w-0 items-center gap-2.5 rounded-[var(--radius-input)] px-1 py-1 transition-colors hover:bg-[var(--accent-soft)]/40"
-          >
-            <Avatar
-              name={profile.full_name}
-              email={profile.email}
-              src={avatarSrc}
-              size={32}
-            />
-            <span className="hidden min-w-0 sm:block">
-              <span className="block truncate text-sm font-medium text-ink">
-                {profile.full_name ?? profile.email}
-              </span>
-              <span className="block truncate text-xs text-muted">
-                {profile.email}
-              </span>
-            </span>
-          </Link>
-          <SignOutButton />
+          <TopbarUserMenu profile={profile} avatarSrc={avatarSrc} />
         </div>
       </div>
     </header>
