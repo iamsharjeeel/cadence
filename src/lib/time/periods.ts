@@ -220,3 +220,58 @@ export function countWorkingDays(start: string, end: string): number {
   }
   return count;
 }
+
+export type PersonalPeriodType = "week" | "15day" | "30day";
+
+function halfMonthPeriod(iso: string): PayPeriod {
+  const d = parseIso(iso);
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  if (d.getDate() <= 15) {
+    const start = `${year}-${pad(month)}-01`;
+    const end = `${year}-${pad(month)}-15`;
+    return { start, end, label: formatLabel(start, end) };
+  }
+  const start = `${year}-${pad(month)}-16`;
+  const last = new Date(year, month, 0);
+  const end = toIsoDate(last);
+  return { start, end, label: formatLabel(start, end) };
+}
+
+export function personalPeriodForDate(date: string, type: PersonalPeriodType): PayPeriod {
+  if (type === "week") return weeklyPeriod(date);
+  if (type === "15day") return halfMonthPeriod(date);
+  return monthPeriod(date);
+}
+
+export function shiftPersonalPeriod(
+  period: PayPeriod,
+  type: PersonalPeriodType,
+  direction: -1 | 1,
+): PayPeriod {
+  if (type === "week") {
+    const newStart = addDays(period.start, direction * 7);
+    return weeklyPeriod(newStart);
+  }
+  if (type === "15day") {
+    const pivot = addDays(period.start, direction * 16);
+    return halfMonthPeriod(pivot);
+  }
+  const d = parseIso(period.start);
+  const newMonth = new Date(d.getFullYear(), d.getMonth() + direction, 1);
+  return monthPeriod(toIsoDate(newMonth));
+}
+
+export function allDaysInPeriod(period: PayPeriod): WeekDayRow[] {
+  const today = toIsoDate(new Date());
+  return datesInRange(period.start, period.end).map((date) => {
+    const dow = parseIso(date).getDay();
+    return {
+      date,
+      dayName: dayName(date),
+      isFuture: date > today,
+      isToday: date === today,
+      isWeekend: dow === 0 || dow === 6,
+    };
+  });
+}

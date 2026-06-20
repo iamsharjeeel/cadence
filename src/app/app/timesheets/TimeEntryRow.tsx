@@ -249,6 +249,9 @@ export function TimeEntryRow({
   onAsanaSync,
   onCreateProject,
   onExpand,
+  isPersonal,
+  periodDates,
+  onDuplicate,
 }: {
   entry: EntryRowData;
   editable: boolean;
@@ -269,8 +272,12 @@ export function TimeEntryRow({
   onAsanaSync?: () => void;
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onExpand?: () => void;
+  isPersonal?: boolean;
+  periodDates?: string[];
+  onDuplicate?: (targetDate: string) => void;
 }) {
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
 
   const isDecimalMode = entry.entry_mode === "decimal_hours";
   const overnight =
@@ -542,6 +549,41 @@ export function TimeEntryRow({
               <Button type="button" size="sm" variant="ghost" onClick={onSave}>
                 Save
               </Button>
+              {isPersonal && onDuplicate && periodDates && (
+                <div className="relative">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setDuplicateOpen((v) => !v)}
+                  >
+                    Duplicate
+                  </Button>
+                  {duplicateOpen && (
+                    <div className="absolute left-0 top-full z-20 mt-1 min-w-[10rem] rounded-[var(--radius-input)] border border-[var(--line)] bg-[var(--bg)] py-1 shadow-lg">
+                      {periodDates
+                        .filter((d) => d !== entry.entry_date)
+                        .map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => {
+                              setDuplicateOpen(false);
+                              onDuplicate(d);
+                            }}
+                            className="flex w-full items-center px-3 py-2 text-left text-sm text-ink hover:bg-surface-low"
+                          >
+                            {new Date(d).toLocaleDateString("en-AU", {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <button
                 type="button"
                 aria-label="Delete entry"

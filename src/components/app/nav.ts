@@ -14,8 +14,8 @@ export type NavItem = {
     | "documents"
     | "projects"
     | "trends"
-    | "reports"
     | "settings"
+    | "user-settings"
     | "audit";
 };
 
@@ -37,12 +37,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/app/trends",
     roles: ["superadmin", "admin", "employee"],
     icon: "trends",
-  },
-  {
-    label: "Reports",
-    href: "/app/reports",
-    roles: ["superadmin", "admin", "employee"],
-    icon: "reports",
   },
   {
     label: "Projects",
@@ -67,6 +61,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/app/profile",
     roles: ["superadmin", "admin", "employee"],
     icon: "profile",
+  },
+  {
+    label: "Settings",
+    href: "/app/user-settings",
+    roles: ["superadmin", "admin", "employee"],
+    icon: "user-settings",
   },
   {
     label: "Employees",
@@ -111,30 +111,30 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
     "/app/projects",
     "/app/leave",
     "/app/documents",
-    "/app/reports",
     "/app/profile",
+    "/app/user-settings",
   ],
   // Same surface as personal, but org-scoped (can submit for approval).
   employee: [
     "/app/dashboard",
     "/app/timesheets",
     "/app/trends",
-    "/app/reports",
     "/app/projects",
     "/app/leave",
     "/app/documents",
     "/app/profile",
+    "/app/user-settings",
   ],
   // Org owner/admin: solo surface + team management.
   manager: [
     "/app/dashboard",
     "/app/timesheets",
     "/app/trends",
-    "/app/reports",
     "/app/projects",
     "/app/leave",
     "/app/documents",
     "/app/profile",
+    "/app/user-settings",
     "/app/employees",
     "/app/settings",
     "/app/audit",
@@ -144,11 +144,11 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
     "/app/dashboard",
     "/app/timesheets",
     "/app/trends",
-    "/app/reports",
     "/app/projects",
     "/app/leave",
     "/app/documents",
     "/app/profile",
+    "/app/user-settings",
     "/app/employees",
     "/app/organizations",
     "/app/settings",

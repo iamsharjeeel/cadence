@@ -4,6 +4,34 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { LeaveUnit } from "@/lib/leave/types";
 import type { LeaveRequest, LeaveType } from "@/types/db";
 
+export type GCalEventForLeave = {
+  id: string;
+  google_event_id: string;
+  title: string | null;
+  start_at: string;
+  end_at: string;
+};
+
+export async function getGCalEventsForMonth(
+  userId: string,
+  calendarMonth: string,
+): Promise<GCalEventForLeave[]> {
+  const db = createAdminClient();
+  const monthStart = `${calendarMonth}-01`;
+  const [y, m] = calendarMonth.split("-").map(Number);
+  const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m! + 1).padStart(2, "0")}-01`;
+
+  const { data } = await db
+    .from("google_calendar_events")
+    .select("id, google_event_id, title, start_at, end_at")
+    .eq("user_id", userId)
+    .gte("start_at", `${monthStart}T00:00:00`)
+    .lt("start_at", `${nextMonth}T00:00:00`)
+    .order("start_at");
+
+  return (data ?? []) as GCalEventForLeave[];
+}
+
 export type RequestWithMeta = LeaveRequest & {
   leave_type: {
     name: string;

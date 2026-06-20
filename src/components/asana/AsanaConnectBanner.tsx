@@ -5,41 +5,62 @@ import Link from "next/link";
 import { X } from "lucide-react";
 
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
+import { GoogleCalendarIcon } from "@/components/icons/GoogleCalendarIcon";
 import { buttonStyles } from "@/components/ui/Button";
 
-export function AsanaConnectBanner({ show }: { show: boolean }) {
+type ConnectBannerProps = {
+  asanaConnected: boolean;
+  gcalConnected: boolean;
+};
+
+export function AsanaConnectBanner({
+  asanaConnected,
+  gcalConnected,
+}: ConnectBannerProps) {
   const [dismissed, setDismissed] = useState(false);
 
-  if (!show || dismissed) return null;
+  const needsAsana = !asanaConnected;
+  const needsGcal = !gcalConnected;
+  const show = (needsAsana || needsGcal) && !dismissed;
+
+  if (!show) return null;
+
+  let heading = "";
+  if (needsAsana && needsGcal) {
+    heading =
+      "Connect Asana and Google Calendar for a smoother workflow";
+  } else if (needsAsana) {
+    heading = "Connect Asana to import your projects for time entry tagging";
+  } else {
+    heading = "Connect Google Calendar to sync events with your leave calendar";
+  }
 
   return (
     <div
       role="status"
-      className="mb-6 flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface px-4 py-3 shadow-sm"
+      className="mb-5 flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface px-4 py-2.5 shadow-sm"
     >
-      <AsanaIcon size={22} className="mt-0.5" />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-ink">
-          Connect Asana to import your projects
-        </p>
-        <p className="mt-0.5 text-sm text-muted">
-          Tag time entries with your Asana projects without changing Cadence
-          projects.
-        </p>
-        <Link
-          href="/app/profile#section-connected"
-          className={buttonStyles("primary", "sm", "mt-3 inline-flex")}
-        >
-          Connected accounts
-        </Link>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {needsAsana && <AsanaIcon size={18} />}
+        {needsGcal && <GoogleCalendarIcon size={18} />}
       </div>
+
+      <p className="min-w-0 flex-1 truncate text-sm text-ink">{heading}</p>
+
+      <Link
+        href="/app/user-settings#section-connected"
+        className={buttonStyles("primary", "sm", "shrink-0")}
+      >
+        Connect accounts
+      </Link>
+
       <button
         type="button"
         aria-label="Dismiss"
         onClick={() => setDismissed(true)}
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-[var(--line)] hover:text-ink"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-[var(--line)] hover:text-ink"
       >
-        <X className="h-4 w-4" />
+        <X className="h-3.5 w-3.5" />
       </button>
     </div>
   );

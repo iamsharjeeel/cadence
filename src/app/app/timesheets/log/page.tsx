@@ -25,6 +25,7 @@ export default async function LogTimePage({
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
   const profile = ctx.effectiveProfile;
+  const isPersonal = !ctx.activeOrgId && !ctx.isSuperadmin;
   const isManager =
     ctx.isSuperadmin ||
     (Boolean(ctx.activeOrgId) &&
@@ -32,16 +33,22 @@ export default async function LogTimePage({
   const weekMonday = searchParams?.date
     ? mondayOfWeek(searchParams.date)
     : thisWeekMonday();
-  const days = weekDays(weekMonday);
 
-  const calendarEventsByDay: Record<string, GoogleCalendarEventWithMeta[]> = {};
-  await Promise.all(
-    days.map(async (day) => {
-      calendarEventsByDay[day.date] = await getEventsForDay(profile.id, day.date);
-    }),
-  );
+  // For personal workspace we skip SSR initial data (period type comes from localStorage)
+  let initialData = null;
+  let calendarEventsByDay: Record<string, GoogleCalendarEventWithMeta[]> = {};
 
-  const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
+  if (!isPersonal) {
+    const days = weekDays(weekMonday);
+    await Promise.all(
+      days.map(async (day) => {
+        calendarEventsByDay[day.date] = await getEventsForDay(profile.id, day.date);
+      }),
+    );
+    const data = await getTimeTrackingDataForProfile(profile, weekMonday);
+    initialData = data.ok ? data : null;
+  }
+
   const initialPrefill = decodeGoogleCalendarPrefill(searchParams?.prefill);
 
   return (
@@ -49,7 +56,11 @@ export default async function LogTimePage({
       <TimeLogReminder />
       <PageHeader
         title="Log time"
-        description="Log your hours for the week (Mon–Sun), then submit for approval."
+        description={
+          isPersonal
+            ? "Log your hours and mark periods as complete."
+            : "Log your hours for the week (Mon–Sun), then submit for approval."
+        }
         action={
           isManager ? (
             <Link href="/app/timesheets">
@@ -62,10 +73,11 @@ export default async function LogTimePage({
       />
       <TimeTrackingView
         initialWeekMonday={weekMonday}
-        initialData={initialData.ok ? initialData : null}
+        initialData={initialData}
         calendarEventsByDay={calendarEventsByDay}
         initialPrefill={initialPrefill}
         initialFocusDate={searchParams?.date ?? null}
+        isPersonal={isPersonal}
       />
     </div>
   );

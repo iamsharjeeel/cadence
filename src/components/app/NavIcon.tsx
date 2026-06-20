@@ -58,15 +58,17 @@ const PATHS: Record<NavItem["icon"], React.ReactNode> = {
       <path d="M17 7h4v4" />
     </>
   ),
-  reports: (
-    <>
-      <path d="M6 20V10M12 20V4M18 20v-7" />
-    </>
-  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />
       <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+    </>
+  ),
+  "user-settings": (
+    <>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+      <path d="M18 14l1.5 1.5L22 13" />
     </>
   ),
   audit: (

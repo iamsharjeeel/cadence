@@ -13,7 +13,7 @@ const STATE_COOKIE = "asana_oauth_state";
  */
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
-  const profileUrl = `${appUrl}/app/profile`;
+  const profileUrl = `${appUrl}/app/user-settings`;
 
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");

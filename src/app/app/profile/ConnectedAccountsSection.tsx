@@ -69,7 +69,7 @@ export function ConnectedAccountsSection({
     params.delete("asana");
     params.delete("gcal");
     const next = params.toString();
-    router.replace(next ? `/app/profile?${next}` : "/app/profile", {
+    router.replace(next ? `/app/user-settings?${next}` : "/app/user-settings", {
       scroll: false,
     });
   }, [asanaFlash, gcalFlash, router, searchParams]);
@@ -134,6 +134,8 @@ export function ConnectedAccountsSection({
             ) : (
               <Link
                 href="/api/asana/connect"
+                target="_blank"
+                rel="noopener noreferrer"
                 className={buttonStyles("primary", "sm")}
               >
                 Connect
@@ -178,6 +180,8 @@ export function ConnectedAccountsSection({
             ) : (
               <Link
                 href="/api/google-calendar/connect"
+                target="_blank"
+                rel="noopener noreferrer"
                 className={buttonStyles("primary", "sm")}
               >
                 Connect

@@ -7,6 +7,7 @@ import {
   getLeaveRequestsForWorkspace,
   getOrgLeaveTypes,
   getPendingLeaveRequests,
+  getGCalEventsForMonth,
 } from "@/lib/leave/queries";
 import { LeaveEmployeeView } from "./LeaveEmployeeView";
 import { LeaveAdminView } from "./LeaveAdminView";
@@ -25,12 +26,13 @@ export default async function LeavePage() {
     (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
 
   const orgId = inOrg ? ctx.activeOrgId : null;
-  const [requests, leaveTypes, pending] = await Promise.all([
+  const [requests, leaveTypes, pending, gcalEvents] = await Promise.all([
     getLeaveRequestsForWorkspace(profile.id, orgId),
     orgId ? getOrgLeaveTypes(orgId) : Promise.resolve([]),
     isManager && orgId
       ? getPendingLeaveRequests(orgId)
       : Promise.resolve([]),
+    getGCalEventsForMonth(profile.id, calendarMonth),
   ]);
 
   const mode = inOrg ? "org" : "personal";
@@ -50,6 +52,7 @@ export default async function LeavePage() {
         requests={requests}
         leaveTypes={leaveTypes}
         calendarMonth={calendarMonth}
+        gcalEvents={gcalEvents}
       />
       {isManager ? (
         <div className="mt-10">

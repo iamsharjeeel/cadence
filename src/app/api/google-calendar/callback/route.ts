@@ -12,8 +12,8 @@ const STATE_COOKIE = "gcal_oauth_state";
  */
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
-  const profileUrl = `${appUrl}/app/profile?gcal=connected#section-connected`;
-  const errorUrl = `${appUrl}/app/profile?gcal=error#section-connected`;
+  const profileUrl = `${appUrl}/app/user-settings?gcal=connected#section-connected`;
+  const errorUrl = `${appUrl}/app/user-settings?gcal=error#section-connected`;
 
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");

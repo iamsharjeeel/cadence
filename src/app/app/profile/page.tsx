@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import {
@@ -12,11 +11,6 @@ import {
 import { Badge, RolePill, StatusPill } from "@/components/ui/Badge";
 import { requireActiveProfile } from "@/lib/auth";
 import { getWorkspaceContext } from "@/lib/workspace";
-import { getAsanaConnectionStatus } from "@/lib/asana/connection";
-import { getGCalConnectionStatus } from "@/lib/google-calendar/connection";
-import { createClient } from "@/lib/supabase/server";
-import type { AsanaImportedProject } from "@/types/db";
-import { ConnectedAccountsSection } from "./ConnectedAccountsSection";
 import { ProfileHashScroll } from "./ProfileHashScroll";
 import { maskSensitive } from "@/lib/bank-crypto";
 import { ProfileBankingForm } from "./ProfileBankingForm";
@@ -25,37 +19,13 @@ import { ProfileEmploymentForm } from "./ProfileEmploymentForm";
 import { ProfileRateForm } from "./ProfileRateForm";
 import { ProfileEmergencyForm } from "./ProfileEmergencyForm";
 import { ProfileCompleteness } from "./ProfileCompleteness";
-import { ProfileDeveloperSection } from "./ProfileDeveloperSection";
 
 export const metadata: Metadata = { title: "Profile" };
 
-type ProfilePageProps = {
-  searchParams?: { asana?: string; gcal?: string };
-};
-
-export default async function ProfilePage({ searchParams }: ProfilePageProps) {
+export default async function ProfilePage() {
   const ctx = await getWorkspaceContext();
   const profile = await requireActiveProfile();
   const inOrg = Boolean(ctx?.activeOrgId);
-  const [asanaConnection, gcalConnection, importedProjects] = await Promise.all([
-    getAsanaConnectionStatus(profile.id),
-    getGCalConnectionStatus(profile.id),
-    loadImportedAsanaProjects(profile.id),
-  ]);
-
-  const asanaFlash =
-    searchParams?.asana === "connected"
-      ? "connected"
-      : searchParams?.asana === "error"
-        ? "error"
-        : null;
-
-  const gcalFlash =
-    searchParams?.gcal === "connected"
-      ? "connected"
-      : searchParams?.gcal === "error"
-        ? "error"
-        : null;
 
   return (
     <div>
@@ -70,26 +40,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       />
 
       <ProfileCompleteness profile={profile} />
-
-      <Card id="section-connected" className="mt-4 scroll-mt-20">
-        <CardHeader>
-          <CardTitle className="text-base">Connected accounts</CardTitle>
-          <CardDescription>
-            Link personal integrations — Asana for project tagging, Google Calendar for event sync.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={null}>
-            <ConnectedAccountsSection
-              asanaConnection={asanaConnection}
-              importedProjects={importedProjects}
-              gcalConnection={gcalConnection}
-              asanaFlash={asanaFlash}
-              gcalFlash={gcalFlash}
-            />
-          </Suspense>
-        </CardContent>
-      </Card>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card id="section-personal" className="scroll-mt-20">
@@ -189,34 +139,8 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         </CardContent>
       </Card>
 
-      <div id="section-developer" className="mt-4 scroll-mt-20">
-        <Suspense
-          fallback={
-            <div className="h-40 animate-pulse rounded-[var(--radius-card)] bg-[var(--line)]" />
-          }
-        >
-          <ProfileDeveloperSection />
-        </Suspense>
-      </div>
     </div>
   );
-}
-
-async function loadImportedAsanaProjects(
-  userId: string,
-): Promise<AsanaImportedProject[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("asana_imported_projects")
-    .select("*")
-    .eq("user_id", userId)
-    .order("asana_project_name");
-
-  if (error) {
-    console.error("[profile] asana imported projects:", error.message);
-    return [];
-  }
-  return (data ?? []) as AsanaImportedProject[];
 }
 
 function Field({

@@ -31,6 +31,7 @@ import type { TimesheetStatus } from "@/types/db";
 import {
   ensureTimesheetForWeekForProfile,
   getTimeTrackingDataForProfile,
+  getTimeTrackingDataForPeriodForProfile,
   linkOrphanEntriesToTimesheet,
 } from "@/lib/time/get-time-tracking-data";
 import type { TimeEntry, TimeEntryWithProject } from "@/types/time-tracking";
@@ -273,6 +274,105 @@ export async function deleteTimeEntry(id: string): Promise<SaveEntryResult> {
   return { ok: true, message: "Deleted.", weekStats: stats };
 }
 
+/** Marks a personal (no-org) timesheet as submitted / self-approved. */
+export async function submitPersonalTimesheet(
+  timesheetId: string,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+
+  const db = createAdminClient();
+  const { data: ts } = await db
+    .from("timesheets")
+    .select("id, org_id, employee_id, status, period_start, period_end")
+    .eq("id", timesheetId)
+    .single();
+  if (!ts || ts.employee_id !== profile.id) {
+    return { ok: false, message: "Timesheet not found." };
+  }
+  if (ts.org_id) {
+    return { ok: false, message: "Use submitTimesheetForApproval for org timesheets." };
+  }
+  if (!editableStatus(ts.status as TimesheetStatus)) {
+    return { ok: false, message: "This timesheet can't be submitted." };
+  }
+
+  const { error } = await db
+    .from("timesheets")
+    .update({
+      status: "submitted",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", timesheetId);
+  if (error) return { ok: false, message: "Couldn't submit timesheet." };
+
+  await writeAudit({
+    actorId: profile.id,
+    orgId: null,
+    action: "timesheet_submitted",
+    entity: "timesheets",
+    payload: { timesheet_id: timesheetId, period_start: ts.period_start, period_end: ts.period_end, personal: true },
+  });
+
+  revalidatePath("/app/timesheets");
+  revalidatePath("/app/timesheets/log");
+  return { ok: true, message: "Timesheet submitted." };
+}
+
+/** Locks a submitted personal timesheet (self-approved after edit window). */
+export async function lockPersonalTimesheet(
+  timesheetId: string,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  const db = createAdminClient();
+  const { data: ts } = await db
+    .from("timesheets")
+    .select("id, org_id, employee_id, status")
+    .eq("id", timesheetId)
+    .single();
+  if (!ts || ts.employee_id !== profile.id || ts.org_id) {
+    return { ok: false, message: "Not found." };
+  }
+  if (ts.status !== "submitted") {
+    return { ok: false, message: "Only submitted timesheets can be locked." };
+  }
+  const { error } = await db
+    .from("timesheets")
+    .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: profile.id })
+    .eq("id", timesheetId);
+  if (error) return { ok: false, message: "Couldn't lock timesheet." };
+  revalidatePath("/app/timesheets");
+  return { ok: true, message: "Timesheet locked." };
+}
+
+/** Stores a "request edit" note on an approved personal timesheet. */
+export async function requestPersonalTimesheetEdit(
+  timesheetId: string,
+  note: string,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  if (!note.trim()) return { ok: false, message: "An explanation is required." };
+  const db = createAdminClient();
+  const { data: ts } = await db
+    .from("timesheets")
+    .select("id, org_id, employee_id, status")
+    .eq("id", timesheetId)
+    .single();
+  if (!ts || ts.employee_id !== profile.id || ts.org_id) {
+    return { ok: false, message: "Not found." };
+  }
+  if (ts.status !== "approved") {
+    return { ok: false, message: "Only locked timesheets can have edit requests." };
+  }
+  await writeAudit({
+    actorId: profile.id,
+    orgId: null,
+    action: "timesheet_edit_requested",
+    entity: "timesheets",
+    payload: { timesheet_id: timesheetId, note: note.trim() },
+  });
+  return { ok: true, message: "Edit request logged." };
+}
+
 export async function submitTimesheetForApproval(
   timesheetId: string,
 ): Promise<ActionResult> {
@@ -288,10 +388,7 @@ export async function submitTimesheetForApproval(
     return { ok: false, message: "Timesheet not found." };
   }
   if (!ts.org_id) {
-    return {
-      ok: false,
-      message: "Personal timesheets are not submitted for approval.",
-    };
+    return { ok: false, message: "Use submitPersonalTimesheet for personal timesheets." };
   }
   if (!editableStatus(ts.status as TimesheetStatus)) {
     return { ok: false, message: "This timesheet can't be submitted." };
@@ -415,6 +512,132 @@ export async function checkTimeLogReminder(): Promise<ActionResult> {
   });
 
   return { ok: true, message: "Reminder sent." };
+}
+
+/** Load time tracking data for a personal workspace period. */
+export async function getPersonalTimeTrackingData(
+  periodStart: string,
+  periodEnd: string,
+) {
+  const profile = await requireActiveProfile();
+  return getTimeTrackingDataForPeriodForProfile(profile, periodStart, periodEnd);
+}
+
+/** Copy all time entries from the previous period into the current draft period (date-shifted). */
+export async function copyEntriesFromPreviousPeriod(
+  fromPeriodStart: string,
+  toPeriodStart: string,
+  toPeriodEnd: string,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  const db = createAdminClient();
+
+  const { data: fromTs } = await db
+    .from("timesheets")
+    .select("id")
+    .eq("employee_id", profile.id)
+    .eq("period_start", fromPeriodStart)
+    .is("org_id", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!fromTs) return { ok: false, message: "No previous period timesheet found." };
+
+  const { data: fromEntries } = await db
+    .from("time_entries")
+    .select("*")
+    .eq("timesheet_id", fromTs.id)
+    .order("entry_date")
+    .order("start_time");
+
+  if (!fromEntries || fromEntries.length === 0) {
+    return { ok: false, message: "No entries to copy from previous period." };
+  }
+
+  const toTs = await getTimeTrackingDataForPeriodForProfile(profile, toPeriodStart, toPeriodEnd);
+  if (!toTs.ok) return { ok: false, message: toTs.message };
+
+  const dateDelta =
+    (new Date(toPeriodStart).getTime() - new Date(fromPeriodStart).getTime()) /
+    86_400_000;
+
+  const inserts = (fromEntries as TimeEntry[]).map((e) => {
+    const originalDate = new Date(e.entry_date);
+    originalDate.setDate(originalDate.getDate() + dateDelta);
+    const newDate = originalDate.toISOString().slice(0, 10);
+    if (newDate < toPeriodStart || newDate > toPeriodEnd) return null;
+    return {
+      employee_id: profile.id,
+      org_id: null as string | null,
+      timesheet_id: toTs.timesheetId,
+      entry_date: newDate,
+      entry_mode: e.entry_mode,
+      start_time: e.start_time,
+      end_time: e.end_time,
+      decimal_hours: e.decimal_hours,
+      project_id: e.project_id,
+      asana_project_id: e.asana_project_id,
+      description: e.description,
+      billable: e.billable,
+    };
+  }).filter(Boolean);
+
+  if (inserts.length === 0) {
+    return { ok: false, message: "No entries fell within the new period." };
+  }
+
+  const { error } = await db.from("time_entries").insert(inserts as object[]);
+  if (error) return { ok: false, message: "Failed to copy entries." };
+
+  revalidatePath("/app/timesheets/log");
+  return { ok: true, message: `Copied ${inserts.length} entr${inserts.length === 1 ? "y" : "ies"} from previous period.` };
+}
+
+/** Duplicate a single time entry to a target date within the same timesheet. */
+export async function duplicateTimeEntry(
+  entryId: string,
+  targetDate: string,
+): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  const db = createAdminClient();
+
+  const { data: entry } = await db
+    .from("time_entries")
+    .select("*, timesheets!inner(employee_id, period_start, period_end, org_id)")
+    .eq("id", entryId)
+    .single();
+
+  if (!entry) return { ok: false, message: "Entry not found." };
+  const ts = (entry as unknown as { timesheets: { employee_id: string; period_start: string; period_end: string; org_id: string | null } }).timesheets;
+  if (ts.employee_id !== profile.id) return { ok: false, message: "Not authorized." };
+  if (targetDate < ts.period_start || targetDate > ts.period_end) {
+    return { ok: false, message: "Target date is outside this period." };
+  }
+
+  const { data: newEntry, error } = await db
+    .from("time_entries")
+    .insert({
+      employee_id: profile.id,
+      org_id: ts.org_id,
+      timesheet_id: entry.timesheet_id,
+      entry_date: targetDate,
+      entry_mode: entry.entry_mode,
+      start_time: entry.start_time,
+      end_time: entry.end_time,
+      decimal_hours: entry.decimal_hours,
+      project_id: entry.project_id,
+      asana_project_id: entry.asana_project_id,
+      description: entry.description,
+      billable: entry.billable,
+    })
+    .select("id")
+    .single();
+
+  if (error || !newEntry) return { ok: false, message: "Failed to duplicate entry." };
+
+  revalidatePath("/app/timesheets/log");
+  return { ok: true, message: "Entry duplicated.", id: newEntry.id };
 }
 
 export async function getTimesheetEntriesReadOnly(

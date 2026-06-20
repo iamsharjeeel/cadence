@@ -18,10 +18,12 @@ import { markPersonalLeave, requestLeave } from "./actions";
 export function RequestLeaveModal({
   mode,
   leaveTypes = [],
+  initialDate,
   onClose,
 }: {
   mode: "personal" | "org";
   leaveTypes?: LeaveType[];
+  initialDate?: string;
   onClose: () => void;
 }) {
   const { toast } = useToast();
@@ -29,8 +31,8 @@ export function RequestLeaveModal({
   const hasTypes = activeTypes.length > 0;
 
   const [leaveTypeId, setLeaveTypeId] = useState(activeTypes[0]?.id ?? "");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(initialDate ?? "");
+  const [endDate, setEndDate] = useState(initialDate ?? "");
   const [halfDay, setHalfDay] = useState(false);
   const [hoursRequested, setHoursRequested] = useState("");
   const [note, setNote] = useState("");

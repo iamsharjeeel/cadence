@@ -21,6 +21,7 @@ import {
   deletePersonalLeave,
 } from "./actions";
 import { RequestLeaveModal } from "./RequestLeaveModal";
+import type { GCalEventForLeave } from "@/lib/leave/queries";
 
 function statusTone(status: string) {
   if (status === "approved") return "text-[var(--accent-strong)]";
@@ -75,18 +76,25 @@ function entryLabel(hit: RequestWithMeta) {
   return (hit.leave_type?.name ?? hit.note?.trim()) || "Time off";
 }
 
+function gcalEventsOnDay(events: GCalEventForLeave[], iso: string): GCalEventForLeave[] {
+  return events.filter((e) => e.start_at.startsWith(iso));
+}
+
 export function LeaveEmployeeView({
   mode,
   requests,
   leaveTypes = [],
   calendarMonth,
+  gcalEvents = [],
 }: {
   mode: "personal" | "org";
   requests: RequestWithMeta[];
   leaveTypes?: LeaveType[];
   calendarMonth: string;
+  gcalEvents?: GCalEventForLeave[];
 }) {
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [prefillDate, setPrefillDate] = useState<string | undefined>(undefined);
   const [actingId, setActingId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -139,7 +147,14 @@ export function LeaveEmployeeView({
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{description}</p>
-        <Button onClick={() => setRequestModalOpen(true)}>{ctaLabel}</Button>
+        <Button
+          onClick={() => {
+            setPrefillDate(undefined);
+            setRequestModalOpen(true);
+          }}
+        >
+          {ctaLabel}
+        </Button>
       </div>
 
       <MotionCard className="overflow-hidden">
@@ -165,13 +180,27 @@ export function LeaveEmployeeView({
               const hits = requestsOnDay(calendarRequests, iso);
               const hasApproved = hits.some((h) => h.status === "approved");
               const hasPending = hits.some((h) => h.status === "pending");
+              const gcalHits = gcalEventsOnDay(gcalEvents, iso);
               const visible = hits.slice(0, 2);
               const overflow = hits.length - visible.length;
               return (
                 <div
                   key={day}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Mark time off on ${iso}`}
+                  onClick={() => {
+                    setPrefillDate(iso);
+                    setRequestModalOpen(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      setPrefillDate(iso);
+                      setRequestModalOpen(true);
+                    }
+                  }}
                   className={cn(
-                    "relative flex min-h-[80px] flex-col gap-1 bg-surface p-1.5 transition-colors",
+                    "relative flex min-h-[80px] cursor-pointer flex-col gap-1 bg-surface p-1.5 transition-colors",
                     hits.length === 0 && "hover:bg-container",
                     hasApproved &&
                       "bg-[var(--accent-soft)]/50 ring-1 ring-inset ring-[var(--accent)]/25",
@@ -190,7 +219,7 @@ export function LeaveEmployeeView({
                   >
                     {day}
                   </span>
-                  {hits.length > 0 ? (
+                  {(hits.length > 0 || gcalHits.length > 0) ? (
                     <div className="flex min-h-0 flex-1 flex-col gap-0.5">
                       {visible.map((hit) => (
                         <LeaveDayPill key={hit.id} hit={hit} />
@@ -200,6 +229,15 @@ export function LeaveEmployeeView({
                           +{overflow} more
                         </span>
                       ) : null}
+                      {gcalHits.slice(0, 2).map((ev) => (
+                        <span
+                          key={ev.id}
+                          title={ev.title ?? "Calendar event"}
+                          className="block w-full truncate rounded-[var(--radius-chip)] bg-[#4285F4]/10 px-1.5 py-0.5 text-[10px] font-medium leading-snug text-[#4285F4]"
+                        >
+                          {ev.title ?? "Event"}
+                        </span>
+                      ))}
                     </div>
                   ) : null}
                 </div>
@@ -208,8 +246,8 @@ export function LeaveEmployeeView({
           </div>
           <p className="px-4 py-3 text-xs text-muted">
             {mode === "personal"
-              ? "Gold pills show your marked time off."
-              : "Solid gold pills are approved leave; dashed pills are pending."}
+              ? "Gold pills show your marked time off. Blue pills are synced Google Calendar events."
+              : "Solid gold pills are approved leave; dashed pills are pending. Blue pills are Google Calendar events."}
           </p>
         </CardContent>
       </MotionCard>
@@ -302,6 +340,7 @@ export function LeaveEmployeeView({
         <RequestLeaveModal
           mode={mode}
           leaveTypes={leaveTypes}
+          initialDate={prefillDate}
           onClose={() => setRequestModalOpen(false)}
         />
       ) : null}
