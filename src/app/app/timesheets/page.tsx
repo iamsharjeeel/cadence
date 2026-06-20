@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import {
@@ -9,7 +10,7 @@ import {
   CardDescription,
 } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getProfile, requireActiveProfile } from "@/lib/auth";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
@@ -22,8 +23,8 @@ import { TimeLogReminder } from "./TimeLogReminder";
 import { TimesheetPageActions } from "./TimesheetPageActions";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const profile = await getProfile();
-  if (profile?.role === "employee") {
+  const ctx = await getWorkspaceContext();
+  if (ctx?.isPersonal || ctx?.workspaceRole === "employee") {
     return { title: { absolute: "Log time · Cadence" } };
   }
   return { title: "Timesheets" };
@@ -45,9 +46,14 @@ export default async function TimesheetsPage({
     dir?: string;
   };
 }) {
-  const profile = await requireActiveProfile();
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
-  const isSuperadmin = profile.role === "superadmin";
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  const profile = ctx.effectiveProfile;
+  const isSuperadmin = ctx.isSuperadmin;
+  const isOrgManager =
+    Boolean(ctx.activeOrgId) &&
+    (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
+  const isManager = isSuperadmin || isOrgManager;
 
   if (!isManager) {
     const weekMonday = thisWeekMonday();
@@ -82,7 +88,7 @@ export default async function TimesheetsPage({
     .select("*, rows:timesheet_rows(count)");
 
   if (!isManager) query = query.eq("employee_id", profile.id);
-  else if (!isSuperadmin) query = query.eq("org_id", profile.org_id!);
+  else if (!isSuperadmin && ctx.activeOrgId) query = query.eq("org_id", ctx.activeOrgId);
   if (statusFilter) query = query.eq("status", statusFilter);
   if (isManager && employeeFilter) query = query.eq("employee_id", employeeFilter);
   if (orgFilter) query = query.eq("org_id", orgFilter);
@@ -126,7 +132,7 @@ export default async function TimesheetsPage({
   if (isManager) {
     const pdb = isSuperadmin ? createAdminClient() : createClient();
     let pq = pdb.from("profiles").select("id, full_name, email");
-    if (!isSuperadmin) pq = pq.eq("org_id", profile.org_id!);
+    if (!isSuperadmin && ctx.activeOrgId) pq = pq.eq("org_id", ctx.activeOrgId);
     const { data: people } = await pq;
     for (const p of (people ?? []) as Pick<
       Profile,

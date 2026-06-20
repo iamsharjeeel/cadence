@@ -182,11 +182,13 @@ export async function getOfficialDocumentUrl(
     .single();
   if (!doc) return { ok: false, message: "Document not found." };
 
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const isManager =
+    profile.role === "superadmin" ||
+    (profile.role === "admin" && profile.org_id != null);
   if (!isManager && doc.employee_id !== profile.id) {
     return { ok: false, message: "Forbidden." };
   }
-  if (profile.role === "admin" && doc.org_id !== profile.org_id) {
+  if (profile.role === "admin" && (!profile.org_id || doc.org_id !== profile.org_id)) {
     return { ok: false, message: "Forbidden." };
   }
 

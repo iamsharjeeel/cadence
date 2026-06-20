@@ -1732,6 +1732,43 @@ _(none logged)_
 #### Verification
 - `npm run build` passes.
 
+### Session — Personal workspace role model audit & fix (Admin-equivalent personal context) ✅ (2026-06-20, app-layer only; no DB change)
+
+#### Confirmed root cause
+- `src/lib/workspace.ts` resolved **personal** context (`activeOrgId = null`, non-superadmin) to `effectiveProfile.role = "employee"`.
+- This made standalone users appear and behave as org employees in personal context (incorrect role semantics for solo workspace).
+
+#### Fix implemented
+- `getWorkspaceContext()` now resolves non-superadmin personal context to:
+  - `workspaceRole = "admin"` (admin-equivalent solo context)
+  - `effectiveProfile.role = "admin"`
+  - `effectiveProfile.org_id = null` (unchanged)
+- Org-context role resolution is unchanged (still from `memberships` on active org).
+- Superadmin detection/behavior is unchanged (`profiles.role = "superadmin"` path untouched).
+
+#### Consumer hardening (to avoid org-leak semantics when personal role is admin-equivalent)
+- Timesheets org-admin checks now require non-null org match (no null-org admin broadening):
+  - `src/app/app/timesheets/actions.ts`
+  - `src/app/app/timesheets/time-actions.ts`
+  - `src/app/app/timesheets/[id]/page.tsx`
+- Documents org-admin checks now require non-null org match:
+  - `src/app/app/documents/actions.ts`
+  - `src/lib/documents/authorization.ts`
+  - `src/app/app/official-documents/actions.ts`
+  - `src/app/api/timesheets/export/route.ts` (explicit 403 for admin with no org on export)
+- Timesheets/Documents manager-mode routing is now workspace-aware (personal stays solo UX):
+  - `src/app/app/timesheets/page.tsx`
+  - `src/app/app/timesheets/log/page.tsx`
+  - `src/app/app/documents/page.tsx`
+
+#### Personal role labeling
+- Profile now renders **Admin** badge in personal context (instead of Employee/Manager label drift):
+  - `src/app/app/profile/page.tsx`
+
+#### Notes on `profiles.role` default at signup
+- App onboarding (`src/lib/onboarding.ts`) does not assign a non-superadmin role on signup; it only promotes superadmin by configured email and activates status.
+- The persisted default role still comes from DB-side profile creation logic (historically employee). This session intentionally does **not** mutate stored `profiles.role`; it only fixes workspace-context role resolution.
+
 ### Session — Small Fixes + Investigation Batch (B+C) ✅ (2026-06-20)
 
 #### Part 1 — Confirmed bugs fixed
