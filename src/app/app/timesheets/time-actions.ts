@@ -581,13 +581,13 @@ export async function copyEntriesFromPreviousPeriod(
       description: e.description,
       billable: e.billable,
     };
-  }).filter(Boolean);
+  }).filter((x): x is NonNullable<typeof x> => x !== null);
 
   if (inserts.length === 0) {
     return { ok: false, message: "No entries fell within the new period." };
   }
 
-  const { error } = await db.from("time_entries").insert(inserts as object[]);
+  const { error } = await db.from("time_entries").insert(inserts);
   if (error) return { ok: false, message: "Failed to copy entries." };
 
   revalidatePath("/app/timesheets/log");
