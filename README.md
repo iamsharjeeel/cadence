@@ -175,6 +175,13 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
   - Direct personal-context hits to `/app/trends` redirect to `/app/dashboard`.
 - **Onboarding:** the "No organization." error toast is suppressed on `/app/onboarding` (personal-workspace users completing setup).
 
+### Onboarding audit & fix — date picker, optional fields, 4-step wizard
+- **Date picker root-cause fix (`DatePicker`)**: month/year navigation and cross-month reselection no longer reset — the visible month previously re-derived from the selected value on every render (an effect keyed on a freshly-parsed `Date`), locking the calendar once a date was chosen. The view now syncs to the selection only when the popover opens.
+- **Future dates blockable**: optional `minDate` / `maxDate` props (default off, so leave-request and other pickers keep full-range selection). The onboarding Employment **start date** passes `maxDate={today}` to block future dates; the previous edit-lock once a date existed is removed (start date is freely re-selectable).
+- **Every onboarding field is optional**: removed remaining required validation (client + server); a user can click through all steps empty and finish. **Rate + rate type** are now collected (optionally) on the Employment step — previously onboarding never captured rate, which is why completed users had a NULL rate.
+- **Documents step removed (5 → 4)**: steps are now Personal · Employment · Banking & tax · Emergency contact; `progress.ts` tracks 4 steps; no live path creates a new `documents` onboarding row (historical labels retained for already-completed users). Official-document signing remains available from the Official documents tab.
+- **Wizard layout**: full-screen flow is now a centered `max-w-md` card using the existing `Card` + gold tokens.
+
 ## Getting started
 
 ```bash

@@ -56,6 +56,8 @@ export function DatePicker({
   disabled,
   id,
   name,
+  minDate,
+  maxDate,
 }: {
   label?: string;
   value: string;
@@ -64,6 +66,10 @@ export function DatePicker({
   disabled?: boolean;
   id?: string;
   name?: string;
+  /** Earliest selectable date (inclusive), ISO `YYYY-MM-DD`. */
+  minDate?: string;
+  /** Latest selectable date (inclusive), ISO `YYYY-MM-DD`. Pass today to block future dates. */
+  maxDate?: string;
 }) {
   const autoId = useId();
   const inputId = id ?? name ?? autoId;
@@ -74,8 +80,12 @@ export function DatePicker({
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
   const selected = parseIso(value);
-  const [viewYear, setViewYear] = useState(selected?.getFullYear() ?? new Date().getFullYear());
-  const [viewMonth, setViewMonth] = useState(selected?.getMonth() ?? new Date().getMonth());
+  const [viewYear, setViewYear] = useState(
+    selected?.getFullYear() ?? new Date().getFullYear(),
+  );
+  const [viewMonth, setViewMonth] = useState(
+    selected?.getMonth() ?? new Date().getMonth(),
+  );
 
   useEffect(() => setMounted(true), []);
 
@@ -123,12 +133,18 @@ export function DatePicker({
     };
   }, [open, updatePosition]);
 
-  useEffect(() => {
-    if (selected) {
-      setViewYear(selected.getFullYear());
-      setViewMonth(selected.getMonth());
-    }
-  }, [value, selected]);
+  // Sync the visible month to the selected date (or today) only when the
+  // picker opens. Deriving the visible month from the value on every render
+  // (via an effect keyed on the parsed Date) re-locks the calendar to the
+  // selected month after each render — which makes prev/next navigation and
+  // cross-month reselection impossible once a date has been chosen.
+  function openPicker() {
+    const base = parseIso(value) ?? new Date();
+    setViewYear(base.getFullYear());
+    setViewMonth(base.getMonth());
+    updatePosition();
+    setOpen(true);
+  }
 
   const display = selected
     ? selected.toLocaleDateString(undefined, {
@@ -138,8 +154,19 @@ export function DatePicker({
       })
     : "Select date";
 
+  const minIso = minDate && parseIso(minDate) ? minDate : null;
+  const maxIso = maxDate && parseIso(maxDate) ? maxDate : null;
+
+  function isOutOfRange(iso: string): boolean {
+    if (minIso && iso < minIso) return true;
+    if (maxIso && iso > maxIso) return true;
+    return false;
+  }
+
   function pick(day: Date) {
-    onChange(toIso(day));
+    const iso = toIso(day);
+    if (isOutOfRange(iso)) return;
+    onChange(iso);
     setOpen(false);
   }
 
@@ -204,10 +231,13 @@ export function DatePicker({
               const iso = toIso(day);
               const isSelected = value === iso;
               const isToday = iso === toIso(new Date());
+              const outOfRange = isOutOfRange(iso);
               return (
                 <button
                   key={iso}
                   type="button"
+                  disabled={outOfRange}
+                  aria-disabled={outOfRange}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -215,10 +245,15 @@ export function DatePicker({
                   }}
                   className={cn(
                     "tabular flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors",
-                    isSelected
-                      ? "bg-[var(--accent-mid)] text-white"
-                      : "hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]",
-                    isToday && !isSelected && "ring-1 ring-[var(--accent)]",
+                    outOfRange
+                      ? "cursor-not-allowed text-muted opacity-40"
+                      : isSelected
+                        ? "bg-[var(--accent-mid)] text-white"
+                        : "hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]",
+                    isToday &&
+                      !isSelected &&
+                      !outOfRange &&
+                      "ring-1 ring-[var(--accent)]",
                   )}
                 >
                   {day.getDate()}
@@ -246,10 +281,11 @@ export function DatePicker({
         onClick={(e) => {
           e.preventDefault();
           if (disabled) return;
-          setOpen((v) => {
-            if (!v) updatePosition();
-            return !v;
-          });
+          if (open) {
+            setOpen(false);
+          } else {
+            openPicker();
+          }
         }}
         className={cn(
           fieldBase,

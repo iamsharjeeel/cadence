@@ -6,11 +6,11 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
+import { Input, fieldBase } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useToast } from "@/components/ui/Toast";
-import { cn } from "@/lib/utils";
-import type { OfficialDocument, Profile } from "@/types/db";
+import { cn, titleCase } from "@/lib/utils";
+import { RATE_TYPES, type Profile } from "@/types/db";
 import {
   completeOnboarding,
   saveBanking,
@@ -19,28 +19,26 @@ import {
   savePersonal,
   skipStep,
 } from "./actions";
-import { OfficialDocSignModal } from "@/components/official-docs/OfficialDocSignModal";
 
-const STEP_LABELS = [
-  "Personal",
-  "Employment",
-  "Banking & tax",
-  "Emergency contact",
-  "Documents",
-];
+const STEP_LABELS = ["Personal", "Employment", "Banking & tax", "Emergency contact"];
+const STEP_KEYS = ["personal", "employment", "banking", "emergency"] as const;
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
 
 export function OnboardingWizard({
   profile,
   completedSteps,
-  pendingDocs,
 }: {
   profile: Profile;
   completedSteps: string[];
-  pendingDocs: OfficialDocument[];
 }) {
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
-  const [signDoc, setSignDoc] = useState<OfficialDocument | null>(null);
   const [pending, setPending] = useState(false);
   const [employmentStartDate, setEmploymentStartDate] = useState(
     profile.start_date ?? "",
@@ -48,6 +46,7 @@ export function OnboardingWizard({
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
+  const lastStep = STEP_LABELS.length - 1;
   const isOnboardingRoute =
     pathname.startsWith("/app/onboarding") ||
     pathname.startsWith("/onboarding");
@@ -68,6 +67,15 @@ export function OnboardingWizard({
     router.push("/app/dashboard");
   }, [done, router]);
 
+  async function finish() {
+    const result = await completeOnboarding();
+    if (result.ok) {
+      setDone(true);
+    } else {
+      showActionToast(result);
+    }
+  }
+
   async function runAction(
     action: (fd: FormData) => Promise<{ ok: boolean; message: string }>,
     form: HTMLFormElement,
@@ -78,9 +86,8 @@ export function OnboardingWizard({
       const result = await action(fd);
       showActionToast(result);
       if (result.ok) {
-        if (step >= 4) {
-          const doneResult = await completeOnboarding();
-          if (doneResult.ok) setDone(true);
+        if (step >= lastStep) {
+          await finish();
         } else {
           setStep((s) => s + 1);
         }
@@ -90,28 +97,13 @@ export function OnboardingWizard({
     }
   }
 
-  async function runSkip(stepKey: "emergency" | "documents") {
+  async function runSkipEmergency() {
     setPending(true);
     try {
-      const r = await skipStep(stepKey);
+      const r = await skipStep("emergency");
       showActionToast(r);
       if (!r.ok) return;
-      if (stepKey === "emergency") {
-        setStep(4);
-      } else {
-        const d = await completeOnboarding();
-        if (d.ok) setDone(true);
-      }
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function runFinish() {
-    setPending(true);
-    try {
-      const d = await completeOnboarding();
-      if (d.ok) setDone(true);
+      await finish();
     } finally {
       setPending(false);
     }
@@ -137,9 +129,8 @@ export function OnboardingWizard({
     <div>
       <div className="mb-8 flex items-center justify-center gap-2">
         {STEP_LABELS.map((label, i) => {
-          const completed = completedSteps.includes(
-            ["personal", "employment", "banking", "emergency", "documents"][i]!,
-          ) || i < step;
+          const completed =
+            completedSteps.includes(STEP_KEYS[i]!) || i < step;
           const active = i === step;
           return (
             <div key={label} className="flex items-center gap-2">
@@ -185,7 +176,6 @@ export function OnboardingWizard({
                 label="Full name"
                 name="full_name"
                 defaultValue={profile.full_name ?? ""}
-                required
               />
               <Input
                 label="Address"
@@ -214,13 +204,43 @@ export function OnboardingWizard({
                 name="start_date"
                 value={employmentStartDate}
                 onChange={setEmploymentStartDate}
-                disabled={!!profile.start_date}
+                maxDate={todayIso()}
               />
-              {profile.start_date && (
-                <p className="text-xs text-muted">
-                  Start date was set by your manager — confirm only.
-                </p>
-              )}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label="Rate"
+                  name="rate"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={profile.rate ?? ""}
+                  placeholder="e.g. 75"
+                />
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="onboarding-rate-type"
+                    className="text-sm font-medium text-ink"
+                  >
+                    Rate type
+                  </label>
+                  <select
+                    id="onboarding-rate-type"
+                    name="rate_type"
+                    defaultValue={profile.rate_type ?? "hourly"}
+                    className={cn(fieldBase, "text-sm")}
+                  >
+                    {RATE_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {titleCase(t)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-muted">
+                Every field is optional — you can complete or change these later
+                from your profile.
+              </p>
               <NavButtons step={step} setStep={setStep} pending={pending} />
             </form>
           )}
@@ -259,57 +279,13 @@ export function OnboardingWizard({
                 setStep={setStep}
                 pending={pending}
                 skippable
-                onSkip={() => runSkip("emergency")}
+                onSkip={runSkipEmergency}
+                continueLabel="Finish"
               />
             </form>
           )}
-
-          {step === 4 && (
-            <div className="flex flex-col gap-4">
-              {pendingDocs.length === 0 ? (
-                <p className="text-sm text-muted">
-                  No documents to sign right now.
-                </p>
-              ) : (
-                <ul className="divide-y divide-[var(--line)] rounded-[var(--radius-card)] bg-surface-low">
-                  {pendingDocs.map((d) => (
-                    <li
-                      key={d.id}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                    >
-                      <span className="text-sm font-medium">{d.name}</span>
-                      <Button size="sm" onClick={() => setSignDoc(d)}>
-                        {d.signing_type === "e_signature"
-                          ? "Sign"
-                          : "Acknowledge"}
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <NavButtons
-                step={step}
-                setStep={setStep}
-                pending={pending}
-                skippable
-                onSkip={() => runSkip("documents")}
-                onContinue={() => runFinish()}
-                continueLabel="Finish"
-              />
-            </div>
-          )}
         </CardContent>
       </Card>
-
-      {signDoc && (
-        <OfficialDocSignModal
-          document={signDoc}
-          onClose={() => {
-            setSignDoc(null);
-            router.refresh();
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -320,7 +296,6 @@ function NavButtons({
   pending,
   skippable,
   onSkip,
-  onContinue,
   continueLabel = "Continue",
 }: {
   step: number;
@@ -328,7 +303,6 @@ function NavButtons({
   pending: boolean;
   skippable?: boolean;
   onSkip?: () => void;
-  onContinue?: () => void;
   continueLabel?: string;
 }) {
   return (
@@ -343,15 +317,9 @@ function NavButtons({
           Back
         </Button>
       )}
-      {onContinue ? (
-        <Button type="button" onClick={onContinue} disabled={pending}>
-          {pending ? "…" : continueLabel}
-        </Button>
-      ) : (
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : continueLabel}
-        </Button>
-      )}
+      <Button type="submit" disabled={pending}>
+        {pending ? "Saving…" : continueLabel}
+      </Button>
       {skippable && onSkip && (
         <Button type="button" variant="ghost" onClick={onSkip} disabled={pending}>
           Skip for now

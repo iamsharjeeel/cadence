@@ -1731,3 +1731,41 @@ _(none logged)_
 
 #### Verification
 - `npm run build` passes.
+
+### Onboarding audit & fix — date picker, optional fields, 4-step wizard, centered card ✅ (2026-06-20)
+
+Follow-on to the 2026-06-19 portal fix (which made the popover *appear/position* correctly but left the calendar logic and onboarding flow buggy). Audited the whole `/app/onboarding` flow against prod evidence (5 of 13 profiles had `onboarding_complete = true` with `start_date`/`rate` still NULL).
+
+#### Locate (only one implementation — no stale/duplicate path)
+- Route: `src/app/app/onboarding/page.tsx`; wizard: `OnboardingWizard.tsx`; server actions: `actions.ts`; shared picker: `src/components/ui/DatePicker.tsx`; step tracking: `src/lib/onboarding/progress.ts`; display labels: `src/app/app/employees/OnboardingCell.tsx`.
+- Branch was level with `origin/main` (no divergence). `git log`/blame confirmed a single wizard + single `DatePicker`, so prior "silent reverts" were the responsiveness-only portal fix not covering the calendar-state bug — not a duplicate live path.
+
+#### Date picker — single root cause behind all three reported bugs
+- **Root cause:** an effect keyed on `[value, selected]` where `selected = parseIso(value)` is a **new `Date` every render** → the effect ran on every render and reset the visible month back to the selected date's month. Once a date was chosen, prev/next navigation and cross-month reselection were instantly undone.
+- **Fix:** removed that effect; the visible month now syncs to the selected date (or today) **only when the popover opens** (`openPicker()`). Navigation and reselection now persist while open.
+- **Future-date blocking:** added optional `minDate` / `maxDate` props (default off — the 8 other callers, incl. leave requests which need future dates, are unaffected). Out-of-range days are `disabled` + muted and `pick()` ignores them. Onboarding's Employment `start_date` passes `maxDate={today}` so only future dates are blocked.
+- **Reselect lock removed:** the wizard previously passed `disabled={!!profile.start_date}` (+ "confirm only" copy), permanently locking the field once a date existed. Removed — start date is freely (re)selectable.
+
+#### All onboarding fields optional
+- Removed the `required` attribute on Full name (only client-side `required` in the flow).
+- `saveEmployment` now validates only values that are actually provided; empty submits are accepted. Removed the `!profile.start_date` guard that silently dropped start-date edits.
+- Confirmed `savePersonal` / `saveBanking` / `saveEmergency` already accept empty input. A user can click through every step empty and finish.
+
+#### Rate captured during onboarding (was the null-rate gap)
+- Added optional **Rate** + **Rate type** fields to the Employment step (`rate`, `rate_type`), persisted by `saveEmployment`. Onboarding never collected rate before — that is why `rate` was NULL for completed users. Rate remains separately editable on Profile (`updateOwnRate`, which keeps its audit entry); onboarding writes are via the service-role admin client so the C1 privileged-column trigger is unaffected.
+
+#### Documents step removed (5 → 4 steps)
+- Steps are now **Personal · Employment · Banking & tax · Emergency contact**. Emergency is the final step (its submit = "Finish"; "Skip for now" also finishes).
+- `TRACKED_STEPS` in `progress.ts` drops `documents` (employee onboarding column now reads `X/4`).
+- `completeOnboarding` no longer writes a `documents` step row; `skipStep` only accepts `emergency`. No live wizard path can create a new `documents` row going forward.
+- `OnboardingCell.STEP_LABELS` intentionally **keeps** `documents` + `complete` (historical rows for already-completed users still render a label).
+- In-wizard official-document signing was removed from onboarding; official docs are still signable from the Official documents tab (that flow is independent).
+
+#### Wizard layout
+- Onboarding content constrained to a centered `max-w-md` column (`page.tsx`) — a narrower, centered card instead of full-screen, reusing the existing `Card` + gold tokens.
+
+#### Not touched (deliberate — see report)
+- **No backfill** of the 5 existing prod profiles with NULL `start_date`/`rate`. No DB migration needed (all columns already exist/nullable).
+
+#### Verification
+- `npm run typecheck` + `npm run build` pass clean.

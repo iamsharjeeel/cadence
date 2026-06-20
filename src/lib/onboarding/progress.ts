@@ -7,7 +7,6 @@ const TRACKED_STEPS = [
   "employment",
   "banking",
   "emergency",
-  "documents",
 ] as const;
 
 export async function getOnboardingProgress(

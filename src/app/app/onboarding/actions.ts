@@ -7,7 +7,7 @@ import { requireActiveProfile } from "@/lib/auth";
 import { bankingToDbPayload, parseBankingFormData } from "@/lib/banking";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateIsoDate, validateMaxLength } from "@/lib/validation";
-import type { Profile } from "@/types/db";
+import { RATE_TYPES, type Profile, type RateType } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -102,26 +102,51 @@ export async function saveEmployment(formData: FormData): Promise<ActionResult> 
   const orgError = requireOrg(profile);
   if (orgError) return orgError;
 
+  // Every employment field is optional — the user may click through with
+  // everything empty. Only values that were actually provided are validated;
+  // start date is freely re-selectable (no lock once previously set).
   const jobTitleV = validateMaxLength(
     String(formData.get("job_title") ?? ""),
     80,
     "Job title",
   );
   if (!jobTitleV.ok) return { ok: false, message: jobTitleV.error };
-  const startDateRaw = String(formData.get("start_date") ?? "");
+
+  const startDateRaw = String(formData.get("start_date") ?? "").trim();
   let startDate: string | null = null;
-  if (startDateRaw && !profile.start_date) {
+  if (startDateRaw) {
     const startV = validateIsoDate(startDateRaw, "Start date");
     if (!startV.ok) return { ok: false, message: startV.error };
     startDate = startV.value;
+  }
+
+  const rateRaw = String(formData.get("rate") ?? "").trim();
+  let rate: number | null = null;
+  if (rateRaw) {
+    const parsed = Number(rateRaw);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return { ok: false, message: "Enter a valid rate." };
+    }
+    rate = parsed;
+  }
+
+  const rateTypeRaw = String(formData.get("rate_type") ?? "").trim();
+  let rateType: RateType | null = null;
+  if (rateTypeRaw) {
+    if (!RATE_TYPES.includes(rateTypeRaw as RateType)) {
+      return { ok: false, message: "Invalid rate type." };
+    }
+    rateType = rateTypeRaw as RateType;
   }
 
   const db = createAdminClient();
   const { error } = await db
     .from("profiles")
     .update({
-      ...(jobTitleV.value ? { job_title: jobTitleV.value } : {}),
-      ...(startDate ? { start_date: startDate } : {}),
+      job_title: jobTitleV.value || null,
+      start_date: startDate,
+      ...(rate !== null ? { rate } : {}),
+      ...(rateType ? { rate_type: rateType } : {}),
     })
     .eq("id", profile.id);
   if (error) return { ok: false, message: "Couldn't save employment details." };
@@ -175,7 +200,7 @@ export async function skipStep(step: string): Promise<ActionResult> {
   const profile = await requireActiveProfile();
   const orgError = requireOrg(profile);
   if (orgError) return orgError;
-  if (step !== "emergency" && step !== "documents") {
+  if (step !== "emergency") {
     return { ok: false, message: "This step cannot be skipped." };
   }
   await markStep(profile.id, profile.org_id ?? null, step);
@@ -209,7 +234,7 @@ export async function completeOnboarding(): Promise<ActionResult> {
     .update({ onboarding_complete: true })
     .eq("id", profile.id);
 
-  for (const step of [...REQUIRED_STEPS, "emergency", "documents", "complete"]) {
+  for (const step of [...REQUIRED_STEPS, "emergency", "complete"]) {
     await markStep(profile.id, profile.org_id ?? null, step);
   }
 
