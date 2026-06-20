@@ -31,7 +31,7 @@ const FEATURES = [
     Icon: IconPeriods,
     title: "Periods that fit you",
     description:
-      "Track by week, 15 days, or month — your choice from day one. No organization policy required to get started.",
+      "Track by week, 15 days, or month — your choice from day one. Works the same whether you're solo or inside an organization.",
   },
   {
     Icon: IconLifecycle,
@@ -82,9 +82,9 @@ const STEPS = [
   },
   {
     step: "03",
-    title: "Add your team — optional",
+    title: "Grow with your team",
     description:
-      "Create or join an organization for approvals, shared projects, and roles. Same account, no re-onboarding.",
+      "Create or join an organization for approvals, roles, and shared projects. Same account — no re-onboarding.",
   },
 ] as const;
 
@@ -158,16 +158,6 @@ export function LandingPage() {
           />
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
-              <motion.p
-                initial={reduce ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                className="inline-flex items-center gap-2 border border-line bg-surface/80 px-3 py-1 font-body text-xs font-medium uppercase tracking-wider text-muted backdrop-blur [border-radius:var(--radius-chip)]"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                Personal-first · organization-optional
-              </motion.p>
-
               <h1 className="mt-6 font-display text-[40px] font-bold leading-[1.04] tracking-[-0.03em] text-ink sm:text-5xl lg:text-[64px]">
                 <motion.span
                   className="block"
@@ -175,7 +165,7 @@ export function LandingPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.05 }}
                 >
-                  Your own timesheet today.
+                  Complete time tracking,
                 </motion.span>
                 <motion.span
                   className="block text-[var(--accent-mid)]"
@@ -183,7 +173,7 @@ export function LandingPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.13 }}
                 >
-                  Your team&rsquo;s when you&rsquo;re ready.
+                  solo or with your team.
                 </motion.span>
               </h1>
 
@@ -193,11 +183,11 @@ export function LandingPage() {
                 transition={{ duration: 0.4, delay: 0.2 }}
                 className="mt-6 max-w-xl font-body text-lg leading-relaxed text-muted"
               >
-                Cadence gives everyone a complete personal workspace from the
-                moment they sign up — log hours, track periods, manage time off,
-                no team setup required. When the moment comes, layer on an
-                organization for approvals and shared work. Same account, no
-                re-onboarding.
+                Every Cadence account ships complete from day one — log hours,
+                track periods, manage time off, connect your calendar. Use it
+                entirely on your own, or bring in a team for a full org
+                platform with Manager/Admin roles, approval workflows, and
+                shared projects. One account, either way.
               </motion.p>
 
               <motion.div
@@ -265,8 +255,8 @@ export function LandingPage() {
                 Everything you need to track time — and nothing you don&rsquo;t.
               </h2>
               <p className="mt-4 max-w-xl font-body text-muted">
-                Built for individuals first, with the depth a small team needs
-                when it grows into one.
+                Every feature works fully on day one as a solo user. Every
+                feature scales into a complete org platform when your team joins.
               </p>
             </Reveal>
 
@@ -324,8 +314,9 @@ export function LandingPage() {
                 From solo to a team, on one account
               </h2>
               <p className="mt-4 max-w-xl font-body text-muted">
-                No forced organization setup. Start the day you sign up; bring a
-                team along only if and when you need to.
+                Start the day you sign up, no org required. Bring a team in
+                for the full platform — approvals, roles, shared projects —
+                whenever the time is right.
               </p>
             </Reveal>
 
@@ -370,8 +361,9 @@ export function LandingPage() {
                     Start with your own workspace today.
                   </h2>
                   <p className="mx-auto mt-4 max-w-lg font-body text-muted">
-                    Free to begin, yours from the first minute. Add a team
-                    whenever you&rsquo;re ready — the account grows with you.
+                    Use it solo, or scale up to a full team with roles, approvals,
+                    and org-wide projects — the account works completely either
+                    way.
                   </p>
                   <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
                     <Link
@@ -402,7 +394,7 @@ export function LandingPage() {
               Time, tracked with rhythm.
             </p>
             <p className="mt-1 font-body text-xs text-muted">
-              Personal-first time tracking, payroll, and HR.
+              Time tracking, payroll, and HR for individuals and teams.
             </p>
           </div>
           <div className="flex flex-col gap-2 font-body text-sm text-muted sm:items-end">
