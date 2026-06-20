@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
+import { resolveAvatarUrl } from "@/lib/avatar-url";
 import { updateOwnAvatar, uploadProfileAvatar } from "./actions";
 
 const PRESETS = [
@@ -29,16 +30,20 @@ export function AvatarPickerSection({
   const { toast } = useToast();
   const [tab, setTab] = useState<"presets" | "upload">("presets");
   const [pending, startTransition] = useTransition();
+  // optimisticUrl stores the raw avatar_url value (storage path, preset path, or blob URL)
   const [optimisticUrl, setOptimisticUrl] = useState<string | null | undefined>(undefined);
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
-  const displayUrl = optimisticUrl !== undefined ? optimisticUrl : currentAvatarUrl;
+  // Raw value — either the DB avatar_url or an optimistic override
+  const rawUrl = optimisticUrl !== undefined ? optimisticUrl : currentAvatarUrl;
+  // Displayable URL — resolves storage paths through /api/avatar, passes statics/blobs through
+  const displayUrl = resolveAvatarUrl(rawUrl);
 
-  function selectPreset(url: string) {
-    setOptimisticUrl(url);
+  function selectPreset(presetPath: string) {
+    setOptimisticUrl(presetPath);
     startTransition(async () => {
-      const res = await updateOwnAvatar(url);
+      const res = await updateOwnAvatar(presetPath);
       toast(res.message, res.ok ? "success" : "error");
       if (!res.ok) setOptimisticUrl(undefined);
     });
@@ -57,8 +62,8 @@ export function AvatarPickerSection({
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    const localPreview = URL.createObjectURL(file);
-    setOptimisticUrl(localPreview);
+    // Show a local blob preview immediately while the upload is in progress
+    setOptimisticUrl(URL.createObjectURL(file));
 
     const fd = new FormData();
     fd.set("file", file);
@@ -66,6 +71,8 @@ export function AvatarPickerSection({
       const res = await uploadProfileAvatar(fd);
       toast(res.message, res.ok ? "success" : "error");
       if (res.ok && res.url) {
+        // res.url is the storage path; set it as the raw value so resolveAvatarUrl
+        // will route display through /api/avatar
         setOptimisticUrl(res.url);
       } else {
         setOptimisticUrl(undefined);
@@ -84,13 +91,13 @@ export function AvatarPickerSection({
               alt="Your avatar"
               fill
               className="object-cover"
-              unoptimized={displayUrl.startsWith("/avatars/")}
+              unoptimized
             />
           </div>
         ) : (
           <Avatar name={name} email={email} size={64} />
         )}
-        {displayUrl && (
+        {rawUrl && (
           <button
             type="button"
             onClick={clearAvatar}
@@ -124,24 +131,24 @@ export function AvatarPickerSection({
 
         {tab === "presets" ? (
           <div className="flex flex-wrap gap-2">
-            {PRESETS.map((url) => (
+            {PRESETS.map((presetPath) => (
               <button
-                key={url}
+                key={presetPath}
                 type="button"
-                onClick={() => selectPreset(url)}
+                onClick={() => selectPreset(presetPath)}
                 disabled={pending}
                 className={cn(
                   "relative h-12 w-12 overflow-hidden rounded-full ring-2 transition-all",
-                  displayUrl === url
+                  rawUrl === presetPath
                     ? "ring-[var(--accent)] ring-offset-2 ring-offset-surface"
                     : "ring-[var(--line)] hover:ring-[var(--accent-soft)]",
                   "disabled:opacity-50",
                 )}
-                aria-label={`Select preset avatar ${PRESETS.indexOf(url) + 1}`}
+                aria-label={`Select preset avatar ${PRESETS.indexOf(presetPath) + 1}`}
               >
                 <Image
-                  src={url}
-                  alt={`Preset ${PRESETS.indexOf(url) + 1}`}
+                  src={presetPath}
+                  alt={`Preset ${PRESETS.indexOf(presetPath) + 1}`}
                   fill
                   className="object-cover"
                   unoptimized

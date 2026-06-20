@@ -8,6 +8,7 @@ import { ChevronDown, LogOut, User } from "lucide-react";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { Wordmark } from "@/components/brand/Wordmark";
+import { resolveAvatarUrl } from "@/lib/avatar-url";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { useNavigation } from "./NavigationProvider";
@@ -38,14 +39,14 @@ function AvatarDropdown({ profile }: { profile: Profile }) {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1 rounded-[var(--radius-input)] p-1 transition-colors hover:bg-[var(--accent-soft)]/40"
       >
-        {profile.avatar_url ? (
+        {resolveAvatarUrl(profile.avatar_url) ? (
           <span className="relative inline-block h-8 w-8 overflow-hidden rounded-full ring-1 ring-[var(--line)]">
             <Image
-              src={profile.avatar_url}
+              src={resolveAvatarUrl(profile.avatar_url)!}
               alt={profile.full_name ?? profile.email}
               fill
               className="object-cover"
-              unoptimized={profile.avatar_url.startsWith("/avatars/")}
+              unoptimized
             />
           </span>
         ) : (

@@ -1856,3 +1856,53 @@ public/avatars/preset-3.svg  (new)
 public/avatars/preset-4.svg  (new)
 public/avatars/preset-5.svg  (new)
 ```
+
+## Session G Fix-up — Avatar privacy + period-aware copy
+
+**Branch:** `session-g-avatar-header-logtime-asana` (same PR #23)
+**Date:** 2026-06-20
+
+### Fix 1 — Avatar storage bucket must be private
+
+The Session G implementation made the `avatars` bucket public, which is incorrect: uploaded profile photos are user data and must not be world-readable.
+
+**Migration applied to Supabase:** `avatars_bucket_private` — sets `public = false` on the bucket.
+
+**Local migration file updated:** `supabase/migrations/20260620100000_profile_avatar_url.sql` — corrected `public = true` → `false`, comment updated to reflect private serving.
+
+**New API route:** `src/app/api/avatar/route.ts`
+- Authenticates the caller via `supabase.auth.getSession()`
+- Generates a 1-hour signed URL via `createSignedUrl`
+- Returns `307 Temporary Redirect` to the signed URL with `Cache-Control: private, max-age=3300` (55-minute browser cache, safely inside the 1-hour expiry)
+
+**New helper:** `src/lib/avatar-url.ts` — `resolveAvatarUrl(avatarUrl)`
+- Preset SVGs (`/avatars/preset-N.svg`) → pass through (static public files, not user data)
+- Blob preview URLs (`blob:...`) → pass through (local object URLs during upload)
+- Everything else (storage paths like `{userId}/avatar.{ext}`) → `/api/avatar?path=...`
+
+**`actions.ts` updated:** `uploadProfileAvatar` now stores only the storage path in `avatar_url` (not a full public URL). Returns `url: storagePath` for the optimistic update.
+
+**`AvatarPickerSection.tsx` updated:** splits `rawUrl` (DB/optimistic value) from `displayUrl = resolveAvatarUrl(rawUrl)`. Preset selection check uses `rawUrl` (storage path equality), image `src` uses `displayUrl`. Always `unoptimized` to handle all URL types.
+
+**`Topbar.tsx` updated:** uses `resolveAvatarUrl(profile.avatar_url)` for the avatar `<Image src>`. Always `unoptimized`. Without this, storage paths stored in DB would render as broken images.
+
+### Fix 2 — Per-entry copy is now period-aware
+
+The original `copyEntryToDays` always copied to the 7-day `days` array (always one week) regardless of the active pay period cadence.
+
+**Fix in `TimeTrackingView.tsx`:**
+- Added `addDays` to the import from `@/lib/time/periods`
+- `copyEntryToDays` now enumerates dates from `week.start` to `week.end` (the active `PayPeriod` boundaries) rather than from `days`
+- Works correctly for weekly (7 days), biweekly (14 days), and monthly (~28–31 days) — the `week` state always holds the authoritative period range
+
+### Files changed
+
+```
+supabase/migrations/20260620100000_profile_avatar_url.sql  (updated: public=false)
+src/lib/avatar-url.ts  (new)
+src/app/api/avatar/route.ts  (new)
+src/app/app/profile/actions.ts  (updated: store storage path only)
+src/app/app/profile/AvatarPickerSection.tsx  (updated: resolveAvatarUrl)
+src/components/app/Topbar.tsx  (updated: resolveAvatarUrl)
+src/app/app/timesheets/TimeTrackingView.tsx  (updated: period-aware copy)
+```

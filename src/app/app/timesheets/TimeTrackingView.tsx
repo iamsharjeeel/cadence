@@ -38,6 +38,7 @@ import {
   groupHoursByProject,
 } from "@/lib/time/week-stats-client";
 import {
+  addDays,
   isoWeekLabel,
   shiftWeekMonday,
   thisWeekMonday,
@@ -550,10 +551,14 @@ export function TimeTrackingView({
   }
 
   async function copyEntryToDays(entry: DraftEntry) {
-    if (!editable || !entry.id) return;
-    const targetDates = days
-      .map((d) => d.date)
-      .filter((d) => d !== entry.entry_date);
+    if (!editable || !entry.id || !week) return;
+    const allPeriodDates: string[] = [];
+    let cur = week.start;
+    while (cur <= week.end) {
+      allPeriodDates.push(cur);
+      cur = addDays(cur, 1);
+    }
+    const targetDates = allPeriodDates.filter((d) => d !== entry.entry_date);
     if (!targetDates.length) return;
 
     const copies: DraftEntry[] = targetDates.map((date) => ({

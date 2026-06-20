@@ -2,12 +2,12 @@
 alter table public.profiles
   add column if not exists avatar_url text default null;
 
--- Create avatars storage bucket (public — profile photos are non-sensitive)
+-- Create avatars storage bucket (private — served via /api/avatar signed-URL proxy)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'avatars',
   'avatars',
-  true,
+  false,
   2097152,
   array['image/png','image/jpeg','image/webp','image/gif','image/svg+xml']
 )

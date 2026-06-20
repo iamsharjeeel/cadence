@@ -197,9 +197,10 @@ export async function updateOwnAvatar(url: string | null): Promise<ActionResult>
   return { ok: true, message: "Avatar updated." };
 }
 
-const SUPABASE_URL = "https://irybkcryeywmwpcmhlaa.supabase.co";
-
-/** Uploads an avatar image to Supabase Storage and saves the public URL to the profile. */
+/** Uploads an avatar image to the private avatars bucket and saves the storage path to the profile.
+ *  The returned `url` is the raw storage path (e.g. "{userId}/avatar.jpg").
+ *  Use `resolveAvatarUrl` from @/lib/avatar-url to turn it into a displayable URL.
+ */
 export async function uploadProfileAvatar(formData: FormData): Promise<ActionResult & { url?: string }> {
   const profile = await requireActiveProfile();
   const file = formData.get("file") as File | null;
@@ -210,24 +211,23 @@ export async function uploadProfileAvatar(formData: FormData): Promise<ActionRes
   if (!allowed.includes(file.type)) return { ok: false, message: "Unsupported file type." };
 
   const ext = file.type.split("/")[1].replace("jpeg", "jpg");
-  const path = `${profile.id}/avatar.${ext}`;
+  const storagePath = `${profile.id}/avatar.${ext}`;
 
   const supabase = createClient();
   const { error: uploadError } = await supabase.storage
     .from("avatars")
-    .upload(path, file, { upsert: true, contentType: file.type });
+    .upload(storagePath, file, { upsert: true, contentType: file.type });
 
   if (uploadError) return { ok: false, message: "Upload failed." };
 
-  const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
   const { error: updateError } = await supabase
     .from("profiles")
-    .update({ avatar_url: publicUrl })
+    .update({ avatar_url: storagePath })
     .eq("id", profile.id);
 
-  if (updateError) return { ok: false, message: "Uploaded but couldn't save URL." };
+  if (updateError) return { ok: false, message: "Uploaded but couldn't save path." };
 
   revalidatePath("/app/profile");
   revalidatePath("/app");
-  return { ok: true, message: "Avatar uploaded.", url: publicUrl };
+  return { ok: true, message: "Avatar uploaded.", url: storagePath };
 }
