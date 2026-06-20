@@ -21,6 +21,7 @@ export type AuditAction =
   | "timesheet_recalled"
   | "timesheet_returned_to_draft"
   | "timesheet_deleted"
+  | "timesheet_edit_requested"
   | "document_generated"
   | "document_emailed"
   | "document_status_changed"

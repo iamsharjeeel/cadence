@@ -25,6 +25,7 @@ export default async function LogTimePage({
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
   const profile = ctx.effectiveProfile;
+  const isPersonal = !ctx.activeOrgId && !ctx.isSuperadmin;
   const weekMonday = searchParams?.date
     ? mondayOfWeek(searchParams.date)
     : thisWeekMonday();
@@ -45,7 +46,11 @@ export default async function LogTimePage({
       <TimeLogReminder />
       <PageHeader
         title="Log time"
-        description="Log your hours for the week (Mon–Sun), then submit for approval."
+        description={
+          isPersonal
+            ? "Log your hours and mark periods as complete."
+            : "Log your hours for the week (Mon–Sun), then submit for approval."
+        }
         action={
           <Link href="/app/timesheets">
             <Button variant="ghost" size="sm">

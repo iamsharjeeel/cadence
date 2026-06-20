@@ -1901,3 +1901,144 @@ Structure, custom graphics, stats, features all unchanged — this was a copy/to
 
 `npm run build` passes clean.
 
+---
+
+### Session J — PR #22 audit (`session-f-fixes-and-visual-rebuild`) ✅ (2026-06-20)
+
+**Pushed directly to `main`** — no DB migrations involved.
+
+**Branch diffed:** `origin/session-f-fixes-and-visual-rebuild` vs `main` (5 commits, 40 files, ~1.3k insertions / ~800 deletions on the branch).
+
+**Fact-check on prior-session note:** Session I recorded PR #22 as still OPEN; owner has since closed it. Branch still exists on GitHub (closing a PR does not delete the branch).
+
+---
+
+#### What PR #22 contained (verified from branch diff)
+
+1. **Personal timesheet lifecycle** — `submitPersonalTimesheet`, `lockPersonalTimesheet`, `requestPersonalTimesheetEdit`, 3-day edit window, auto-lock after window, "Mark as complete" gating (available 3 days before period end), locked-state banner + edit-request modal (audit-only, does not unlock).
+2. **Personal period types** — `PersonalPeriodType` (`week` / `15day` / `30day`) with localStorage preference, `personalPeriodForDate` / `shiftPersonalPeriod` / `allDaysInPeriod`, separate `isPersonal` code path in `TimeTrackingView`.
+3. **Copy / duplicate helpers** — `copyEntriesFromPreviousPeriod` (server, date-shifted bulk copy), `duplicateTimeEntry` (server, single entry to target date) + `TimeEntryRow` duplicate dropdown UI.
+4. **Design system v3** — `globals.css` token overhaul: sharper radii (6px/4px light, 0 dark), `#C8973E` gold accent, Stripe-style shadows, neutral gray surfaces; `Table.tsx` / `buttonStyles.ts` tweaks; hardcoded `rounded-[12px]` → `var(--radius-card)` in profile panels.
+5. **Settings/profile split** — new `/app/user-settings` page (connected accounts + API keys); removed connected accounts + developer section from `/app/profile`; OAuth callbacks redirect to `user-settings`.
+6. **Nav changes** — removed Reports nav item; added Settings → `/app/user-settings`.
+7. **Reports deletion** — removed `/app/reports` page, `ReportsClient.tsx`, `reports-actions.ts`.
+8. **Timesheets page restructuring** — all users see list view; non-managers no longer get inline `TimeTrackingView` on `/app/timesheets`.
+9. **Leave calendar** — GCal event pills on calendar, click-day-to-prefill modal date, `getGCalEventsForMonth` query.
+10. **AsanaConnectBanner** — dual Asana+GCal icons/copy, show when either disconnected (dashboard passes both flags).
+11. **Misc** — `timesheet_edit_requested` audit action; `submittedAt` on `TimeTrackingData`; `ensureTimesheetForPeriod` refactor in `get-time-tracking-data.ts`.
+
+---
+
+#### Verdict and actions taken
+
+**PR #16/#18/#20/#23 overlap:** Items 9 (leave GCal) and 10 (AsanaConnectBanner) were already ported in Session I. Item 2 (period types) was superseded on `main` by Session G's `ViewPeriodCadence` (`weekly` / `biweekly_15` / `monthly`) + `periodDays()` — strictly better integrated than PR #22's parallel `PersonalPeriodType` path.
+
+**PORTED (adapted to current `main` architecture):**
+
+| Item | Reasoning |
+|------|-----------|
+| Personal timesheet lifecycle (#1) | **Genuinely missing.** `main` explicitly refused personal submit (`"Personal timesheets are not submitted for approval"`). PR #24 / Session G shipped period-view toggle only — not submit/lock/edit-request. Ported using `!hasOrgContext` gating (not PR #22's `isPersonal` prop), wired to existing `ViewPeriodCadence` / `periodAnchor` / `week` state. |
+| `copyEntriesFromPreviousPeriod` (#3, partial) | Useful personal-workspace QoL; no equivalent on `main`. Adapted to `viewPeriodForDate` + `shiftViewPeriod` + `ensureTimesheetForViewPeriod`. UI button in period summary sidebar (draft only). |
+| `submittedAt` on `TimeTrackingData` | Required for edit-window tracking; `ensureTimesheetForViewPeriod` now returns approved personal timesheets + `submittedAt` from `updated_at`. |
+| `timesheet_edit_requested` audit action | Required for `requestPersonalTimesheetEdit`. |
+
+**NOT PORTED:**
+
+| Item | Reasoning |
+|------|-----------|
+| Design system v3 (#4) | **Superseded.** Current `main` runs design tokens v2 with Session H polish (density pass, dark-mode fixes, landing page graphics). PR #22's v3 would regress intentional accent/radius choices and conflict with post-Session-H visual state. |
+| `PersonalPeriodType` / parallel period path (#2) | **Superseded** by `ViewPeriodCadence` on `main`. |
+| `duplicateTimeEntry` + row dropdown (#3, partial) | **Superseded.** `main` already has `copyEntryToDays` (client-side, copy saved entry to all other days in period). PR #22's per-date server duplicate is marginal given existing copy UX. |
+| `/app/user-settings` + profile split (#5) | **Conflicts with current IA.** `main` keeps connected accounts on `/app/profile` and org admin on `/app/settings`. Splitting would duplicate nav and break OAuth callback targets already wired to profile. **Needs owner decision** if a dedicated user-settings page is still wanted. |
+| Reports deletion + nav removal (#6–7) | **Regression.** Reports page is live and in nav on `main`. |
+| Timesheets page inline-log removal (#8) | **Already addressed differently.** `main` shows list + "Log time" button for non-managers; inline log lives at `/app/timesheets/log`. PR #22's version is equivalent, not an improvement. |
+| Leave calendar GCal + click-prefill (#9) | **Already on `main`** (Session H): `getEventsForDateRange`, `calendarEvents` prop, `requestSeedDate`, `GCalDayChip`. |
+| AsanaConnectBanner dual-icon (#10) | **Already on `main`** (Session I, from PR #18). |
+| Table/button style tweaks (#4 partial) | Bundled with design system v3; not ported standalone. |
+| `getPersonalTimeTrackingData` | **Superseded** by `getTimeTrackingData(anchor, viewCadence)` on `main`. |
+
+**Needs owner decision:**
+
+- **`/app/user-settings` page** — PR #22 split integrations/API keys out of Profile into a dedicated Settings page. Not ported; current IA works but owner may prefer the split.
+- **`duplicateTimeEntry` per-date duplicate** — if per-date server duplicate is wanted over the existing "copy to all other days" client flow.
+
+**DB migrations:** None required. All changes are app-layer; uses existing `timesheets.status` values (`draft` → `submitted` → `approved`) and `audit_log` table.
+
+#### Verification
+
+- `npm run build` passes clean (only pre-existing `<img>` lint warnings).
+- Personal timesheet flow traced in code: draft → "Mark as complete" (gated ≤3 days before period end) → `submitted` + 3-day edit window → auto `lockPersonalTimesheet` → `approved`/locked → "Request edit access" writes `timesheet_edit_requested` audit (no unlock). Org submit/lock path unchanged (`hasOrgContext` gate).
+- No visual tokens ported — light/dark unchanged from Session H baseline.
+
+**Close PR #22** from GitHub UI if not already closed. Branch `session-f-fixes-and-visual-rebuild` can be deleted after owner confirms.
+---
+
+### Session J — PR #22 audit (`session-f-fixes-and-visual-rebuild`) ✅ (2026-06-20)
+
+**Pushed directly to `main`** — no DB migrations involved.
+
+**Branch diffed:** `origin/session-f-fixes-and-visual-rebuild` vs `main` (5 commits, 40 files, ~1.3k insertions / ~800 deletions on the branch).
+
+**Fact-check on prior-session note:** Session I recorded PR #22 as still OPEN; owner has since closed it. Branch still exists on GitHub (closing a PR does not delete the branch).
+
+---
+
+#### What PR #22 contained (verified from branch diff)
+
+1. **Personal timesheet lifecycle** — `submitPersonalTimesheet`, `lockPersonalTimesheet`, `requestPersonalTimesheetEdit`, 3-day edit window, auto-lock after window, "Mark as complete" gating (available 3 days before period end), locked-state banner + edit-request modal (audit-only, does not unlock).
+2. **Personal period types** — `PersonalPeriodType` (`week` / `15day` / `30day`) with localStorage preference, `personalPeriodForDate` / `shiftPersonalPeriod` / `allDaysInPeriod`, separate `isPersonal` code path in `TimeTrackingView`.
+3. **Copy / duplicate helpers** — `copyEntriesFromPreviousPeriod` (server, date-shifted bulk copy), `duplicateTimeEntry` (server, single entry to target date) + `TimeEntryRow` duplicate dropdown UI.
+4. **Design system v3** — `globals.css` token overhaul: sharper radii (6px/4px light, 0 dark), `#C8973E` gold accent, Stripe-style shadows, neutral gray surfaces; `Table.tsx` / `buttonStyles.ts` tweaks; hardcoded `rounded-[12px]` → `var(--radius-card)` in profile panels.
+5. **Settings/profile split** — new `/app/user-settings` page (connected accounts + API keys); removed connected accounts + developer section from `/app/profile`; OAuth callbacks redirect to `user-settings`.
+6. **Nav changes** — removed Reports nav item; added Settings → `/app/user-settings`.
+7. **Reports deletion** — removed `/app/reports` page, `ReportsClient.tsx`, `reports-actions.ts`.
+8. **Timesheets page restructuring** — all users see list view; non-managers no longer get inline `TimeTrackingView` on `/app/timesheets`.
+9. **Leave calendar** — GCal event pills on calendar, click-day-to-prefill modal date, `getGCalEventsForMonth` query.
+10. **AsanaConnectBanner** — dual Asana+GCal icons/copy, show when either disconnected (dashboard passes both flags).
+11. **Misc** — `timesheet_edit_requested` audit action; `submittedAt` on `TimeTrackingData`; `ensureTimesheetForPeriod` refactor in `get-time-tracking-data.ts`.
+
+---
+
+#### Verdict and actions taken
+
+**PR #16/#18/#20/#23 overlap:** Items 9 (leave GCal) and 10 (AsanaConnectBanner) were already ported in Session I. Item 2 (period types) was superseded on `main` by Session G's `ViewPeriodCadence` (`weekly` / `biweekly_15` / `monthly`) + `periodDays()` — strictly better integrated than PR #22's parallel `PersonalPeriodType` path.
+
+**PORTED (adapted to current `main` architecture):**
+
+| Item | Reasoning |
+|------|-----------|
+| Personal timesheet lifecycle (#1) | **Genuinely missing.** `main` explicitly refused personal submit (`"Personal timesheets are not submitted for approval"`). PR #24 / Session G shipped period-view toggle only — not submit/lock/edit-request. Ported using `!hasOrgContext` gating (not PR #22's `isPersonal` prop), wired to existing `ViewPeriodCadence` / `periodAnchor` / `week` state. |
+| `copyEntriesFromPreviousPeriod` (#3, partial) | Useful personal-workspace QoL; no equivalent on `main`. Adapted to `viewPeriodForDate` + `shiftViewPeriod` + `ensureTimesheetForViewPeriod`. UI button in period summary sidebar (draft only). |
+| `submittedAt` on `TimeTrackingData` | Required for edit-window tracking; `ensureTimesheetForViewPeriod` now returns approved personal timesheets + `submittedAt` from `updated_at`. |
+| `timesheet_edit_requested` audit action | Required for `requestPersonalTimesheetEdit`. |
+
+**NOT PORTED:**
+
+| Item | Reasoning |
+|------|-----------|
+| Design system v3 (#4) | **Superseded.** Current `main` runs design tokens v2 with Session H polish (density pass, dark-mode fixes, landing page graphics). PR #22's v3 would regress intentional accent/radius choices and conflict with post-Session-H visual state. |
+| `PersonalPeriodType` / parallel period path (#2) | **Superseded** by `ViewPeriodCadence` on `main`. |
+| `duplicateTimeEntry` + row dropdown (#3, partial) | **Superseded.** `main` already has `copyEntryToDays` (client-side, copy saved entry to all other days in period). PR #22's per-date server duplicate is marginal given existing copy UX. |
+| `/app/user-settings` + profile split (#5) | **Conflicts with current IA.** `main` keeps connected accounts on `/app/profile` and org admin on `/app/settings`. Splitting would duplicate nav and break OAuth callback targets already wired to profile. **Needs owner decision** if a dedicated user-settings page is still wanted. |
+| Reports deletion + nav removal (#6–7) | **Regression.** Reports page is live and in nav on `main`. |
+| Timesheets page inline-log removal (#8) | **Already addressed differently.** `main` shows list + "Log time" button for non-managers; inline log lives at `/app/timesheets/log`. PR #22's version is equivalent, not an improvement. |
+| Leave calendar GCal + click-prefill (#9) | **Already on `main`** (Session H): `getEventsForDateRange`, `calendarEvents` prop, `requestSeedDate`, `GCalDayChip`. |
+| AsanaConnectBanner dual-icon (#10) | **Already on `main`** (Session I, from PR #18). |
+| Table/button style tweaks (#4 partial) | Bundled with design system v3; not ported standalone. |
+| `getPersonalTimeTrackingData` | **Superseded** by `getTimeTrackingData(anchor, viewCadence)` on `main`. |
+
+**Needs owner decision:**
+
+- **`/app/user-settings` page** — PR #22 split integrations/API keys out of Profile into a dedicated Settings page. Not ported; current IA works but owner may prefer the split.
+- **`duplicateTimeEntry` per-date duplicate** — if per-date server duplicate is wanted over the existing "copy to all other days" client flow.
+
+**DB migrations:** None required. All changes are app-layer; uses existing `timesheets.status` values (`draft` → `submitted` → `approved`) and `audit_log` table.
+
+#### Verification
+
+- `npm run build` passes clean (only pre-existing `<img>` lint warnings).
+- Personal timesheet flow traced in code: draft → "Mark as complete" (gated ≤3 days before period end) → `submitted` + 3-day edit window → auto `lockPersonalTimesheet` → `approved`/locked → "Request edit access" writes `timesheet_edit_requested` audit (no unlock). Org submit/lock path unchanged (`hasOrgContext` gate).
+- No visual tokens ported — light/dark unchanged from Session H baseline.
+
+**Close PR #22** from GitHub UI if not already closed. Branch `session-f-fixes-and-visual-rebuild` can be deleted after owner confirms.
+

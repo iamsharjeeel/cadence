@@ -50,14 +50,22 @@ export async function linkOrphanEntriesToTimesheet(
   await query;
 }
 
+type EnsuredTimesheet = {
+  ok: true;
+  timesheetId: string;
+  status: TimesheetStatus;
+  submittedAt: string | null;
+};
+
+function submittedAtFromRow(status: string, updatedAt: string | null): string | null {
+  return status === "submitted" || status === "approved" ? updatedAt : null;
+}
+
 export async function ensureTimesheetForViewPeriod(
   profile: Profile,
   anchorDate: string,
   viewCadence: ViewPeriodCadence = "weekly",
-): Promise<
-  | { ok: true; timesheetId: string; status: TimesheetStatus }
-  | { ok: false; message: string }
-> {
+): Promise<EnsuredTimesheet | { ok: false; message: string }> {
   if (!ISO_DATE.test(anchorDate)) return { ok: false, message: "Invalid period." };
 
   const period = viewPeriodForDate(anchorDate, viewCadence);
@@ -66,7 +74,7 @@ export async function ensureTimesheetForViewPeriod(
 
   let existingQuery = db
     .from("timesheets")
-    .select("id, status")
+    .select("id, status, updated_at")
     .eq("employee_id", profile.id)
     .eq("period_start", period.start)
     .in("status", ACTIVE_STATUSES);
@@ -80,7 +88,32 @@ export async function ensureTimesheetForViewPeriod(
       ok: true,
       timesheetId: existing.id,
       status: existing.status as TimesheetStatus,
+      submittedAt: submittedAtFromRow(
+        existing.status,
+        existing.updated_at as string | null,
+      ),
     };
+  }
+
+  // Personal locked timesheets (self-approved after edit window)
+  if (!activeOrgId) {
+    const { data: approved } = await db
+      .from("timesheets")
+      .select("id, status, updated_at")
+      .eq("employee_id", profile.id)
+      .eq("period_start", period.start)
+      .is("org_id", null)
+      .eq("status", "approved")
+      .maybeSingle();
+
+    if (approved) {
+      return {
+        ok: true,
+        timesheetId: approved.id,
+        status: "approved",
+        submittedAt: approved.updated_at as string | null,
+      };
+    }
   }
 
   const { data: created, error } = await db
@@ -92,17 +125,17 @@ export async function ensureTimesheetForViewPeriod(
       period_end: period.end,
       status: "draft",
     })
-    .select("id, status")
+    .select("id, status, updated_at")
     .single();
 
   if (error) {
     if (error.code === "23505") {
       let retryQuery = db
         .from("timesheets")
-        .select("id, status")
+        .select("id, status, updated_at")
         .eq("employee_id", profile.id)
         .eq("period_start", period.start)
-        .in("status", ACTIVE_STATUSES);
+        .in("status", [...ACTIVE_STATUSES, "approved"] as string[]);
       retryQuery = activeOrgId
         ? retryQuery.eq("org_id", activeOrgId)
         : retryQuery.is("org_id", null);
@@ -112,6 +145,10 @@ export async function ensureTimesheetForViewPeriod(
           ok: true,
           timesheetId: retry.id,
           status: retry.status as TimesheetStatus,
+          submittedAt: submittedAtFromRow(
+            retry.status,
+            retry.updated_at as string | null,
+          ),
         };
       }
     }
@@ -126,6 +163,7 @@ export async function ensureTimesheetForViewPeriod(
     ok: true,
     timesheetId: created.id,
     status: created.status as TimesheetStatus,
+    submittedAt: null,
   };
 }
 
@@ -268,6 +306,7 @@ export async function getTimeTrackingDataForProfile(
     orgId: activeOrgId,
     employeeId: profile.id,
     status: ensured.status,
+    submittedAt: ensured.submittedAt,
     entries,
     projects,
     asanaConnected,

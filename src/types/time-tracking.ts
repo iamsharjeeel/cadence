@@ -24,6 +24,7 @@ export type TimeTrackingData = {
   orgId: string | null;
   employeeId: string;
   status: TimesheetStatus;
+  submittedAt: string | null;
   entries: TimeEntryWithProject[];
   projects: Project[];
   asanaConnected: boolean;

@@ -60,7 +60,11 @@ import type { AsanaImportedProject } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
 import type { TimeTrackingData } from "@/types/time-tracking";
 import {
+  copyEntriesFromPreviousPeriod,
   getTimeTrackingData,
+  lockPersonalTimesheet,
+  requestPersonalTimesheetEdit,
+  submitPersonalTimesheet,
   submitTimesheetForApproval,
 } from "./time-actions";
 import { createProject } from "../projects/actions";
@@ -141,6 +145,7 @@ function applyTrackingData(
     setOrgId: (v: string) => void;
     setEmployeeId: (v: string) => void;
     setStatus: (v: TimesheetStatus) => void;
+    setSubmittedAt: (v: string | null) => void;
     setProjects: (v: Project[]) => void;
     setAsanaConnected: (v: boolean) => void;
     setAsanaImportedProjects: (v: AsanaImportedProject[]) => void;
@@ -156,6 +161,7 @@ function applyTrackingData(
   setters.setOrgId(data.orgId ?? "");
   setters.setEmployeeId(data.employeeId);
   setters.setStatus(data.status);
+  setters.setSubmittedAt(data.submittedAt ?? null);
   setters.setProjects(data.projects);
   setters.setAsanaConnected(data.asanaConnected);
   setters.setAsanaImportedProjects(data.asanaImportedProjects);
@@ -165,6 +171,26 @@ function applyTrackingData(
   setters.setRateType(data.rateType);
   setters.setCurrency(data.currency);
   setters.setEntriesByDay(entriesGrouped(data.entries));
+}
+
+function daysUntil(isoDate: string): number {
+  const today = new Date(toIsoDate(new Date()));
+  const target = new Date(isoDate);
+  return Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+function daysSince(isoTimestamp: string | null): number {
+  if (!isoTimestamp) return 0;
+  const submitted = new Date(isoTimestamp);
+  const now = new Date();
+  return Math.floor((now.getTime() - submitted.getTime()) / 86_400_000);
+}
+
+function editWindowLabel(submittedAt: string | null): string | null {
+  if (!submittedAt) return null;
+  const daysLeft = 3 - daysSince(submittedAt);
+  if (daysLeft <= 0) return null;
+  return daysLeft === 1 ? "1 day left to edit" : `${daysLeft} days left to edit`;
 }
 
 export function TimeTrackingView({
@@ -190,6 +216,7 @@ export function TimeTrackingView({
   const [orgId, setOrgId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [status, setStatus] = useState<TimesheetStatus>("draft");
+  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [asanaConnected, setAsanaConnected] = useState(false);
   const [asanaImportedProjects, setAsanaImportedProjects] = useState<
@@ -207,6 +234,9 @@ export function TimeTrackingView({
   const [currency, setCurrency] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(!initialData);
+  const [requestEditNote, setRequestEditNote] = useState("");
+  const [requestEditOpen, setRequestEditOpen] = useState(false);
+  const [copyPending, setCopyPending] = useState(false);
   const skipInitialFetch = useRef(Boolean(initialData));
   const prefillApplied = useRef(false);
   const ssrPeriodAnchor = defaultAnchor;
@@ -227,9 +257,28 @@ export function TimeTrackingView({
   timesheetIdRef.current = timesheetId;
   orgIdRef.current = orgId;
   employeeIdRef.current = employeeId;
-  editableRef.current = status === "draft" || status === "submitted" || status === "rejected";
 
-  const editable = status === "draft" || status === "submitted" || status === "rejected";
+  const hasOrgContext = Boolean(orgId);
+  const isPersonalWorkspace = !hasOrgContext;
+
+  const editWindowDaysLeft = useMemo(() => {
+    if (!isPersonalWorkspace || status !== "submitted" || !submittedAt) return null;
+    return Math.max(0, 3 - daysSince(submittedAt));
+  }, [isPersonalWorkspace, status, submittedAt]);
+
+  const isWithinEditWindow =
+    editWindowDaysLeft !== null && editWindowDaysLeft > 0;
+  const isPersonalLocked = isPersonalWorkspace && status === "approved";
+
+  const editable =
+    !isPersonalLocked &&
+    (status === "draft" ||
+      (status === "submitted" &&
+        (isPersonalWorkspace ? isWithinEditWindow : true)) ||
+      status === "rejected");
+
+  editableRef.current = editable;
+
   const days = useMemo(
     () => (week ? periodDays(week) : periodDays(viewPeriodForDate(periodAnchor, viewCadence))),
     [week, periodAnchor, viewCadence],
@@ -240,6 +289,18 @@ export function TimeTrackingView({
     [today, viewCadence],
   );
   const isCurrentPeriod = week?.start === currentViewPeriod.start;
+
+  const daysUntilPeriodEnd = week ? daysUntil(week.end) : null;
+  const canPersonalSubmit =
+    isPersonalWorkspace &&
+    daysUntilPeriodEnd !== null &&
+    daysUntilPeriodEnd <= 3 &&
+    daysUntilPeriodEnd >= 0;
+
+  const previousPeriod = useMemo(() => {
+    if (!week) return null;
+    return shiftViewPeriod(week, viewCadence, -1);
+  }, [week, viewCadence]);
 
   const allEntries = useMemo(
     () => Object.values(entriesByDay).flat(),
@@ -303,6 +364,7 @@ export function TimeTrackingView({
       setOrgId,
       setEmployeeId,
       setStatus,
+      setSubmittedAt,
       setProjects,
       setAsanaConnected,
       setAsanaImportedProjects,
@@ -313,7 +375,19 @@ export function TimeTrackingView({
       setCurrency,
       setEntriesByDay,
     });
-  }, [periodAnchor, viewCadence, toast]);
+
+    if (isPersonalWorkspace && res.status === "submitted" && res.submittedAt) {
+      const daysPassed = daysSince(res.submittedAt);
+      if (daysPassed >= 3) {
+        void lockPersonalTimesheet(res.timesheetId).then((lockRes) => {
+          if (lockRes.ok) {
+            setStatus("approved");
+            setSubmittedAt(res.submittedAt ?? null);
+          }
+        });
+      }
+    }
+  }, [periodAnchor, viewCadence, toast, isPersonalWorkspace]);
 
   useEffect(() => {
     if (
@@ -328,6 +402,7 @@ export function TimeTrackingView({
         setOrgId,
         setEmployeeId,
         setStatus,
+        setSubmittedAt,
         setProjects,
         setAsanaConnected,
         setAsanaImportedProjects,
@@ -642,7 +717,29 @@ export function TimeTrackingView({
     );
   }
 
-  const hasOrgContext = Boolean(orgId);
+  async function handleCopyFromPrevious() {
+    setCopyPending(true);
+    try {
+      const res = await copyEntriesFromPreviousPeriod(periodAnchor, viewCadence);
+      toast(res.message, res.ok ? "success" : "error");
+      if (res.ok) await load();
+    } finally {
+      setCopyPending(false);
+    }
+  }
+
+  async function handleRequestEdit() {
+    if (!requestEditNote.trim()) {
+      toast("Please explain why you need to edit this timesheet.", "error");
+      return;
+    }
+    const res = await requestPersonalTimesheetEdit(timesheetId, requestEditNote);
+    toast(res.message, res.ok ? "success" : "error");
+    if (res.ok) {
+      setRequestEditOpen(false);
+      setRequestEditNote("");
+    }
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -653,8 +750,18 @@ export function TimeTrackingView({
               {week?.label ?? "…"}
             </p>
             <p className="tabular text-sm text-muted">{isoWeek}</p>
-            <div className="mt-1">
+            <div className="mt-1 flex flex-wrap items-center gap-2">
               <TimesheetStatusPill status={status} />
+              {isPersonalWorkspace && status === "submitted" && isWithinEditWindow && (
+                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--accent-strong)]">
+                  {editWindowLabel(submittedAt)}
+                </span>
+              )}
+              {isPersonalLocked && (
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                  Locked
+                </span>
+              )}
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
@@ -718,6 +825,59 @@ export function TimeTrackingView({
             </div>
           </div>
         </div>
+
+        {isPersonalLocked && (
+          <div className="rounded-[var(--radius-card)] border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/30 dark:bg-red-900/10">
+            <p className="text-sm font-medium text-red-800 dark:text-red-300">
+              This timesheet is locked and can no longer be edited.
+            </p>
+            <button
+              type="button"
+              onClick={() => setRequestEditOpen(true)}
+              className="mt-1 text-sm font-medium text-red-700 underline underline-offset-2 hover:text-red-900 dark:text-red-400"
+            >
+              Request edit access
+            </button>
+          </div>
+        )}
+
+        {requestEditOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-[var(--radius-card)] bg-surface p-6 shadow-float">
+              <h3 className="font-display text-base font-semibold text-ink">
+                Request edit access
+              </h3>
+              <p className="mt-1 text-sm text-muted">
+                Explain why you need to edit this locked timesheet.
+              </p>
+              <textarea
+                className="mt-3 w-full rounded-[var(--radius-input)] border border-[var(--line)] bg-surface p-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                rows={3}
+                placeholder="e.g. I forgot to log 2 hours on Wednesday..."
+                value={requestEditNote}
+                onChange={(e) => setRequestEditNote(e.target.value)}
+              />
+              <div className="mt-4 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRequestEditOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!requestEditNote.trim()}
+                  onClick={() => void handleRequestEdit()}
+                >
+                  Submit request
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <LogWeekSkeleton />
@@ -905,7 +1065,7 @@ export function TimeTrackingView({
         ) : (
           <>
             <h3 className="font-display text-base font-medium tracking-tightest text-ink">
-              Week summary
+              {isPersonalWorkspace ? "Period summary" : "Week summary"}
             </h3>
 
             <div className="border-b border-[var(--line)] pb-4">
@@ -1036,6 +1196,82 @@ export function TimeTrackingView({
               >
                 Submit for approval
               </Button>
+            )}
+
+            {isPersonalWorkspace && status === "draft" && (
+              <div className="border-t border-[var(--line)] pt-4">
+                {canPersonalSubmit ? (
+                  <p className="mb-2 text-xs text-muted">
+                    {daysUntilPeriodEnd === 0
+                      ? "Period ends today"
+                      : `${daysUntilPeriodEnd} day${daysUntilPeriodEnd === 1 ? "" : "s"} until period ends`}
+                  </p>
+                ) : (
+                  <p className="mb-2 text-xs text-muted">
+                    Available to submit{" "}
+                    {daysUntilPeriodEnd !== null && daysUntilPeriodEnd > 0
+                      ? `in ${daysUntilPeriodEnd - 3} more day${daysUntilPeriodEnd - 3 === 1 ? "" : "s"}`
+                      : "soon"}
+                  </p>
+                )}
+                <Button
+                  className="w-full"
+                  disabled={pending || !timesheetId || !canPersonalSubmit}
+                  title={
+                    !canPersonalSubmit
+                      ? "Submit becomes available 3 days before the period ends"
+                      : undefined
+                  }
+                  onClick={() => {
+                    const tsId = timesheetIdRef.current;
+                    if (!tsId) {
+                      toast("Still loading — try again in a moment.", "error");
+                      return;
+                    }
+                    startTransition(async () => {
+                      const res = await submitPersonalTimesheet(tsId);
+                      toast(res.message, res.ok ? "success" : "error");
+                      if (res.ok) {
+                        setStatus("submitted");
+                        setSubmittedAt(new Date().toISOString());
+                      }
+                    });
+                  }}
+                >
+                  Mark as complete
+                </Button>
+              </div>
+            )}
+
+            {isPersonalWorkspace && status === "submitted" && isWithinEditWindow && (
+              <div className="rounded-[var(--radius-card)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
+                {editWindowLabel(submittedAt)} — you can still make changes.
+              </div>
+            )}
+
+            {isPersonalLocked && (
+              <div className="border-t border-[var(--line)] pt-4">
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setRequestEditOpen(true)}
+                >
+                  Request edit access
+                </Button>
+              </div>
+            )}
+
+            {isPersonalWorkspace && status === "draft" && previousPeriod && (
+              <div className="border-t border-[var(--line)] pt-4">
+                <Button
+                  variant="ghost"
+                  className="w-full text-sm"
+                  disabled={copyPending}
+                  onClick={() => void handleCopyFromPrevious()}
+                >
+                  {copyPending ? "Copying…" : "Copy entries from previous period"}
+                </Button>
+              </div>
             )}
 
             <Link
