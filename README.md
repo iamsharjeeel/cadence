@@ -233,12 +233,13 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - Members tab respects role matrix: owner manages roles/invite/remove; manager read-only list; employee redirected; superadmin platform audit view
 
 ### F2 — Toggl-style timer (shipped)
-- **Floating timer** in app shell (all `/app/*` pages) — bottom-right, collapsible
+- **Floating timer** in app shell (all `/app/*` pages), collapsible
 - Start → project prompt (Cadence `ProjectPicker`, skippable); running state with elapsed HH:MM:SS + pulsing indicator
-- Stop saves `time_entries` via server action; persists in `TimerContext` (no localStorage)
+- Stop saves `time_entries` via server action; runtime state in `TimerContext`
 - Mid-session project reassignment; 30-minute idle modal; midnight auto-stop with day split
 - If `approvals_timesheets` is on → `status = pending_approval`; personal/off → `approved`
 - Conflict guard when starting a second timer
+- **Session E update:** widget is now draggable and viewport-constrained; position persists per-user in localStorage key `cadence:timer-widget-position:v1:<userId>`
 
 ### F3 — Reporting (shipped)
 - **`/app/reports`** — personal report always visible; org report for owner/manager in org workspace
@@ -246,6 +247,16 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - Personal: total hours, project breakdown (recharts bar), billable split
 - Org: total hours, per-member (hours, billable %, utilization %), per-project table, client-side CSV export
 - Defense-in-depth workspace filters on all queries; employees in org context see personal tab only
+
+### Session E — Projects + Time Tracked visibility (shipped)
+- **Projects tab now merges Cadence + Asana imported projects** (previously only read from `projects`)
+- Asana-synced projects are clearly marked with an Asana badge and include an "Open in Asana" deep link
+- Asana import/remove/sync/disconnect actions now revalidate `/app/projects`
+- **New nav page:** `/app/time-tracked`
+  - Read-only log of tracked sessions from `time_entries` (`entry_mode = time_range`) in active workspace scope
+  - Filters: time window (this week / this month / custom) and project
+  - List columns include project, duration, started/ended timestamps, status, and notes
+  - Empty state uses shared `EmptyState`
 
 ### F4 — Public API v1 + webhooks-out (shipped)
 - **API keys** (`api_keys` table): `cad_live_<hex>` format, SHA-256 hash stored, prefix shown in UI; `generateApiKey` server action; max 10 active keys per user/org scope

@@ -22,8 +22,8 @@ export default async function ProjectsPage() {
         title="Projects"
         description={
           inOrgWorkspace
-            ? "Organization and personal projects for time tracking."
-            : "Your personal projects for time tracking."
+            ? "Organization, personal, and Asana-synced projects for time tracking."
+            : "Your personal and Asana-synced projects for time tracking."
         }
       />
       <ProjectsManager

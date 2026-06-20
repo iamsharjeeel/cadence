@@ -92,6 +92,7 @@ export async function saveTimerEntries(
 
   revalidatePath("/app/timesheets");
   revalidatePath("/app/timesheets/log");
+  revalidatePath("/app/time-tracked");
   revalidatePath("/app/reports");
   revalidatePath("/app/dashboard");
 
