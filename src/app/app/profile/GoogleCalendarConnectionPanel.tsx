@@ -188,6 +188,8 @@ export function GoogleCalendarConnectionPanel({
           Your Google Calendar connection expired.
           <Link
             href="/api/google-calendar/connect"
+            target="_blank"
+            rel="noopener noreferrer"
             className={buttonStyles("primary", "sm")}
           >
             Reconnect Google Calendar

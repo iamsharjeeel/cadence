@@ -43,9 +43,15 @@ export function OrgDocumentLibrary({
               each must acknowledge receipt.
             </CardDescription>
           </div>
-          <Button size="sm" onClick={() => setUploadOpen(true)}>
-            Upload document
-          </Button>
+          {documents.length > 0 ? (
+            <Button
+              size="sm"
+              className="ml-auto self-start"
+              onClick={() => setUploadOpen(true)}
+            >
+              Upload document
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent className="p-0">
           {documents.length === 0 ? (

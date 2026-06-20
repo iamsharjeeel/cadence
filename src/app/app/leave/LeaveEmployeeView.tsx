@@ -16,6 +16,7 @@ import {
 } from "@/lib/leave/types";
 import type { LeaveType } from "@/types/db";
 import type { RequestWithMeta } from "@/lib/leave/queries";
+import type { GoogleCalendarEventWithMeta } from "@/lib/google-calendar/sync";
 import {
   cancelLeaveRequest,
   deletePersonalLeave,
@@ -53,6 +54,10 @@ function requestsOnDay(requests: RequestWithMeta[], iso: string) {
   );
 }
 
+function gcalEventsOnDay(events: GoogleCalendarEventWithMeta[], iso: string) {
+  return events.filter((e) => e.start_at.slice(0, 10) === iso);
+}
+
 function LeaveDayPill({ hit }: { hit: RequestWithMeta }) {
   const label = entryLabel(hit);
   const pending = hit.status === "pending";
@@ -80,13 +85,18 @@ export function LeaveEmployeeView({
   requests,
   leaveTypes = [],
   calendarMonth,
+  googleCalendarEvents = [],
+  showGoogleCalendar = false,
 }: {
   mode: "personal" | "org";
   requests: RequestWithMeta[];
   leaveTypes?: LeaveType[];
   calendarMonth: string;
+  googleCalendarEvents?: GoogleCalendarEventWithMeta[];
+  showGoogleCalendar?: boolean;
 }) {
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -135,11 +145,16 @@ export function LeaveEmployeeView({
       ? "Mark days off on your personal calendar."
       : "Request time off for manager approval.";
 
+  function openRequestModal(initialDate?: string) {
+    setSelectedDate(initialDate ?? null);
+    setRequestModalOpen(true);
+  }
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{description}</p>
-        <Button onClick={() => setRequestModalOpen(true)}>{ctaLabel}</Button>
+        <Button onClick={() => openRequestModal()}>{ctaLabel}</Button>
       </div>
 
       <MotionCard className="overflow-hidden">
@@ -163,21 +178,37 @@ export function LeaveEmployeeView({
               const day = i + 1;
               const iso = dateStr(calendarMonth, day);
               const hits = requestsOnDay(calendarRequests, iso);
+              const dayGcal = showGoogleCalendar
+                ? gcalEventsOnDay(googleCalendarEvents, iso)
+                : [];
               const hasApproved = hits.some((h) => h.status === "approved");
               const hasPending = hits.some((h) => h.status === "pending");
               const visible = hits.slice(0, 2);
-              const overflow = hits.length - visible.length;
+              const remainingSlots = Math.max(0, 2 - visible.length);
+              const visibleGcal = dayGcal.slice(0, remainingSlots);
+              const overflow =
+                hits.length +
+                dayGcal.length -
+                (visible.length + visibleGcal.length);
               return (
-                <div
+                <button
                   key={day}
+                  type="button"
+                  onClick={() => openRequestModal(iso)}
+                  aria-label={`Request leave for ${iso}`}
                   className={cn(
-                    "relative flex min-h-[80px] flex-col gap-1 bg-surface p-1.5 transition-colors",
-                    hits.length === 0 && "hover:bg-container",
+                    "relative flex min-h-[80px] flex-col gap-1 bg-surface p-1.5 text-left transition-colors",
+                    hits.length === 0 &&
+                      dayGcal.length === 0 &&
+                      "hover:bg-container",
                     hasApproved &&
                       "bg-[var(--accent-soft)]/50 ring-1 ring-inset ring-[var(--accent)]/25",
                     hasPending &&
                       !hasApproved &&
                       "bg-container/80 ring-1 ring-inset ring-dashed ring-[var(--line)]",
+                    dayGcal.length > 0 &&
+                      hits.length === 0 &&
+                      "bg-[#4285F4]/[0.08] ring-1 ring-inset ring-[#4285F4]/25",
                   )}
                 >
                   <span
@@ -195,6 +226,32 @@ export function LeaveEmployeeView({
                       {visible.map((hit) => (
                         <LeaveDayPill key={hit.id} hit={hit} />
                       ))}
+                      {visibleGcal.map((event) => (
+                        <span
+                          key={event.id}
+                          className="block w-full truncate rounded-[var(--radius-chip)] bg-[#4285F4] px-1.5 py-0.5 text-[10px] font-semibold leading-snug text-white"
+                          title={event.title ?? "Google Calendar event"}
+                        >
+                          {event.title ?? "Google Calendar event"}
+                        </span>
+                      ))}
+                      {overflow > 0 ? (
+                        <span className="truncate px-0.5 text-[10px] font-medium text-muted">
+                          +{overflow} more
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : dayGcal.length > 0 ? (
+                    <div className="flex min-h-0 flex-1 flex-col gap-0.5">
+                      {visibleGcal.map((event) => (
+                        <span
+                          key={event.id}
+                          className="block w-full truncate rounded-[var(--radius-chip)] bg-[#4285F4] px-1.5 py-0.5 text-[10px] font-semibold leading-snug text-white"
+                          title={event.title ?? "Google Calendar event"}
+                        >
+                          {event.title ?? "Google Calendar event"}
+                        </span>
+                      ))}
                       {overflow > 0 ? (
                         <span className="truncate px-0.5 text-[10px] font-medium text-muted">
                           +{overflow} more
@@ -202,7 +259,7 @@ export function LeaveEmployeeView({
                       ) : null}
                     </div>
                   ) : null}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -210,6 +267,9 @@ export function LeaveEmployeeView({
             {mode === "personal"
               ? "Gold pills show your marked time off."
               : "Solid gold pills are approved leave; dashed pills are pending."}
+            {showGoogleCalendar
+              ? " Blue pills are synced Google Calendar events."
+              : ""}
           </p>
         </CardContent>
       </MotionCard>
@@ -302,7 +362,11 @@ export function LeaveEmployeeView({
         <RequestLeaveModal
           mode={mode}
           leaveTypes={leaveTypes}
-          onClose={() => setRequestModalOpen(false)}
+          initialDate={selectedDate}
+          onClose={() => {
+            setRequestModalOpen(false);
+            setSelectedDate(null);
+          }}
         />
       ) : null}
     </div>

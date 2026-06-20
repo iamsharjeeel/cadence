@@ -18,10 +18,12 @@ import { markPersonalLeave, requestLeave } from "./actions";
 export function RequestLeaveModal({
   mode,
   leaveTypes = [],
+  initialDate = null,
   onClose,
 }: {
   mode: "personal" | "org";
   leaveTypes?: LeaveType[];
+  initialDate?: string | null;
   onClose: () => void;
 }) {
   const { toast } = useToast();
@@ -29,8 +31,8 @@ export function RequestLeaveModal({
   const hasTypes = activeTypes.length > 0;
 
   const [leaveTypeId, setLeaveTypeId] = useState(activeTypes[0]?.id ?? "");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(initialDate ?? "");
+  const [endDate, setEndDate] = useState(initialDate ?? "");
   const [halfDay, setHalfDay] = useState(false);
   const [hoursRequested, setHoursRequested] = useState("");
   const [note, setNote] = useState("");
@@ -45,6 +47,12 @@ export function RequestLeaveModal({
     setHoursRequested("");
     setEndDate("");
   }, [leaveTypeId, mode]);
+
+  useEffect(() => {
+    if (!initialDate) return;
+    setStartDate(initialDate);
+    setEndDate(initialDate);
+  }, [initialDate]);
 
   const days = useMemo(() => {
     if (unit === "hours") return 0;

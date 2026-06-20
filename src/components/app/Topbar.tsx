@@ -37,7 +37,7 @@ export function Topbar({
           aria-label="Toggle navigation"
           aria-expanded={mobileNavOpen}
           onClick={onMobileNavToggle}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--line)] text-muted hover:text-ink md:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-muted hover:text-ink md:hidden"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path

@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/PageHeader";
+import { hasGCalConnection } from "@/lib/google-calendar/connection";
+import {
+  getEventsForDateRange,
+  hasSyncedCalendars,
+} from "@/lib/google-calendar/sync";
 import { getWorkspaceContext } from "@/lib/workspace";
 import {
   getLeaveRequestsForWorkspace,
@@ -25,13 +30,30 @@ export default async function LeavePage() {
     (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
 
   const orgId = inOrg ? ctx.activeOrgId : null;
-  const [requests, leaveTypes, pending] = await Promise.all([
-    getLeaveRequestsForWorkspace(profile.id, orgId),
-    orgId ? getOrgLeaveTypes(orgId) : Promise.resolve([]),
-    isManager && orgId
-      ? getPendingLeaveRequests(orgId)
-      : Promise.resolve([]),
-  ]);
+  const monthStart = `${calendarMonth}-01`;
+  const monthEnd = `${calendarMonth}-${String(
+    new Date(
+      Number(calendarMonth.slice(0, 4)),
+      Number(calendarMonth.slice(5, 7)),
+      0,
+    ).getDate(),
+  ).padStart(2, "0")}`;
+
+  const [requests, leaveTypes, pending, gcalConnected, gcalSynced] =
+    await Promise.all([
+      getLeaveRequestsForWorkspace(profile.id, orgId),
+      orgId ? getOrgLeaveTypes(orgId) : Promise.resolve([]),
+      isManager && orgId
+        ? getPendingLeaveRequests(orgId)
+        : Promise.resolve([]),
+      hasGCalConnection(profile.id),
+      hasSyncedCalendars(profile.id),
+    ]);
+
+  const showGoogleCalendar = gcalConnected && gcalSynced;
+  const googleCalendarEvents = showGoogleCalendar
+    ? await getEventsForDateRange(profile.id, monthStart, monthEnd)
+    : [];
 
   const mode = inOrg ? "org" : "personal";
 
@@ -50,6 +72,8 @@ export default async function LeavePage() {
         requests={requests}
         leaveTypes={leaveTypes}
         calendarMonth={calendarMonth}
+        googleCalendarEvents={googleCalendarEvents}
+        showGoogleCalendar={showGoogleCalendar}
       />
       {isManager ? (
         <div className="mt-10">

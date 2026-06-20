@@ -134,6 +134,8 @@ export function ConnectedAccountsSection({
             ) : (
               <Link
                 href="/api/asana/connect"
+                target="_blank"
+                rel="noopener noreferrer"
                 className={buttonStyles("primary", "sm")}
               >
                 Connect
@@ -178,6 +180,8 @@ export function ConnectedAccountsSection({
             ) : (
               <Link
                 href="/api/google-calendar/connect"
+                target="_blank"
+                rel="noopener noreferrer"
                 className={buttonStyles("primary", "sm")}
               >
                 Connect

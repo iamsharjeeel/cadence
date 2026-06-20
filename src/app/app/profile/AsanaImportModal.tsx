@@ -143,6 +143,8 @@ export function AsanaImportModal({
             {showReconnect ? (
               <Link
                 href="/api/asana/connect"
+                target="_blank"
+                rel="noopener noreferrer"
                 className={buttonStyles("primary", "sm", "mt-4 inline-flex")}
               >
                 Reconnect Asana
@@ -201,6 +203,8 @@ export function AsanaImportModal({
           {showReconnect ? (
             <Link
               href="/api/asana/connect"
+              target="_blank"
+              rel="noopener noreferrer"
               className={buttonStyles("primary", "sm")}
             >
               Reconnect Asana

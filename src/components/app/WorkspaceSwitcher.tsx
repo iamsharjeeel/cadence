@@ -62,7 +62,7 @@ function CreateOrgSubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="flex-1 rounded-[var(--radius-input)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex-1 rounded-full bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Creating…" : "Create & switch"}
     </button>
@@ -190,7 +190,7 @@ export function WorkspaceSwitcher({
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={pending}
-        className="flex w-full items-center gap-2.5 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface-low px-2.5 py-2.5 text-left transition-colors hover:border-[var(--accent)]/40 disabled:opacity-60"
+        className="flex w-full items-center gap-2.5 rounded-full border border-[var(--line)] bg-surface-low px-2.5 py-2.5 text-left transition-colors hover:border-[var(--accent)]/40 disabled:opacity-60"
       >
         <InitialBadge
           name={currentLogoName}
@@ -255,7 +255,7 @@ export function WorkspaceSwitcher({
                       type="button"
                       onClick={() => accept(inv.id)}
                       disabled={pending}
-                      className="rounded-[var(--radius-input)] bg-[var(--accent)] px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[var(--accent-strong)] disabled:opacity-60"
+                      className="rounded-full bg-[var(--accent)] px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[var(--accent-strong)] disabled:opacity-60"
                     >
                       Accept
                     </button>
@@ -335,7 +335,7 @@ export function WorkspaceSwitcher({
                     <button
                       type="button"
                       onClick={() => setCreating(false)}
-                      className="rounded-[var(--radius-input)] border border-[var(--line)] px-3 py-2 text-sm text-muted hover:text-ink"
+                      className="rounded-full border border-[var(--line)] px-3 py-2 text-sm text-muted hover:text-ink"
                     >
                       Cancel
                     </button>
@@ -344,7 +344,7 @@ export function WorkspaceSwitcher({
               ) : (
                 <button
                   type="button"
-                  className={cn(rowBase, "rounded-[var(--radius-input)]")}
+                  className={cn(rowBase, "rounded-full")}
                   onClick={() => setCreating(true)}
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-dashed border-[var(--line)] text-muted">

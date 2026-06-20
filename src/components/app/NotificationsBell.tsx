@@ -142,7 +142,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
           setOpen((v) => !v);
           if (!open) load();
         }}
-        className="relative inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-[var(--line)] text-muted transition-colors hover:text-ink"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-muted transition-colors hover:text-ink"
       >
         <Bell className="h-4 w-4" />
         {unread > 0 && (

@@ -184,7 +184,7 @@ function EmptyStateMessage() {
         href="/app/profile#section-connected"
         className="font-medium text-[var(--accent-strong)] hover:underline"
       >
-        Connected accounts
+        Connect accounts
       </Link>
     </p>
   );

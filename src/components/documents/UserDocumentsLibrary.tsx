@@ -83,8 +83,12 @@ export function UserDocumentsLibrary({
               Your personal uploads and documents assigned by your organization.
             </CardDescription>
           </div>
-          {canUploadPersonal ? (
-            <Button size="sm" onClick={() => setUploadOpen(true)}>
+          {canUploadPersonal && hasRows ? (
+            <Button
+              size="sm"
+              className="ml-auto self-start"
+              onClick={() => setUploadOpen(true)}
+            >
               Upload document
             </Button>
           ) : null}

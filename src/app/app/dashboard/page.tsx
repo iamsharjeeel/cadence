@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { hasAsanaConnection } from "@/lib/asana/connection";
+import { hasGCalConnection } from "@/lib/google-calendar/connection";
 import { AsanaConnectBanner } from "@/components/asana/AsanaConnectBanner";
 import { AsanaConnectionHealthCheck } from "@/components/asana/AsanaConnectionHealthCheck";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -28,8 +29,12 @@ export default async function DashboardPage({
   const profile = ctx.effectiveProfile;
   const firstName = profile.full_name?.split(" ")[0] ?? "there";
 
-  const showAsanaConnectBanner =
-    !ctx.isSuperadmin ? !(await hasAsanaConnection(profile.id)) : false;
+  const showAsanaConnectBanner = !ctx.isSuperadmin
+    ? await Promise.all([
+        hasAsanaConnection(profile.id),
+        hasGCalConnection(profile.id),
+      ]).then(([asanaConnected, gcalConnected]) => !asanaConnected || !gcalConnected)
+    : false;
   const dashboardPrompts = !ctx.isSuperadmin ? (
     <>
       <AsanaConnectBanner show={showAsanaConnectBanner} />
