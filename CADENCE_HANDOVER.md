@@ -1768,3 +1768,25 @@ _(none logged)_
 #### Notes on `profiles.role` default at signup
 - App onboarding (`src/lib/onboarding.ts`) does not assign a non-superadmin role on signup; it only promotes superadmin by configured email and activates status.
 - The persisted default role still comes from DB-side profile creation logic (historically employee). This session intentionally does **not** mutate stored `profiles.role`; it only fixes workspace-context role resolution.
+
+### Session F — Visual rebuild + build fixes (branch `session-f-fixes-and-visual-rebuild`, PR #22) ✅ (2026-06-20)
+
+#### Phase 1 — Stripe/Vercel-style visual pass (9 items — see full session log in prior context)
+See prior session summary. globals.css, buttonStyles, Table, Topbar, TimesheetListTable, AdminDashboardView, TrendsClient, PlatformMembersAudit, OrgTeamView, EmployeeDashboardContent, AuditLogViewer, and profile connection panels (ConnectedAccountsSection, AsanaConnectionPanel, GoogleCalendarConnectionPanel) all updated. No logic, server actions, or DB changes.
+
+#### Build fix 1 — `??` / `||` operator precedence (`src/app/app/timesheets/page.tsx`)
+- **Error:** SWC (Next.js 14 build parser) rejected `nameById.get(t.employee_id) ?? profile.full_name?.trim() || profile.email` — `??` mixed with `||` without explicit grouping is a syntax error in SWC even though TypeScript's own checker misses it.
+- **Fix:** Added parens around the `||` fallback: `?? (profile.full_name?.trim() || profile.email)`.
+- **Scan:** Full branch diff checked for other `??`/`||`/`&&` precedence issues — no other instances found. The `searchParams.org ?? "" : ""` pattern in a ternary guard is not affected (different expression level).
+- **Commit:** `8287e7f`
+
+#### Build fix 2 — `object[]` type cast rejected by Supabase TS types (`src/app/app/timesheets/time-actions.ts:590`)
+- **Error:** `TypeScript: Argument of type 'object[]' is not assignable to parameter of type 'RejectExcessProperties<...>'` — `filter(Boolean)` leaves `null` in the inferred type; casting to `object[]` then loses the field-level type info that Supabase's strict insert signature requires.
+- **Fix:** Replaced `.filter(Boolean)` with `.filter((x): x is NonNullable<typeof x> => x !== null)` and removed the `as object[]` cast, letting TypeScript infer the concrete element type for the insert.
+- **Commit:** `6731afb`
+
+#### Font import investigation
+- Playfair Display font fetch errors appeared in a prior build log. Confirmed these are **pre-existing on `main`** — zero diff between `main` and this branch on `src/app/layout.tsx` and `tailwind.config.ts`. False alarm; no action taken.
+
+#### PR status
+- PR #22 open on `session-f-fixes-and-visual-rebuild` → `main`. Branch at `6731afb` after both build fixes pushed. Vercel preview build triggered automatically on each push.
