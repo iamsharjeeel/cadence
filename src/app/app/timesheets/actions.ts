@@ -68,7 +68,7 @@ export async function approveTimesheet(
     .eq("id", id)
     .single();
   if (!ts) return { ok: false, message: "Timesheet not found." };
-  if (actor.role === "admin" && ts.org_id !== actor.org_id) {
+  if (actor.role === "admin" && (!actor.org_id || ts.org_id !== actor.org_id)) {
     return { ok: false, message: "That timesheet isn't in your organization." };
   }
   if (ts.status !== "submitted") {
@@ -176,7 +176,7 @@ export async function bulkApproveTimesheets(
       .eq("id", id)
       .single();
     if (!ts) continue;
-    if (actor.role === "admin" && ts.org_id !== actor.org_id) continue;
+    if (actor.role === "admin" && (!actor.org_id || ts.org_id !== actor.org_id)) continue;
     if (ts.status !== "submitted") continue;
 
     const { data: employee } = await db
@@ -285,7 +285,7 @@ export async function rejectTimesheet(
     .eq("id", id)
     .single();
   if (!ts) return { ok: false, message: "Timesheet not found." };
-  if (actor.role === "admin" && ts.org_id !== actor.org_id) {
+  if (actor.role === "admin" && (!actor.org_id || ts.org_id !== actor.org_id)) {
     return { ok: false, message: "That timesheet isn't in your organization." };
   }
   if (ts.status !== "submitted") {

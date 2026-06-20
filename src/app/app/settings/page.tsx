@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import { CardSkeleton } from "@/components/ui/Skeleton";
-import { requireRole } from "@/lib/auth";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { SettingsContent } from "./SettingsContent";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -20,7 +21,13 @@ export default async function SettingsPage({
 }: {
   searchParams: { tab?: string; org?: string };
 }) {
-  await requireRole(["admin", "superadmin"]);
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  const canAccess =
+    ctx.isSuperadmin ||
+    (Boolean(ctx.activeOrgId) &&
+      (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin"));
+  if (!canAccess) redirect("/app/dashboard");
 
   return (
     <div>
