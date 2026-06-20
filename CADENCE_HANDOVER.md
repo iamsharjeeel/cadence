@@ -1847,3 +1847,57 @@ _(none logged)_
 - `npm run typecheck`, `npm run lint`, `npm run build` all pass clean.
 - Runtime smoke test (`/` → 200; new copy present; zero legacy claims Xero/QuickBooks/Google Sheets/"Three ways to submit"/fabricated names; `/login` `/privacy` `/terms` all 200).
 
+---
+
+### Session I — PR backlog cleanup + landing page copy fix ✅ (2026-06-20)
+
+**Pushed directly to `main`** — no DB migrations involved in either part.
+Commits: `aadd7fc` (PR backlog ports) + `989d7d2` (landing page copy).
+
+---
+
+#### Part 1 — PR backlog audit and cleanup
+
+**PR #22 status (fact-check):** Owner believed this may already be merged — **it is NOT merged**. `session-f-fixes-and-visual-rebuild` shows as OPEN on GitHub and its content (personal period types, personal timesheet lifecycle: `submitPersonalTimesheet` / `lockPersonalTimesheet` / `requestPersonalTimesheetEdit` / `getPersonalTimeTrackingData`, design system v3 visual rebuild) is NOT on `main`. No action taken on #22 per session instructions (confirm status only). Owner should review and decide whether to merge, port selectively, or close.
+
+**PR #16 (`cursor/feedback-batch-six-fixes-c4a4`) — DRAFT, closed.**
+- What it contained: cadence periods view, TimesheetAccordionRow, TimesheetListFilters, draggable timer (Framer Motion), schema parity migration.
+- Verdict: PARTIALLY superseded. Period-based view was shipped via PR #24; `TimesheetAccordionRow`/`TimesheetListFilters` were built on an old branch (pre-PR #17) and the UX was addressed differently in main; draggable timer was superseded by PR #20's better pointer-event implementation.
+- Action: Parity migration (`supabase/migrations/20260619000001_feedback_batch_schema_prep.sql` — already applied to prod, committed here for repo integrity; adds `biweekly_15` enum value, makes `leave_requests.leave_type_id` nullable, adds `leave_requests.google_event_id`). Draggable timer ported from PR #20 (better implementation) instead. **Close this PR** from GitHub UI.
+
+**PR #18 (`cursor/session-bc-small-fixes-investigation-2e22`) — OPEN, closed.**
+- What it contained: minor rounded-corner style tweaks, GCal events on Leave calendar (already on main via Session H), Asana reconnect link open in new tab, `AsanaConnectBanner` updated with GCal icon/copy, dashboard showing banner when either Asana OR GCal not connected.
+- Verdict: PARTIALLY superseded. Leave calendar GCal events already on main. Minor style tweaks marginal.
+- Unique content ported: (a) `AsanaConnectBanner` updated to show both Asana + GCal icons and copy ("Connect Asana and Google Calendar"); (b) dashboard `showAsanaConnectBanner` logic now `true` when either integration is disconnected; (c) Asana reconnect link opens in new tab (`target="_blank"`). **Close this PR** from GitHub UI.
+
+**PR #20 (`cursor/projects-asana-timer-time-tracked-ef7e`) — DRAFT, closed.**
+- What it contained: draggable floating timer (pointer-event-based), Time tracked page, Asana projects section on Projects page, nav additions.
+- Verdict: NOT superseded — all three features are unique and not on main.
+- Unique content ported: (a) **Draggable floating timer** — pointer-event-based with localStorage position persist per user, viewport-clamped; `FloatingTimer` now accepts `userId` prop threaded through `AppProviders` → `AppShell`; (b) **Time tracked page** (`/app/time-tracked`) — history of timer entries with week/month/custom date filter and project filter; (c) **"Time tracked" nav item** added to all workspace contexts (personal/employee/manager/superadmin); (d) `timeTracked` icon added to `NavIcon.tsx`. **Close this PR** from GitHub UI.
+
+**PR #23 (`session-g-avatar-header-logtime-asana`) — OPEN, closed.**
+- What it contained: avatar system, Topbar dropdown, log time back button, Asana projects section on Projects page, avatar storage bucket migration.
+- Verdict: PARTIALLY superseded. Avatar system (PR #24), Topbar dropdown (Session H), back button (PR #24) all already on main.
+- Unique content ported: (a) **Asana projects section on Projects page** — `getMyImportedAsanaProjects()` server action; `ProjectsManager` shows a separate "Asana projects" section for imported projects; `projects/page.tsx` fetches and passes `asanaProjects`; asana-actions revalidate `/app/projects` on import/remove/sync/disconnect; (b) Avatar storage bucket migration (`20260620100000_profile_avatar_url.sql`) was intentionally NOT ported — main already has `20260631000001_profiles_avatar_url.sql` which adds the column (the feature uses preset SVGs only; custom upload path doesn't require the bucket yet). **Close this PR** from GitHub UI.
+
+**Note on closing PRs:** GitHub write access not available via `gh` CLI or MCP in this environment. Owner must close PRs #16, #18, #20, #23 manually from the GitHub UI (iamsharjeeel/cadence).
+
+---
+
+#### Part 2 — Landing page copy fix
+
+Removed "personal-first, organization-optional" framing across the landing page. Changes:
+- **Hero eyebrow badge**: Removed `"Personal-first · organization-optional"` label entirely.
+- **Hero headline**: `"Your own timesheet today. / Your team's when you're ready."` → `"Complete time tracking, / solo or with your team."` — both modes co-equal in the headline.
+- **Hero subhead**: Rewritten to present solo AND org as full, co-equal capabilities ("Every Cadence account ships complete from day one…Use it entirely on your own, or bring in a team for a full org platform with Manager/Admin roles, approval workflows, and shared projects. One account, either way.").
+- **Features section subhead**: `"Built for individuals first, with the depth a small team needs when it grows into one."` → `"Every feature works fully on day one as a solo user. Every feature scales into a complete org platform when your team joins."` — parallel structure, equal weight.
+- **Features: Periods copy**: `"No organization policy required to get started."` → `"Works the same whether you're solo or inside an organization."` — positive, not a hedge.
+- **How it works step 3**: `"Add your team — optional"` → `"Grow with your team"` — natural next capability, not a parenthetical.
+- **How it works section subhead**: `"No forced organization setup. Start the day you sign up; bring a team along only if and when you need to."` → `"Start the day you sign up, no org required. Bring a team in for the full platform — approvals, roles, shared projects — whenever the time is right."` — positions org as a full upgrade, not a hedge.
+- **Final CTA subhead**: `"Add a team whenever you're ready — the account grows with you."` → `"Use it solo, or scale up to a full team with roles, approvals, and org-wide projects — the account works completely either way."` — both modes explicitly featured.
+- **Footer tagline**: `"Personal-first time tracking, payroll, and HR."` → `"Time tracking, payroll, and HR for individuals and teams."` — removes "personal-first" label.
+
+Structure, custom graphics, stats, features all unchanged — this was a copy/tone pass only.
+
+`npm run build` passes clean.
+
