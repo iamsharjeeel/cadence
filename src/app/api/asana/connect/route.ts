@@ -39,6 +39,6 @@ export async function GET() {
   } catch (err) {
     console.error("[asana/connect]", err);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    return NextResponse.redirect(`${appUrl}/app/profile?asana=error`);
+    return NextResponse.redirect(`${appUrl}/app/user-settings?asana=error`);
   }
 }

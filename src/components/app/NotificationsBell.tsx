@@ -64,7 +64,7 @@ function entityHref(n: NotificationRow): string | null {
   if (n.entity === "timesheets") return `/app/timesheets/${n.entity_id}`;
   if (n.entity === "leave_requests") return "/app/leave";
   if (n.entity === "official_documents") return "/app/documents?tab=official";
-  if (n.entity === "profile") return "/app/profile#section-connected";
+  if (n.entity === "profile") return "/app/user-settings#section-connected";
   return null;
 }
 

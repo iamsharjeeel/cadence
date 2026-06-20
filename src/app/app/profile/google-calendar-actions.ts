@@ -72,7 +72,7 @@ export async function disconnectGoogleCalendar(): Promise<GCalActionResult> {
     }
 
     await deleteGCalConnection(profile.id);
-    revalidatePath("/app/profile");
+    revalidatePath("/app/user-settings");
     revalidatePath("/app/leave");
     revalidatePath("/app/timesheets/log");
     return { ok: true, message: "Google Calendar disconnected." };
@@ -113,7 +113,7 @@ export async function fetchUserCalendars(): Promise<
       if (error) {
         console.error("[gcal] backfill google_email failed:", error.message);
       } else {
-        revalidatePath("/app/profile");
+        revalidatePath("/app/user-settings");
       }
     }
 
@@ -177,7 +177,7 @@ export async function saveSelectedCalendars(
       return { ok: false, message: "Couldn't save calendar selection." };
     }
 
-    revalidatePath("/app/profile");
+    revalidatePath("/app/user-settings");
     revalidatePath("/app/leave");
     revalidatePath("/app/timesheets/log");
     return {
@@ -213,7 +213,7 @@ export async function upsertCalendarSyncState(
     return { ok: false, message: "Couldn't update calendar sync." };
   }
 
-  revalidatePath("/app/profile");
+  revalidatePath("/app/user-settings");
   revalidatePath("/app/leave");
   revalidatePath("/app/timesheets/log");
   return { ok: true, message: isSynced ? "Calendar enabled." : "Calendar paused." };
@@ -226,7 +226,7 @@ export async function syncAllEvents(): Promise<
 
   try {
     const synced = await syncGCalEvents(profile.id);
-    revalidatePath("/app/profile");
+    revalidatePath("/app/user-settings");
     revalidatePath("/app/leave");
     revalidatePath("/app/timesheets/log");
     return {
@@ -258,7 +258,7 @@ export async function refreshEventDetails(
       return { ok: false, message: "Event not found." };
     }
 
-    revalidatePath("/app/profile");
+    revalidatePath("/app/user-settings");
     revalidatePath("/app/leave");
     revalidatePath("/app/timesheets/log");
     return { ok: true, message: "Event refreshed.", event };

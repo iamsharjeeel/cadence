@@ -69,7 +69,7 @@ export function ConnectedAccountsSection({
     params.delete("asana");
     params.delete("gcal");
     const next = params.toString();
-    router.replace(next ? `/app/profile?${next}` : "/app/profile", {
+    router.replace(next ? `/app/user-settings?${next}` : "/app/user-settings", {
       scroll: false,
     });
   }, [asanaFlash, gcalFlash, router, searchParams]);

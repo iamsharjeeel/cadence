@@ -1971,6 +1971,42 @@ Structure, custom graphics, stats, features all unchanged — this was a copy/to
 - No visual tokens ported — light/dark unchanged from Session H baseline.
 
 **Close PR #22** from GitHub UI if not already closed. Branch `session-f-fixes-and-visual-rebuild` can be deleted after owner confirms.
+
+---
+
+### Session K — Approve/Reject fix, profile/settings split, copy-to-days popup ✅ (2026-06-20)
+
+**Pushed directly to `main`** — no DB migrations.
+
+#### 1 — Remove Approve/Reject from personal timesheet detail
+
+- **Problem:** `ApprovalControls` on `/app/timesheets/[id]` rendered for any viewer with `admin`/`superadmin` role, including personal timesheets (`org_id IS NULL`).
+- **Fix:** Gate `canApprove` on `timesheet.org_id != null` (`hasOrgContext` pattern). `ApprovalControls` panel removed entirely for personal timesheets — not disabled, not shown. `TimesheetStatusPill` `live` draft indicator and `isReadOnlyAdmin` also gated on org context. Recall/Delete/Back header actions unchanged (`TimesheetStatusActions` + `DeleteTimesheetControl` still owner/org-scoped as before).
+
+#### 2 — Split Profile and User Settings
+
+- **New page:** `/app/user-settings` — Connected accounts (Asana + Google Calendar) + personal API keys panel, relocated from Profile without redesign.
+- **Profile** (`/app/profile`) — identity/personal info only: avatar, name, employment, banking, emergency contact, completeness.
+- **Nav:** New top-level **Settings** item → `/app/user-settings` (sliders icon) in all workspace contexts. Org admin `/app/settings` relabeled **Org settings** in manager/superadmin nav to avoid collision.
+- **OAuth redirects:** Asana + Google Calendar connect/callback/error URLs now land on `/app/user-settings` (with `#section-connected` hash for GCal).
+- **Internal links updated:** `AsanaConnectBanner`, `AsanaProjectPicker`, `ProjectsManager`, `NotificationsBell`, `ConnectedAccountsSection` flash cleanup.
+- **Revalidation paths:** `api-keys/actions`, `asana-actions`, `google-calendar-actions` now revalidate `/app/user-settings`.
+- Removed unused `ProfileDeveloperSection.tsx` (logic inlined on user-settings page via `ApiKeysPanel`).
+
+#### 3 — Copy-to-days selection popup
+
+- **Replaced:** Instant "copy to all other days in period" behavior.
+- **New UX:** Copy icon opens a branded modal (same pattern as "Request edit access" — overlay, `rounded-[var(--radius-card)]`, surface tokens, `Button` components). Scrollable checklist of all days in the current period except the source day; nothing pre-checked; **Copy to selected** runs existing `copyEntryToDays` persist logic for checked days only.
+
+#### Verification
+
+- `npm run build` passes clean.
+- Personal timesheet detail: no Approve/Reject panel at any status.
+- Org timesheet detail: Approve/Reject unchanged for managers.
+- `/app/profile` and `/app/user-settings` both build; nav shows Profile + Settings as separate items.
+- OAuth callback routes redirect to `/app/user-settings`.
+
+**DB migrations:** None.
 ---
 
 ### Session J — PR #22 audit (`session-f-fixes-and-visual-rebuild`) ✅ (2026-06-20)
@@ -2041,4 +2077,76 @@ Structure, custom graphics, stats, features all unchanged — this was a copy/to
 - No visual tokens ported — light/dark unchanged from Session H baseline.
 
 **Close PR #22** from GitHub UI if not already closed. Branch `session-f-fixes-and-visual-rebuild` can be deleted after owner confirms.
+
+---
+
+### Session K — Approve/Reject fix, profile/settings split, copy-to-days popup ✅ (2026-06-20)
+
+**Pushed directly to `main`** — no DB migrations.
+
+#### 1 — Remove Approve/Reject from personal timesheet detail
+
+- **Problem:** `ApprovalControls` on `/app/timesheets/[id]` rendered for any viewer with `admin`/`superadmin` role, including personal timesheets (`org_id IS NULL`).
+- **Fix:** Gate `canApprove` on `timesheet.org_id != null` (`hasOrgContext` pattern). `ApprovalControls` panel removed entirely for personal timesheets — not disabled, not shown. `TimesheetStatusPill` `live` draft indicator and `isReadOnlyAdmin` also gated on org context. Recall/Delete/Back header actions unchanged (`TimesheetStatusActions` + `DeleteTimesheetControl` still owner/org-scoped as before).
+
+#### 2 — Split Profile and User Settings
+
+- **New page:** `/app/user-settings` — Connected accounts (Asana + Google Calendar) + personal API keys panel, relocated from Profile without redesign.
+- **Profile** (`/app/profile`) — identity/personal info only: avatar, name, employment, banking, emergency contact, completeness.
+- **Nav:** New top-level **Settings** item → `/app/user-settings` (sliders icon) in all workspace contexts. Org admin `/app/settings` relabeled **Org settings** in manager/superadmin nav to avoid collision.
+- **OAuth redirects:** Asana + Google Calendar connect/callback/error URLs now land on `/app/user-settings` (with `#section-connected` hash for GCal).
+- **Internal links updated:** `AsanaConnectBanner`, `AsanaProjectPicker`, `ProjectsManager`, `NotificationsBell`, `ConnectedAccountsSection` flash cleanup.
+- **Revalidation paths:** `api-keys/actions`, `asana-actions`, `google-calendar-actions` now revalidate `/app/user-settings`.
+- Removed unused `ProfileDeveloperSection.tsx` (logic inlined on user-settings page via `ApiKeysPanel`).
+
+#### 3 — Copy-to-days selection popup
+
+- **Replaced:** Instant "copy to all other days in period" behavior.
+- **New UX:** Copy icon opens a branded modal (same pattern as "Request edit access" — overlay, `rounded-[var(--radius-card)]`, surface tokens, `Button` components). Scrollable checklist of all days in the current period except the source day; nothing pre-checked; **Copy to selected** runs existing `copyEntryToDays` persist logic for checked days only.
+
+#### Verification
+
+- `npm run build` passes clean.
+- Personal timesheet detail: no Approve/Reject panel at any status.
+- Org timesheet detail: Approve/Reject unchanged for managers.
+- `/app/profile` and `/app/user-settings` both build; nav shows Profile + Settings as separate items.
+- OAuth callback routes redirect to `/app/user-settings`.
+
+**DB migrations:** None.
+
+---
+
+### Session K — Approve/Reject fix, profile/settings split, copy-to-days popup ✅ (2026-06-20)
+
+**Pushed directly to `main`** — no DB migrations.
+
+#### 1 — Remove Approve/Reject from personal timesheet detail
+
+- **Problem:** `ApprovalControls` on `/app/timesheets/[id]` rendered for any viewer with `admin`/`superadmin` role, including personal timesheets (`org_id IS NULL`).
+- **Fix:** Gate `canApprove` on `timesheet.org_id != null` (`hasOrgContext` pattern). `ApprovalControls` panel removed entirely for personal timesheets — not disabled, not shown. `TimesheetStatusPill` `live` draft indicator and `isReadOnlyAdmin` also gated on org context. Recall/Delete/Back header actions unchanged (`TimesheetStatusActions` + `DeleteTimesheetControl` still owner/org-scoped as before).
+
+#### 2 — Split Profile and User Settings
+
+- **New page:** `/app/user-settings` — Connected accounts (Asana + Google Calendar) + personal API keys panel, relocated from Profile without redesign.
+- **Profile** (`/app/profile`) — identity/personal info only: avatar, name, employment, banking, emergency contact, completeness.
+- **Nav:** New top-level **Settings** item → `/app/user-settings` (sliders icon) in all workspace contexts. Org admin `/app/settings` relabeled **Org settings** in manager/superadmin nav to avoid collision.
+- **OAuth redirects:** Asana + Google Calendar connect/callback/error URLs now land on `/app/user-settings` (with `#section-connected` hash for GCal).
+- **Internal links updated:** `AsanaConnectBanner`, `AsanaProjectPicker`, `ProjectsManager`, `NotificationsBell`, `ConnectedAccountsSection` flash cleanup.
+- **Revalidation paths:** `api-keys/actions`, `asana-actions`, `google-calendar-actions` now revalidate `/app/user-settings`.
+- Removed unused `ProfileDeveloperSection.tsx` (logic inlined on user-settings page via `ApiKeysPanel`).
+
+#### 3 — Copy-to-days selection popup
+
+- **Replaced:** Instant "copy to all other days in period" behavior.
+- **New UX:** Copy icon opens a branded modal (same pattern as "Request edit access" — overlay, `rounded-[var(--radius-card)]`, surface tokens, `Button` components). Scrollable checklist of all days in the current period except the source day; nothing pre-checked; **Copy to selected** runs existing `copyEntryToDays` persist logic for checked days only.
+
+#### Verification
+
+- `npm run build` passes clean.
+- Personal timesheet detail: no Approve/Reject panel at any status.
+- Org timesheet detail: Approve/Reject unchanged for managers.
+- `/app/profile` and `/app/user-settings` both build; nav shows Profile + Settings as separate items.
+- OAuth callback routes redirect to `/app/user-settings`.
+
+**DB migrations:** None.
 

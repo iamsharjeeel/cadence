@@ -237,6 +237,14 @@ export function TimeTrackingView({
   const [requestEditNote, setRequestEditNote] = useState("");
   const [requestEditOpen, setRequestEditOpen] = useState(false);
   const [copyPending, setCopyPending] = useState(false);
+  const [copyPickerOpen, setCopyPickerOpen] = useState(false);
+  const [copySource, setCopySource] = useState<{
+    date: string;
+    entry: DraftEntry;
+  } | null>(null);
+  const [copySelectedDates, setCopySelectedDates] = useState<Set<string>>(
+    () => new Set(),
+  );
   const skipInitialFetch = useRef(Boolean(initialData));
   const prefillApplied = useRef(false);
   const ssrPeriodAnchor = defaultAnchor;
@@ -670,18 +678,15 @@ export function TimeTrackingView({
     }
   }
 
-  async function copyEntryToDays(sourceDate: string, source: DraftEntry) {
+  async function copyEntryToDays(
+    sourceDate: string,
+    source: DraftEntry,
+    targetDates: string[],
+  ) {
     if (!editable || !week) return;
     if (!entryIsPersistable(source)) {
       toast("Save this entry before copying.", "error");
       return;
-    }
-
-    const targetDates: string[] = [];
-    let cur = week.start;
-    while (cur <= week.end) {
-      if (cur !== sourceDate) targetDates.push(cur);
-      cur = addDays(cur, 1);
     }
     if (targetDates.length === 0) return;
 
@@ -711,10 +716,51 @@ export function TimeTrackingView({
 
     toast(
       copied === 1
-        ? "Entry copied to 1 other day."
-        : `Entry copied to ${copied} other days.`,
+        ? "Entry copied to 1 day."
+        : `Entry copied to ${copied} days.`,
       "success",
     );
+  }
+
+  function openCopyPicker(sourceDate: string, source: DraftEntry) {
+    if (!editable || !week) return;
+    if (!entryIsPersistable(source)) {
+      toast("Save this entry before copying.", "error");
+      return;
+    }
+    setCopySource({ date: sourceDate, entry: source });
+    setCopySelectedDates(new Set());
+    setCopyPickerOpen(true);
+  }
+
+  function toggleCopyTarget(date: string) {
+    setCopySelectedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  }
+
+  async function confirmCopyToSelectedDays() {
+    if (!copySource) return;
+    const targets = [...copySelectedDates];
+    if (targets.length === 0) {
+      toast("Select at least one day to copy to.", "error");
+      return;
+    }
+    setCopyPickerOpen(false);
+    await copyEntryToDays(copySource.date, copySource.entry, targets);
+    setCopySource(null);
+    setCopySelectedDates(new Set());
+  }
+
+  function formatCopyDayLabel(date: string, dayName: string): string {
+    const formatted = new Date(date).toLocaleDateString("en-AU", {
+      day: "numeric",
+      month: "short",
+    });
+    return `${dayName}, ${formatted}`;
   }
 
   async function handleCopyFromPrevious() {
@@ -879,6 +925,69 @@ export function TimeTrackingView({
           </div>
         )}
 
+        {copyPickerOpen && copySource && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="flex w-full max-w-md flex-col rounded-[var(--radius-card)] bg-surface p-6 shadow-float">
+              <h3 className="font-display text-base font-semibold text-ink">
+                Copy entry to days
+              </h3>
+              <p className="mt-1 text-sm text-muted">
+                Select which days in this period should receive a copy of this
+                entry.
+              </p>
+              <div className="mt-4 max-h-64 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--line)]">
+                {days
+                  .filter((day) => day.date !== copySource.date)
+                  .map((day) => {
+                    const checked = copySelectedDates.has(day.date);
+                    return (
+                      <label
+                        key={day.date}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-3 border-b border-[var(--line)] px-3 py-2.5 last:border-0",
+                          "hover:bg-[var(--surface-low)]",
+                          day.isWeekend && "bg-[var(--surface-low)]/50",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleCopyTarget(day.date)}
+                          className="h-4 w-4 rounded border-[var(--line)] accent-[var(--accent)]"
+                        />
+                        <span className="text-sm text-ink">
+                          {formatCopyDayLabel(day.date, day.dayName)}
+                        </span>
+                      </label>
+                    );
+                  })}
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setCopyPickerOpen(false);
+                    setCopySource(null);
+                    setCopySelectedDates(new Set());
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={copySelectedDates.size === 0}
+                  onClick={() => void confirmCopyToSelectedDays()}
+                >
+                  Copy to selected
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <LogWeekSkeleton />
         ) : (
@@ -1007,7 +1116,7 @@ export function TimeTrackingView({
                       }
                       onCopy={
                         editable && entry.id
-                          ? () => void copyEntryToDays(day.date, entry)
+                          ? () => openCopyPicker(day.date, entry)
                           : undefined
                       }
                     />

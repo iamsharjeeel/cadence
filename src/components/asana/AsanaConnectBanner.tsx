@@ -31,7 +31,7 @@ export function AsanaConnectBanner({ show }: { show: boolean }) {
           suggestions.
         </p>
         <Link
-          href="/app/profile#section-connected"
+        href="/app/user-settings#section-connected"
           className={buttonStyles("primary", "sm", "mt-2 inline-flex")}
         >
           Connect accounts

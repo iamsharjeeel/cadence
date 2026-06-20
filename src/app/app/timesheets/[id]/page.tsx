@@ -123,13 +123,15 @@ export default async function TimesheetDetailPage({
   }
 
   const status = timesheet.status as TimesheetStatus;
-  const canApprove = hasRole(profile, ["admin", "superadmin"]);
+  const hasOrgContext = timesheet.org_id != null;
+  const canApprove =
+    hasOrgContext && hasRole(profile, ["admin", "superadmin"]);
   const totalHours =
     entries.length > 0
       ? Math.round(entries.reduce((sum, r) => sum + entryHours(r), 0) * 100) / 100
       : rows.reduce((sum, r) => sum + Number(r.hours), 0);
   const isReadOnlyAdmin =
-    canApprove && timesheet.employee_id !== profile.id;
+    canApprove && timesheet.employee_id !== profile.id && hasOrgContext;
   const approvedLeaveDays = await getApprovedLeaveInPeriod(
     timesheet.employee_id,
     timesheet.period_start,
@@ -222,7 +224,7 @@ export default async function TimesheetDetailPage({
             <div className="flex flex-wrap items-center gap-2">
               <TimesheetStatusPill
                 status={status}
-                live={canApprove && status === "draft"}
+                live={canApprove && status === "draft" && hasOrgContext}
               />
               {timesheet.has_overtime && timesheet.overtime_hours > 0 && (
                 <OvertimeBadge hours={timesheet.overtime_hours} />

@@ -42,6 +42,6 @@ export async function GET() {
   } catch (err) {
     console.error("[gcal/connect]", err);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    return NextResponse.redirect(`${appUrl}/app/profile?gcal=error#section-connected`);
+    return NextResponse.redirect(`${appUrl}/app/user-settings?gcal=error#section-connected`);
   }
 }

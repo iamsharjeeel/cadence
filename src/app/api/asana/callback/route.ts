@@ -13,7 +13,7 @@ const STATE_COOKIE = "asana_oauth_state";
  */
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin;
-  const profileUrl = `${appUrl}/app/profile`;
+  const settingsUrl = `${appUrl}/app/user-settings`;
 
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   if (oauthError || !code || !state) {
     console.error("[asana/callback] OAuth error or missing params:", oauthError);
-    return NextResponse.redirect(`${profileUrl}?asana=error`);
+    return NextResponse.redirect(`${settingsUrl}?asana=error`);
   }
 
   const cookieStore = cookies();
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   if (!rawCookie) {
     console.error("[asana/callback] Missing state cookie");
-    return NextResponse.redirect(`${profileUrl}?asana=error`);
+    return NextResponse.redirect(`${settingsUrl}?asana=error`);
   }
 
   let stored: { state: string; userId: string };
@@ -39,12 +39,12 @@ export async function GET(request: NextRequest) {
     stored = JSON.parse(rawCookie) as { state: string; userId: string };
   } catch {
     console.error("[asana/callback] Invalid state cookie");
-    return NextResponse.redirect(`${profileUrl}?asana=error`);
+    return NextResponse.redirect(`${settingsUrl}?asana=error`);
   }
 
   if (stored.state !== state) {
     console.error("[asana/callback] State mismatch");
-    return NextResponse.redirect(`${profileUrl}?asana=error`);
+    return NextResponse.redirect(`${settingsUrl}?asana=error`);
   }
 
   const profile = await getProfile();
@@ -56,9 +56,9 @@ export async function GET(request: NextRequest) {
   try {
     const tokens = await exchangeAsanaCode(code);
     await upsertAsanaConnection(profile.id, tokens);
-    return NextResponse.redirect(`${profileUrl}?asana=connected`);
+    return NextResponse.redirect(`${settingsUrl}?asana=connected`);
   } catch (err) {
     console.error("[asana/callback] Token exchange failed:", err);
-    return NextResponse.redirect(`${profileUrl}?asana=error`);
+    return NextResponse.redirect(`${settingsUrl}?asana=error`);
   }
 }

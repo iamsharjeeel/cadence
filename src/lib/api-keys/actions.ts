@@ -105,7 +105,7 @@ export async function generateApiKey(
     return { ok: false, message: "Couldn't generate API key." };
   }
 
-  revalidatePath("/app/profile");
+  revalidatePath("/app/user-settings");
   revalidatePath("/app/employees");
 
   return {
@@ -151,7 +151,7 @@ export async function revokeApiKey(id: string): Promise<ActionResult> {
     return { ok: false, message: "Couldn't revoke API key." };
   }
 
-  revalidatePath("/app/profile");
+  revalidatePath("/app/user-settings");
   revalidatePath("/app/employees");
   return { ok: true, message: "API key revoked." };
 }

@@ -77,7 +77,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 
 ### Phase 7 — In-app time tracking
 - Weekly submission (Mon–Sun): log time at `/app/timesheets` (employees) or `/app/timesheets/log` with auto-save via Supabase browser client (RLS-scoped)
-- **Personal (no-org) users** can log time in personal workspace: entries and timesheets save with `org_id = null`; no submit-for-approval flow (entries persist as drafts). Switching into an org via the workspace switcher scopes new entries to that org and restores the approval workflow.
+- **Personal (no-org) users** can log time in personal workspace: entries and timesheets save with `org_id = null`; personal timesheet lifecycle (mark complete → 3-day edit window → auto-lock) replaces org submit-for-approval. Switching into an org via the workspace switcher scopes new entries to that org and restores the approval workflow.
 - Seven-day view (weekends optional); submit gate (org context only): 5 days logged or 40 hours; overtime flagged for manager review
 - Draft rows persist only with valid start/end; overlap guard excludes self and invalid DB rows
 - Branded **TimePicker** and **DatePicker** components (gold accent, Framer Motion popovers) replace native time/date inputs app-wide
@@ -98,7 +98,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 
 ### Phase 9 — Asana OAuth + project import
 - **Per-user OAuth:** each Cadence user connects their own Asana account (not org-level)
-- **Profile → Connected accounts:** Connect / Disconnect Asana; tokens encrypted at rest (AES-256-GCM via `DOCUMENT_ENCRYPTION_KEY`)
+- **Profile → Settings** (`/app/user-settings`): Connect / Disconnect Asana; tokens encrypted at rest (AES-256-GCM via `DOCUMENT_ENCRYPTION_KEY`)
 - **OAuth callback:** `GET /api/asana/callback` (registered redirect URI in Asana + Vercel)
 - **Project import:** browse workspaces/projects from Asana, import into personal `asana_imported_projects` list
 - **Entry tagging:** optional Asana project picker on each time entry row (separate from Cadence `projects`)
@@ -115,7 +115,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 ### Phase 9b — Asana picker polish
 - **Picker layout:** Asana project leads the row (same visual weight as Cadence dropdown); Cadence project second; picker hidden when not connected
 - **Custom listbox:** imported-project dropdown clamped to `max-h-60` with scroll (fixes native `<select>` overflow)
-- **Profile hash scroll:** `/app/profile#section-connected` scrolls to Connected accounts (`ProfileHashScroll` + `scroll-mt-20` on section cards)
+- **Settings hash scroll:** `/app/user-settings#section-connected` scrolls to Connected accounts (`UserSettingsHashScroll` + `scroll-mt-20` on section cards)
 - **Bell badge:** unread `asana_reconnect_required` shows Asana icon on the notification dot (coral mark, distinct from count badge)
 - **Project links:** collapsed entry tag + expanded “Open in Asana” use `https://app.asana.com/0/{asana_project_gid}` (gid already stored — no migration)
 - **Collapsed sync:** “Synced …” timestamp on collapsed entry summary when an Asana project is tagged
@@ -129,7 +129,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 
 ### Phase 10 — Google Calendar integration
 - **Per-user OAuth:** Google Calendar `calendar.readonly` + `calendar.events` scopes; tokens encrypted at rest (`cadence-gcal-v1` salt). Users who connected before the events scope was added must reconnect to enable leave push.
-- **Profile → Connected accounts:** side-by-side Asana + Google Calendar tiles; Manage modals for each integration
+- **Settings → Connected accounts:** side-by-side Asana + Google Calendar tiles; Manage modals for each integration
 - **Calendar sync:** select calendars, sync events (−7 to +60 days), persisted in `google_calendar_events`
 - **Leave → Google Calendar (one-way):** confirmed personal time off and org-approved leave create all-day events in the user's primary calendar; leave view does not pull GCal events in
 - **Log time:** “From calendar” suggestions per day; prefill via `?date=&prefill=` query params
@@ -257,7 +257,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
   - `GET /api/v1/members` — org key only; memberships with role display (`admin` → `manager`)
 - **Webhooks-out** (`webhook_endpoints`, extended `webhook_deliveries`): `dispatchWebhookEvent` POSTs signed payloads (`X-Cadence-Signature: sha256=…`), 10s timeout, single attempt recorded per delivery
 - **Event triggers** (fire-and-forget): `timesheet.submitted`, `timesheet.approved`, `leave.requested`, `leave.approved`, `leave.rejected`, `member.invited`, `member.joined`
-- **Developer settings UI**: Profile → API keys (personal); Organization → Settings tab → API keys + webhook endpoints (owner/manager); approval settings remain owner-only
+- **Developer settings UI**: Settings (`/app/user-settings`) → API keys (personal); Organization → Settings tab → API keys + webhook endpoints (owner/manager); approval settings remain owner-only
 
 #### Untested (manual QA recommended)
 - Live `api_keys` / `webhook_endpoints` RLS against production Supabase (migrations assumed applied externally)

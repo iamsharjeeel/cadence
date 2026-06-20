@@ -222,7 +222,7 @@ export function ProjectsManager({
           <p className="mb-3 text-sm text-muted">
             Imported from Asana — used for tagging time entries. Manage from your{" "}
             <a
-              href="/app/profile#section-connected"
+              href="/app/user-settings#section-connected"
               className="underline hover:text-ink"
             >
               profile
