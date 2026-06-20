@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 
+import { AsanaIcon } from "@/components/icons/AsanaIcon";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
@@ -135,7 +136,13 @@ export function ProjectsManager({
                         · {project.client_name}
                       </span>
                     ) : null}
-                    {inOrg ? (
+                    {project.source === "asana" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#F06A6A]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#C94A4A]">
+                        <AsanaIcon size={11} />
+                        Asana
+                      </span>
+                    ) : null}
+                    {inOrg && project.source !== "asana" ? (
                       <span
                         className={cn(
                           "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
@@ -147,16 +154,29 @@ export function ProjectsManager({
                         {project.scope === "org" ? "Org" : "Personal"}
                       </span>
                     ) : null}
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                        project.billable_default
-                          ? "bg-[var(--accent-soft)]/60 text-[var(--accent-strong)]"
-                          : "bg-surface-low text-muted",
-                      )}
-                    >
-                      {project.billable_default ? "Billable" : "Non-billable"}
-                    </span>
+                    {project.source !== "asana" ? (
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                          project.billable_default
+                            ? "bg-[var(--accent-soft)]/60 text-[var(--accent-strong)]"
+                            : "bg-surface-low text-muted",
+                        )}
+                      >
+                        {project.billable_default ? "Billable" : "Non-billable"}
+                      </span>
+                    ) : null}
+                    {project.source === "asana" && project.asana_project_gid ? (
+                      <a
+                        href={`https://app.asana.com/0/${project.asana_project_gid}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline"
+                      >
+                        Open in Asana
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : null}
                   </div>
                   {project.description ? (
                     <p className="mt-1 line-clamp-2 text-sm text-muted">

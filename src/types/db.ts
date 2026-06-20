@@ -1262,6 +1262,7 @@ export type Database = {
           end_time: string
           entry_mode: string
           decimal_hours: number | null
+          created_by_timer: boolean
           total_hours: number
           description: string | null
           billable: boolean
@@ -1280,6 +1281,7 @@ export type Database = {
           start_time: string
           end_time: string
           entry_mode?: string
+          created_by_timer?: boolean
           decimal_hours?: number | null
           /** Generated column — omit on insert. */
           total_hours?: number
@@ -1301,6 +1303,7 @@ export type Database = {
           end_time?: string
           entry_mode?: string
           decimal_hours?: number | null
+          created_by_timer?: boolean
           total_hours?: number
           description?: string | null
           billable?: boolean

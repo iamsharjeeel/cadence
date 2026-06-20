@@ -224,6 +224,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 13. `supabase/migrations/20260624000000_google_calendar.sql` — **required for Google Calendar integration**
 14. `supabase/migrations/20260616000001_org_settings.sql` — org approval settings + `get_or_create_org_settings` RPC
 15. `supabase/migrations/20260630000001_time_entries_approval_status.sql` — `time_entries.status` (`pending_approval` | `approved`)
+16. `supabase/migrations/20260630000002_time_entries_created_by_timer.sql` — `created_by_timer` boolean (timer provenance; applied on prod)
 
 ### F1 — Org approval settings (shipped)
 - **`org_settings` table** per org: tier, timesheet/leave/expense approval toggles, `approver_scope` (`owner_only` | `owner_and_managers`)
@@ -233,12 +234,13 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - Members tab respects role matrix: owner manages roles/invite/remove; manager read-only list; employee redirected; superadmin platform audit view
 
 ### F2 — Toggl-style timer (shipped)
-- **Floating timer** in app shell (all `/app/*` pages) — bottom-right, collapsible
+- **Floating timer** in app shell (all `/app/*` pages), collapsible
 - Start → project prompt (Cadence `ProjectPicker`, skippable); running state with elapsed HH:MM:SS + pulsing indicator
-- Stop saves `time_entries` via server action; persists in `TimerContext` (no localStorage)
+- Stop saves `time_entries` via server action with `created_by_timer = true`; runtime state in `TimerContext`
 - Mid-session project reassignment; 30-minute idle modal; midnight auto-stop with day split
 - If `approvals_timesheets` is on → `status = pending_approval`; personal/off → `approved`
 - Conflict guard when starting a second timer
+- **Session E update:** widget is now draggable and viewport-constrained; position persists per-user in localStorage key `cadence:timer-widget-position:v1:<userId>`
 
 ### F3 — Reporting (shipped)
 - **`/app/reports`** — personal report always visible; org report for owner/manager in org workspace
@@ -246,6 +248,22 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - Personal: total hours, project breakdown (recharts bar), billable split
 - Org: total hours, per-member (hours, billable %, utilization %), per-project table, client-side CSV export
 - Defense-in-depth workspace filters on all queries; employees in org context see personal tab only
+
+### Session E — Projects + Time Tracked visibility (shipped)
+- **Projects tab now merges Cadence + Asana imported projects** (previously only read from `projects`)
+- Asana-synced projects are clearly marked with an Asana badge and include an "Open in Asana" deep link
+- Asana import/remove/sync/disconnect actions now revalidate `/app/projects`
+- **New nav page:** `/app/time-tracked`
+  - Read-only log of timer-created sessions (`created_by_timer = true`) in active workspace scope
+  - Filters: time window (this week / this month / custom) and project
+  - Summary stats: timer hours vs manual hours for the filtered window
+  - List columns include project, duration, started/ended timestamps, status, and notes
+  - Empty state uses shared `EmptyState` (pre-ship history not backfilled — list starts empty until new timer stops)
+
+### Time tracked provenance (shipped)
+- **`created_by_timer`** on `time_entries` — `true` when the floating timer saves on stop; manual weekly-log entries stay `false`
+- Migration: `supabase/migrations/20260630000002_time_entries_created_by_timer.sql` (applied on production; existing rows not backfilled)
+- Inline **Timer** marker (lucide `Timer` icon) on timer-created entries in the weekly log and timesheet detail views
 
 ### F4 — Public API v1 + webhooks-out (shipped)
 - **API keys** (`api_keys` table): `cad_live_<hex>` format, SHA-256 hash stored, prefix shown in UI; `generateApiKey` server action; max 10 active keys per user/org scope

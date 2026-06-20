@@ -74,6 +74,7 @@ export async function saveTimerEntries(
         start_time: seg.startTime,
         end_time: seg.endTime,
         entry_mode: "time_range",
+        created_by_timer: true,
         description: payload.description?.trim() || null,
         billable: payload.billable ?? true,
         status,
@@ -92,6 +93,7 @@ export async function saveTimerEntries(
 
   revalidatePath("/app/timesheets");
   revalidatePath("/app/timesheets/log");
+  revalidatePath("/app/time-tracked");
   revalidatePath("/app/reports");
   revalidatePath("/app/dashboard");
 

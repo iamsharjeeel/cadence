@@ -70,6 +70,7 @@ export function AppShell({
         <AppProviders
           orgId={orgSettingsOrgId}
           canLoadOrgSettings={canLoadOrgSettings}
+          userId={profile.id}
         >
           <OrgDocumentReminderCheck />
           <div className="flex min-h-screen bg-background">

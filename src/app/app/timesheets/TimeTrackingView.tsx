@@ -115,6 +115,7 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
     billable: e.billable,
     billableTouched: true,
     total_hours: computedHours,
+    created_by_timer: e.created_by_timer ?? false,
     saveState: "saved",
     collapsed: true,
   };

@@ -6,6 +6,7 @@ import { Check, Loader2, Trash2 } from "lucide-react";
 
 import { AsanaProjectPickerMeta } from "@/components/asana/AsanaProjectPicker";
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
+import { TimerProvenanceMarker } from "@/components/time/TimerProvenanceMarker";
 import { ProjectPicker } from "@/components/time/ProjectPicker";
 import { asanaProjectUrl, formatAsanaSyncedAt } from "@/lib/asana/urls";
 
@@ -37,6 +38,7 @@ export type EntryRowData = {
   /** When false, picking a project may seed billable from project.billable_default. */
   billableTouched?: boolean;
   total_hours?: number | null;
+  created_by_timer?: boolean;
   saveState: SaveState;
   error?: string;
   collapsed?: boolean;
@@ -321,6 +323,7 @@ export function TimeEntryRow({
           <span className="tabular shrink-0 text-sm font-medium text-ink">
             {timeSummary}
           </span>
+          {entry.created_by_timer ? <TimerProvenanceMarker compact /> : null}
           <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />
           <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-ink">
             {hasCadenceProject ? (
@@ -427,6 +430,7 @@ export function TimeEntryRow({
               </button>
             ))}
           </div>
+          {entry.created_by_timer ? <TimerProvenanceMarker /> : null}
         </div>
 
         {isDecimalMode ? (

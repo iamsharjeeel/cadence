@@ -7,12 +7,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getWorkspaceContext, type WorkspaceContext } from "@/lib/workspace";
 import type { Project } from "@/types/time-tracking";
 import { PROJECT_PRESET_COLORS } from "@/types/time-tracking";
+import type { AsanaImportedProject } from "@/types/db";
 
 export type ActionResult = { ok: boolean; message: string; id?: string };
 
 export type ProjectListItem = Project & {
-  scope: "org" | "personal";
+  scope: "org" | "personal" | "asana";
   canEdit: boolean;
+  source: "cadence" | "asana";
+  asana_project_gid: string | null;
+  asana_workspace_name: string | null;
 };
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;
@@ -89,6 +93,7 @@ export async function listProjects(): Promise<ProjectListItem[]> {
   const activeOrgId = ctx.activeOrgId;
 
   let projects: Project[] = [];
+  let asanaProjects: AsanaImportedProject[] = [];
 
   if (!activeOrgId) {
     const { data } = await db
@@ -123,11 +128,45 @@ export async function listProjects(): Promise<ProjectListItem[]> {
     projects = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  return projects.map((project) => ({
+  const { data: importedAsana } = await db
+    .from("asana_imported_projects")
+    .select("*")
+    .eq("user_id", userId)
+    .order("asana_project_name");
+
+  asanaProjects = (importedAsana ?? []) as AsanaImportedProject[];
+
+  const cadenceItems: ProjectListItem[] = projects.map((project) => ({
     ...project,
     scope: project.is_org_wide ? ("org" as const) : ("personal" as const),
     canEdit: projectPermissions(project, ctx).canEdit,
+    source: "cadence",
+    asana_project_gid: null,
+    asana_workspace_name: null,
   }));
+
+  const asanaItems: ProjectListItem[] = asanaProjects.map((project) => ({
+    id: project.id,
+    org_id: null,
+    owner_id: project.user_id,
+    name: project.asana_project_name,
+    color: "#F06A6A",
+    description: null,
+    client_name: project.asana_workspace_name,
+    billable_default: true,
+    is_org_wide: false,
+    is_active: true,
+    created_at: project.imported_at,
+    scope: "asana",
+    canEdit: false,
+    source: "asana",
+    asana_project_gid: project.asana_project_gid,
+    asana_workspace_name: project.asana_workspace_name,
+  }));
+
+  return [...cadenceItems, ...asanaItems].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
 }
 
 export async function getProjectsPageContext(): Promise<{

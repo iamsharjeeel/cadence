@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/Card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { Badge, OvertimeBadge, TimesheetStatusPill } from "@/components/ui/Badge";
+import { TimerProvenanceMarker } from "@/components/time/TimerProvenanceMarker";
 import { Button } from "@/components/ui/Button";
 import { requireActiveProfile, hasRole } from "@/lib/auth";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
@@ -349,7 +350,12 @@ export default async function TimesheetDetailPage({
               <TBody>
                 {entries.map((r) => (
                   <TR key={r.id}>
-                    <TD className="tabular text-sm">{formatDate(r.entry_date)}</TD>
+                    <TD className="tabular text-sm">
+                      <div className="flex items-center gap-2">
+                        {formatDate(r.entry_date)}
+                        {r.created_by_timer ? <TimerProvenanceMarker compact /> : null}
+                      </div>
+                    </TD>
                     <TD className="tabular text-sm">{String(r.start_time).slice(0, 5)}</TD>
                     <TD className="tabular text-sm">{String(r.end_time).slice(0, 5)}</TD>
                     <TD className="tabular text-sm">{entryHours(r)}</TD>
