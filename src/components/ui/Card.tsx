@@ -4,9 +4,9 @@ type CardDensity = "compact" | "comfortable";
 
 const CARD_DENSITY_CLASSES: Record<CardDensity, string> = {
   compact:
-    "[--card-pad-x:1rem] [--card-pad-y:0.875rem] [--card-footer-y:0.75rem] [--card-title-size:1rem]",
+    "[--card-pad-x:0.875rem] [--card-pad-y:0.75rem] [--card-footer-y:0.625rem] [--card-title-size:0.9375rem]",
   comfortable:
-    "[--card-pad-x:1.5rem] [--card-pad-y:1.25rem] [--card-footer-y:1rem] [--card-title-size:1.125rem]",
+    "[--card-pad-x:1.25rem] [--card-pad-y:1rem] [--card-footer-y:0.875rem] [--card-title-size:1.0625rem]",
 };
 
 export function Card({

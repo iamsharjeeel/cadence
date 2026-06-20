@@ -337,7 +337,7 @@ function HeatmapGrid({
               <div
                 key={d.date}
                 title={`${d.date}: ${d.hours.toFixed(1)}h`}
-                className="h-3 w-3 rounded-sm"
+                className="h-3 w-3 rounded-none"
                 style={{
                   backgroundColor: heatmapCellColor(d.hours, dark),
                 }}

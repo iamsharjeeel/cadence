@@ -9,7 +9,7 @@ import { MODAL_BACKDROP, MODAL_PANEL } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 export const MODAL_PANEL_CLASS =
-  "w-full rounded-[var(--radius-card)] bg-surface p-6 shadow-float dark:rounded-none dark:border dark:border-[var(--accent)] dark:bg-[var(--surface)] dark:shadow-none";
+  "w-full rounded-[var(--radius-card)] bg-surface p-5 shadow-float dark:rounded-none dark:border dark:border-[var(--accent)] dark:bg-[var(--surface)] dark:shadow-none";
 
 export function MotionModal({
   open,

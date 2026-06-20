@@ -127,7 +127,7 @@ export function OnboardingWizard({
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-center gap-2">
+      <div className="mb-6 flex items-center justify-center gap-2">
         {STEP_LABELS.map((label, i) => {
           const completed =
             completedSteps.includes(STEP_KEYS[i]!) || i < step;

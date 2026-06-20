@@ -1769,3 +1769,32 @@ Follow-on to the 2026-06-19 portal fix (which made the popover *appear/position*
 
 #### Verification
 - `npm run typecheck` + `npm run build` pass clean.
+
+### Visual overhaul — unified sharp corners + density pass ✅ (2026-06-20)
+
+Shape/density/structure pass only — **no recolor** (gold accent + both light/dark palettes unchanged). Goal: light mode adopts dark's premium squared geometry, and cards/sections stop reading as oversized/template.
+
+#### Root of the light↔dark divergence (audit)
+- `src/app/globals.css`: `:root` carried rounded radii (`--radius-card: 10px`, `--radius-input: 7px`, `--radius-chip: 9999px`) while `.dark` set all three to `0` **and** had a `.dark`-scoped `!important` block flattening `rounded-md/lg/xl`. So light = curved, dark = sharp.
+- ~100 usages are token-driven (`rounded-[var(--radius-*)]`); `rounded-full` (59×) was never flattened in dark either (correctly — circles/dots/toggles). A handful of hardcoded radii (`rounded-[12px]` ×16 in profile panels, `rounded-[8px]` ×2, `rounded-2xl`, `rounded-sm`) were curved in *both* modes and bypassed the system.
+
+#### Corners — token-first (`globals.css`)
+- `:root` radii set to `0` (card/input/chip) to match `.dark`.
+- The squared-corner `!important` override is now **theme-agnostic** (was `.dark`-only) → also flattens raw `rounded-md/lg/xl` in light; can't drift back.
+- Hardcoded radii converted: `rounded-[12px]` → `rounded-[var(--radius-card)]` (3 profile connected-account panels); `rounded-[8px]` → `rounded-none` (WorkspaceSwitcher badges); `rounded-2xl` → `rounded-none` (AsanaImportModal); `rounded-sm` → `rounded-none` (Trends heatmap cell); `AuditLogViewer` action chip `rounded-full`+`dark:rounded-none` → chip token (was a true divergence); `ProjectsManager` scope/billable pills → chip token.
+- `rounded-full` intentionally untouched everywhere (avatars, status dots, toggle switches, thin progress tracks, notification count badge) — these are circles/pills, not boxes, and are round in dark too.
+
+#### Density — component-first
+- `Card`: compact `1rem/0.875rem` → `0.875rem/0.75rem`; comfortable `1.5rem/1.25rem` → `1.25rem/1rem` (+ smaller title tokens).
+- `Table` TH/TD `px-4 py-2.5` → `px-3 py-2`; `Input`/`Select`/`DatePicker`/`TimePicker` (`fieldBase`) `h-10` → `h-9`; `Button` md `h-11 px-5` → `h-10 px-4`; `Badge` `px-2.5 py-1` → `px-2 py-0.5`; `MotionModal` `p-6` → `p-5`; `EmptyState` `py-14` → `py-10` (icon 12→11); `Skeleton` card `p-6` → `p-4`; `PageHeader` `mb-6` → `mb-5`.
+- `StatCard` (dashboard, biggest offender): padding `1.5/1.25rem` → `1.25/1rem`, content `py-6` → `py-4`, inner `py-4` → `py-2`, number `…lg:text-6xl` → `…lg:text-4xl`.
+- Page-level (only where shared defaults can't reach): dashboard stat blocks `py-6`→`py-4` + recent-list rows `px-6 py-4`→`px-4 py-3`; time-log two-column grid `gap-6`→`gap-4`; timesheet filter bar + approval banners `px-6`→`px-4`; onboarding step indicator `mb-8`→`mb-6`.
+
+#### Scope swept
+Dashboard (employee + admin), Timesheets (list/log/detail), Employees/Organization (team table, invite modal, settings tabs — via shared Table/Modal/Card), Onboarding wizard. Marketing/landing inherits the token change (consistent, not separately tuned).
+
+#### Needs decision (left as-is, flagged)
+- **Segmented/toggle pill controls** (time-entry mode toggle, Trends/Reports/Leave date-range selectors) use `rounded-full` and stay round — they're round in dark too, so not a light↔dark divergence. Open question whether to square them for a stricter look.
+
+#### Verification
+- `npm run typecheck` + `npm run build` pass clean. Colors verified unchanged (no palette/token color edits).

@@ -61,7 +61,7 @@ export async function EmployeeDashboardContent({
           density="comfortable"
           className="min-w-0 overflow-hidden dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none"
         >
-          <CardContent className="flex flex-col gap-0 py-6">
+          <CardContent className="flex flex-col gap-0 py-4">
             <span className="font-body text-[10px] font-semibold uppercase tracking-[0.08em] text-muted sm:text-[11px] dark:text-[var(--ink-muted)]">
               Total earnings this month
             </span>
@@ -90,14 +90,14 @@ export async function EmployeeDashboardContent({
           </CardHeader>
           <CardContent className="p-0">
             {data.recentTimesheets.length === 0 ? (
-              <p className="px-6 py-8 text-sm text-muted">No timesheets yet.</p>
+              <p className="px-4 py-6 text-sm text-muted">No timesheets yet.</p>
             ) : (
               <ul>
                 {data.recentTimesheets.map((t) => (
                   <li key={t.id} className="odd:bg-surface-low">
                     <Link
                       href={`/app/timesheets/${t.id}`}
-                      className="flex items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-[var(--accent-soft)]/30"
+                      className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-[var(--accent-soft)]/30"
                     >
                       <span className="tabular text-sm text-ink">
                         {formatDate(t.period_start)} – {formatDate(t.period_end)}

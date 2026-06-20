@@ -138,7 +138,7 @@ export function ProjectsManager({
                     {inOrg ? (
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                          "rounded-[var(--radius-chip)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
                           project.scope === "org"
                             ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
                             : "bg-surface-low text-muted",
@@ -149,7 +149,7 @@ export function ProjectsManager({
                     ) : null}
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        "rounded-[var(--radius-chip)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
                         project.billable_default
                           ? "bg-[var(--accent-soft)]/60 text-[var(--accent-strong)]"
                           : "bg-surface-low text-muted",

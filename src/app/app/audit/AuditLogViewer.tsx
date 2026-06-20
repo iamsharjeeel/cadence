@@ -16,7 +16,7 @@ import { cn, titleCase } from "@/lib/utils";
 function auditActionBadgeClass(action: string): string {
   const a = action.toLowerCase();
   const base =
-    "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide dark:rounded-none";
+    "inline-flex items-center rounded-[var(--radius-chip)] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide dark:rounded-none";
 
   if (
     a === "created" ||

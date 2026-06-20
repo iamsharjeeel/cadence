@@ -19,7 +19,7 @@ const variants: Record<Variant, string> = {
 
 const sizes: Record<Size, string> = {
   sm: "h-9 px-3 text-sm",
-  md: "h-11 px-5 text-sm",
+  md: "h-10 px-4 text-sm",
 };
 
 /** Shared button surface classes for `<Link>` CTAs (avoids nested button in anchor). */

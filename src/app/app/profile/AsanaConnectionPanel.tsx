@@ -60,9 +60,9 @@ export function AsanaConnectionPanel({
   }
 
   return (
-    <div className="rounded-[12px] border border-line bg-surface-low p-5">
+    <div className="rounded-[var(--radius-card)] border border-line bg-surface-low p-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#F06A6A]/10">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-card)] bg-[#F06A6A]/10">
           <AsanaIcon size={20} />
         </div>
         <div className="min-w-0">
@@ -84,7 +84,7 @@ export function AsanaConnectionPanel({
       </div>
 
       {needsReconnect ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[12px] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]">
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]">
           Your Asana connection needs additional permissions.
           <Link href="/api/asana/connect" className={buttonStyles("primary", "sm")}>
             Reconnect Asana
@@ -111,11 +111,11 @@ export function AsanaConnectionPanel({
         </div>
 
         {importedProjects.length === 0 ? (
-          <p className="rounded-[12px] border border-dashed border-line px-4 py-5 text-center text-sm text-muted">
+          <p className="rounded-[var(--radius-card)] border border-dashed border-line px-4 py-5 text-center text-sm text-muted">
             No projects imported yet.
           </p>
         ) : (
-          <ul className="max-h-48 divide-y divide-line overflow-y-auto rounded-[12px] border border-line">
+          <ul className="max-h-48 divide-y divide-line overflow-y-auto rounded-[var(--radius-card)] border border-line">
             {importedProjects.map((project) => (
               <li
                 key={project.id}

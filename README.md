@@ -182,6 +182,12 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
 - **Documents step removed (5 → 4)**: steps are now Personal · Employment · Banking & tax · Emergency contact; `progress.ts` tracks 4 steps; no live path creates a new `documents` onboarding row (historical labels retained for already-completed users). Official-document signing remains available from the Official documents tab.
 - **Wizard layout**: full-screen flow is now a centered `max-w-md` card using the existing `Card` + gold tokens.
 
+### Visual overhaul — unified sharp corners + density pass
+A shape/density/structure pass (no recolor — gold accent and both palettes unchanged) so light mode matches dark's premium squared feel and surfaces stop reading as oversized.
+- **Corners (token-first):** light now adopts dark's squared geometry. `--radius-card`/`--radius-input`/`--radius-chip` → `0` in `:root` (were 10/7/9999px); the previously `.dark`-only squared-corner `!important` override now applies in both themes (also catches raw `rounded-md/lg/xl`). Hardcoded `rounded-[12px]`/`[8px]`/`2xl`/`sm` converted to tokens or `rounded-none`. `rounded-full` left intact (circles/pills/toggles).
+- **Density (component-first):** tightened `Card` (compact + comfortable padding), `Table` cells (`px-3 py-2`), `Input`/`Select`/`DatePicker`/`TimePicker` (`h-9`), `Button` md (`h-10`), `Badge`, `MotionModal` (`p-5`), `EmptyState`, `Skeleton`, and dashboard `StatCard` (smaller number + padding). Page-level tightening only where a shared default can't reach (dashboard lists, time-log grid, approval banners, filter bars, onboarding indicator).
+- Applied through shared tokens/components so the look can't silently drift back per-page. `npm run typecheck` + `npm run build` pass.
+
 ## Getting started
 
 ```bash
@@ -278,6 +284,8 @@ Cadence uses a **quiet luxury** token system — parchment light mode and true-b
 - **Typography:** Space Grotesk (`--font-space`) for headings and UI chrome; Inter (`--font-inter`) for body; Playfair Display (`--font-playfair`) on the landing hero only (decorative tagline)
 - **Light tokens:** background `#FBFAF7`, surface `#FFFFFF`, ink `#1A1917`, accent gold `#7F560C` / mid `#C9974A`
 - **Dark tokens (Stitch):** background `#0A0A08`, surface `#131310`, accent `#F7BD48`, sharp corners (0px radius), hairline borders, no card shadows
+- **Geometry (unified, both themes):** sharp `0px` corners in light **and** dark — `--radius-card` / `--radius-input` / `--radius-chip` are all `0`, and the squared-corner override applies in both themes (also flattens raw `rounded-md/lg/xl`). `rounded-full` is reserved for genuine circles/pills (avatars, status dots, toggle switches, thin progress tracks, the notification count badge). Light keeps its soft shadow + hairline border; dark keeps hairline-only.
+- **Density:** compact shared-component padding (Card / Table / Input / Button / Badge / Modal / StatCard) for a denser, considered layout — tuned at the token/component level so it stays consistent app-wide.
 - **Light polish + dark mode:** see session note above — gold-on-black stat numbers, uppercase dark nav, audit badge chips, modal gold border in dark
 - **Primitives:** CSS variables in `src/app/globals.css`, mapped in `tailwind.config.ts` — `bg-background`, `bg-surface`, `bg-surface-low`, `text-ink`, `text-muted`, `shadow-card`, `shadow-float`, `rounded-card` / `rounded-input`
 - **Numeric data:** `.tabular` utility (`font-feature-settings: "tnum"`)

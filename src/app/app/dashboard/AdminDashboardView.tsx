@@ -97,7 +97,7 @@ export function AdminDashboardView({
             density="comfortable"
             className="dark:border dark:border-[var(--line)] dark:bg-[var(--surface)] dark:shadow-none"
           >
-            <CardContent className="flex flex-col gap-0 py-6">
+            <CardContent className="flex flex-col gap-0 py-4">
               <span className="font-body text-[11px] font-semibold uppercase tracking-[0.08em] text-muted dark:text-[var(--ink-muted)]">
                 Payroll estimate
               </span>

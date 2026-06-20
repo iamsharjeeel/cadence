@@ -11,7 +11,7 @@ import type {
 type Tone = "accent" | "muted" | "danger" | "success" | "pending" | "error";
 
 const badgeBase =
-  "inline-flex items-center gap-1.5 rounded-[var(--radius-chip)] px-2.5 py-1 text-xs font-medium font-body dark:rounded-none";
+  "inline-flex items-center gap-1.5 rounded-[var(--radius-chip)] px-2 py-0.5 text-xs font-medium font-body dark:rounded-none";
 
 export function Badge({
   children,

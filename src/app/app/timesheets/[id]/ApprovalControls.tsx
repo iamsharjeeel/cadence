@@ -85,7 +85,7 @@ export function ApprovalControls({
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="mb-4 rounded-[var(--radius-card)] border border-[var(--accent)] bg-[var(--accent-soft)] px-6 py-5"
+        className="mb-4 rounded-[var(--radius-card)] border border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-4"
       >
         <p className="text-sm font-medium text-[var(--accent-strong)]">
           Timesheet approved
@@ -100,7 +100,7 @@ export function ApprovalControls({
   if (status !== "submitted") return null;
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border bg-surface px-6 py-4">
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border bg-surface px-4 py-3">
       <span className="text-sm text-muted">Review this submission:</span>
       <form action={approveAction}>
         <input type="hidden" name="id" value={timesheetId} />

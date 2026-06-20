@@ -43,7 +43,7 @@ function InitialBadge({
   return (
     <span
       className={cn(
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border text-[11px] font-semibold leading-none",
+        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none border text-[11px] font-semibold leading-none",
         personal
           ? "border-[var(--accent)]/30 bg-[var(--accent-soft)] text-[var(--accent-strong)]"
           : "border-[var(--line)] bg-surface-low text-ink",
@@ -347,7 +347,7 @@ export function WorkspaceSwitcher({
                   className={cn(rowBase, "rounded-[var(--radius-input)]")}
                   onClick={() => setCreating(true)}
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-dashed border-[var(--line)] text-muted">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-none border border-dashed border-[var(--line)] text-muted">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path
                         d="M12 5v14M5 12h14"

@@ -16,7 +16,7 @@ export function PageHeader({
   greeting?: boolean;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex flex-col gap-0.5">
         {orgName && (
           <div className="mb-0.5 flex items-center gap-2.5">

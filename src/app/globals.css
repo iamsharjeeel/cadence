@@ -26,9 +26,9 @@
   --shadow-float: 0px 2px 6px rgba(26, 25, 23, 0.05),
     0px 14px 28px rgba(26, 25, 23, 0.045);
 
-  --radius-card: 10px;
-  --radius-input: 7px;
-  --radius-chip: 9999px;
+  --radius-card: 0px;
+  --radius-input: 0px;
+  --radius-chip: 0px;
 
   --border-hairline: 1px solid var(--line);
 
@@ -64,12 +64,17 @@
   --danger-soft: rgba(242, 101, 92, 0.14);
 }
 
-.dark .card,
-.dark [class*="rounded-card"],
-.dark [class*="rounded-input"],
-.dark [class*="rounded-md"],
-.dark [class*="rounded-lg"],
-.dark [class*="rounded-xl"] {
+/* Sharp corners in BOTH themes — light now adopts dark's squared geometry.
+   Token radii are already 0 via the variables above; this also flattens raw
+   Tailwind rounded-md/lg/xl so the squared look can't silently drift back.
+   (rounded-full is intentionally excluded: avatars, dots, toggles, thin
+   progress tracks stay circular in both modes.) */
+.card,
+[class*="rounded-card"],
+[class*="rounded-input"],
+[class*="rounded-md"],
+[class*="rounded-lg"],
+[class*="rounded-xl"] {
   border-radius: 0px !important;
 }
 

@@ -131,7 +131,7 @@ export function AsanaImportModal({
         </div>
       </div>
 
-      <div className="mt-5 min-h-0 flex-1 overflow-y-auto rounded-2xl border border-line">
+      <div className="mt-5 min-h-0 flex-1 overflow-y-auto rounded-none border border-line">
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted">
             <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
