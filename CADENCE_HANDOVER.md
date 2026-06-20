@@ -1812,4 +1812,38 @@ _(none logged)_
 #### Verification
 - `npm run build` passes.
 
+### Session — Landing page rewrite + redesign (`/` marketing route) ✅ (2026-06-20, app-layer only; no DB change)
+
+**Pushed directly to `main`** (public-facing content/design fix; no migration).
+
+#### Why
+- The old landing page (`src/components/marketing/LandingPage.tsx`) **described a different product than Cadence actually is.** It pitched spreadsheet upload / drag-and-drop CSV / Google Sheets parsing / "smart header mapping" and Xero/QuickBooks/Slack/Gmail integrations as core features — none of which exist in the current product (those were the legacy Phase 2 upload flow, since replaced by direct in-app time logging). It also carried **fabricated testimonials** (Alex Morgan / Priya Shah / James Okonkwo — not real people) and **broken static stat counters**.
+
+#### What changed (structure)
+- **Hero** now leads with the real differentiator — *personal-first, organization-optional*: "Your own timesheet today. Your team's when you're ready." Subhead frames it as one coherent idea (personal workspace from sign-up; org layered on later, same account, no re-onboarding).
+- **Trust bar** reduced to the only real integrations: **Asana** + **Google Calendar** (removed Xero/QuickBooks/Slack/Gmail/generic "Google Sheets").
+- **Features** rebuilt around real, currently-built capabilities: direct logging + floating timer, flexible periods (week / 15-day / monthly), full log→submit→lock lifecycle, per-entry copy-across-period, Asana + Google Calendar, provenance (timer-vs-manual) + secure per-user documents. Short one-idea blocks in a hairline-divided grid (no dense paragraph cards).
+- **Stats band** replaced broken counters with **true** numbers (3 period lengths · 2 native integrations · 1 account solo→team) using the existing working `LandingCountUp` (GSAP, IntersectionObserver — fires correctly).
+- **How it works** rewritten to the real flow: sign up → start logging in your personal workspace → (optional) create/join an org for approvals & team features.
+- **Testimonials removed** — replaced with an honest **product showcase** (`ProductShowcase.tsx`): custom-styled floating-timer + timesheet-week mockup and a log/submit/locked lifecycle strip, built from app design tokens (no screenshots, no fake quotes).
+- **Final CTA + footer** kept structurally; copy updated for accuracy ("Personal-first time tracking, payroll, and HR").
+
+#### Custom graphics (all bespoke, gold/dark token palette)
+- `HeroArt.tsx` — abstract SVG of one personal node expanding into a connected organization (the personal→org concept). Restrained Framer Motion: connectors draw in once on view, nodes settle with a soft stagger, personal node breathes, gentle pointer parallax; all disabled under `prefers-reduced-motion`.
+- `FeatureIcons.tsx` — six hand-built SVG feature icons in one cohesive line system (1.4 stroke, square caps/miter joins, one purposeful accent node each), `currentColor`-driven.
+- `ProductShowcase.tsx` — custom timer-widget + period mockup described above.
+
+#### Technical
+- **Dropped Three.js from the landing entirely** — deleted now-unused `HeroCanvas.tsx`; replaced the particle field with the lighter bespoke `HeroArt` SVG. `/` First Load JS ≈ 179 kB (Framer Motion already shared app-wide). Motion is scoped to `whileInView`/once + small idle pulses only.
+- Light/dark via existing `globals.css` tokens only (no hardcoded colors); arbitrary `var(--radius-*)` radii resolve to sharp 0 in dark as designed. Mobile-responsive (stacking grids, `overflow-hidden` guards on the showcase so the floating widget never causes horizontal scroll).
+- Routes intact: Sign in / Get started → `/login`; footer → `/privacy`, `/terms` (all verified 200).
+
+#### Files
+- Rewrote `src/components/marketing/LandingPage.tsx`.
+- Added `src/components/marketing/{HeroArt,FeatureIcons,ProductShowcase}.tsx`.
+- Deleted `src/components/marketing/HeroCanvas.tsx` (dead Three.js hero).
+
+#### Verification
+- `npm run typecheck`, `npm run lint`, `npm run build` all pass clean.
+- Runtime smoke test (`/` → 200; new copy present; zero legacy claims Xero/QuickBooks/Google Sheets/"Three ways to submit"/fabricated names; `/login` `/privacy` `/terms` all 200).
 
