@@ -13,20 +13,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
-import { thisWeekMonday } from "@/lib/time/periods";
 import type { Organization, Profile, Timesheet, TimesheetStatus } from "@/types/db";
 import { TimesheetFilters } from "./controls";
 import { TimesheetListTable, type TimesheetListRow } from "./TimesheetListTable";
-import { TimeTrackingView } from "./TimeTrackingView";
 import { TimeLogReminder } from "./TimeLogReminder";
 import { TimesheetPageActions } from "./TimesheetPageActions";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const ctx = await getWorkspaceContext();
-  if (ctx?.isPersonal || ctx?.workspaceRole === "employee") {
-    return { title: { absolute: "Log time · Cadence" } };
-  }
   return { title: "Timesheets" };
 }
 
@@ -54,25 +47,6 @@ export default async function TimesheetsPage({
     Boolean(ctx.activeOrgId) &&
     (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
   const isManager = isSuperadmin || isOrgManager;
-
-  if (!isManager) {
-    const weekMonday = thisWeekMonday();
-    const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
-
-    return (
-      <div>
-        <TimeLogReminder />
-        <PageHeader
-          title="Timesheets"
-          description="Log your hours for the week (Mon–Sun), then submit for approval."
-        />
-        <TimeTrackingView
-          initialWeekMonday={weekMonday}
-          initialData={initialData.ok ? initialData : null}
-        />
-      </div>
-    );
-  }
 
   const statusFilter = (searchParams.status ?? "") as TimesheetStatus | "";
   const employeeFilter = searchParams.employee ?? "";
@@ -176,9 +150,14 @@ export default async function TimesheetsPage({
 
   return (
     <div>
+      {!isManager && <TimeLogReminder />}
       <PageHeader
         title="Timesheets"
-        description="Review employee timesheets — including live drafts in progress."
+        description={
+          isManager
+            ? "Review employee timesheets — including live drafts in progress."
+            : "Your submitted and in-progress timesheets. Log time from the button above."
+        }
         action={
           <TimesheetPageActions
             showExport={isManager}
@@ -187,22 +166,20 @@ export default async function TimesheetsPage({
         }
       />
 
-      {isManager && (
-        <Card className="mb-4">
-          <CardContent>
-            <TimesheetFilters
-              status={statusFilter}
-              employee={employeeFilter}
-              employees={employeeOptions}
-              from={fromFilter}
-              to={toFilter}
-              org={orgFilter}
-              orgs={orgOptions}
-              isSuperadmin={isSuperadmin}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <Card className="mb-4">
+        <CardContent>
+          <TimesheetFilters
+            status={statusFilter}
+            employee={employeeFilter}
+            employees={isManager ? employeeOptions : []}
+            from={fromFilter}
+            to={toFilter}
+            org={orgFilter}
+            orgs={orgOptions}
+            isSuperadmin={isSuperadmin}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

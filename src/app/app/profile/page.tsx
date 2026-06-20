@@ -21,6 +21,7 @@ import { ProfileHashScroll } from "./ProfileHashScroll";
 import { maskSensitive } from "@/lib/bank-crypto";
 import { ProfileBankingForm } from "./ProfileBankingForm";
 import { ProfileNameForm } from "./ProfileNameForm";
+import { AvatarPickerSection } from "./AvatarPickerSection";
 import { ProfileEmploymentForm } from "./ProfileEmploymentForm";
 import { ProfileRateForm } from "./ProfileRateForm";
 import { ProfileEmergencyForm } from "./ProfileEmergencyForm";
@@ -97,7 +98,12 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <CardTitle className="text-base">Personal details</CardTitle>
             <CardDescription>Your display name and email.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-6">
+            <AvatarPickerSection
+              name={profile.full_name}
+              email={profile.email}
+              avatarUrl={profile.avatar_url ?? null}
+            />
             <ProfileNameForm
               defaultName={profile.full_name ?? ""}
               email={profile.email}

@@ -9,7 +9,8 @@ import {
 import {
   addDays,
   isoWeekLabel,
-  weekPeriodFromMonday,
+  viewPeriodForDate,
+  type ViewPeriodCadence,
 } from "@/lib/time/periods";
 import type { WeekStats } from "@/lib/time/week-constants";
 import { weekStatsFromEntries } from "@/lib/time/week-stats-from-entries";
@@ -47,6 +48,85 @@ export async function linkOrphanEntriesToTimesheet(
     .lte("entry_date", periodEnd);
   query = orgId ? query.eq("org_id", orgId) : query.is("org_id", null);
   await query;
+}
+
+export async function ensureTimesheetForViewPeriod(
+  profile: Profile,
+  anchorDate: string,
+  viewCadence: ViewPeriodCadence = "weekly",
+): Promise<
+  | { ok: true; timesheetId: string; status: TimesheetStatus }
+  | { ok: false; message: string }
+> {
+  if (!ISO_DATE.test(anchorDate)) return { ok: false, message: "Invalid period." };
+
+  const period = viewPeriodForDate(anchorDate, viewCadence);
+  const activeOrgId = profile.org_id ?? null;
+  const db = createAdminClient();
+
+  let existingQuery = db
+    .from("timesheets")
+    .select("id, status")
+    .eq("employee_id", profile.id)
+    .eq("period_start", period.start)
+    .in("status", ACTIVE_STATUSES);
+  existingQuery = activeOrgId
+    ? existingQuery.eq("org_id", activeOrgId)
+    : existingQuery.is("org_id", null);
+  const { data: existing } = await existingQuery.maybeSingle();
+
+  if (existing) {
+    return {
+      ok: true,
+      timesheetId: existing.id,
+      status: existing.status as TimesheetStatus,
+    };
+  }
+
+  const { data: created, error } = await db
+    .from("timesheets")
+    .insert({
+      org_id: activeOrgId as string,
+      employee_id: profile.id,
+      period_start: period.start,
+      period_end: period.end,
+      status: "draft",
+    })
+    .select("id, status")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      let retryQuery = db
+        .from("timesheets")
+        .select("id, status")
+        .eq("employee_id", profile.id)
+        .eq("period_start", period.start)
+        .in("status", ACTIVE_STATUSES);
+      retryQuery = activeOrgId
+        ? retryQuery.eq("org_id", activeOrgId)
+        : retryQuery.is("org_id", null);
+      const { data: retry } = await retryQuery.maybeSingle();
+      if (retry) {
+        return {
+          ok: true,
+          timesheetId: retry.id,
+          status: retry.status as TimesheetStatus,
+        };
+      }
+    }
+    return { ok: false, message: "Couldn't create timesheet for this period." };
+  }
+
+  if (!created) {
+    return { ok: false, message: "Couldn't create timesheet for this period." };
+  }
+
+  return {
+    ok: true,
+    timesheetId: created.id,
+    status: created.status as TimesheetStatus,
+  };
 }
 
 export async function ensureTimesheetForWeekForProfile(
@@ -125,17 +205,18 @@ export async function ensureTimesheetForWeekForProfile(
   };
 }
 
-/** Single server-side load for the weekly time log — profile passed in to avoid duplicate auth fetches. */
+/** Single server-side load for the time log — profile passed in to avoid duplicate auth fetches. */
 export async function getTimeTrackingDataForProfile(
   profile: Profile,
-  weekMonday: string,
+  anchorDate: string,
+  viewCadence: ViewPeriodCadence = "weekly",
 ): Promise<TimeTrackingResult> {
   const activeOrgId = profile.org_id ?? null;
-  const week = weekPeriodFromMonday(weekMonday);
+  const week = viewPeriodForDate(anchorDate, viewCadence);
   const db = createAdminClient();
 
   const [ensured, projects, asanaConnected, asanaImportedProjects] = await Promise.all([
-    ensureTimesheetForWeekForProfile(profile, weekMonday),
+    ensureTimesheetForViewPeriod(profile, anchorDate, viewCadence),
     fetchProjectsForTimeEntry(activeOrgId, profile.id),
     hasAsanaConnection(profile.id),
     loadAsanaImportedProjects(profile.id),
@@ -193,12 +274,20 @@ export async function getTimeTrackingDataForProfile(
     asanaImportedProjects,
     asanaProjectNamesSyncedAt,
     week,
-    isoWeek: isoWeekLabel(weekMonday),
+    isoWeek: isoWeekLabel(week.start),
     weekStats,
     rate: profile.rate,
     rateType: profile.rate_type,
     currency: profile.currency,
   };
+}
+
+/** @deprecated alias — weekly anchor date */
+export async function getTimeTrackingDataForWeek(
+  profile: Profile,
+  weekMonday: string,
+): Promise<TimeTrackingResult> {
+  return getTimeTrackingDataForProfile(profile, weekMonday, "weekly");
 }
 
 export async function loadAsanaImportedProjects(

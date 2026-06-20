@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireActiveProfile } from "@/lib/auth";
+import { isAvatarPreset } from "@/lib/avatar-url";
 import { bankingToDbPayload, parseBankingFormData } from "@/lib/banking";
 import { writeAudit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -38,6 +39,35 @@ export async function updateOwnName(
 
   revalidatePath("/app/profile");
   return { ok: true, message: "Name updated." };
+}
+
+/** Updates the caller's avatar (preset path or cleared). */
+export async function updateOwnAvatar(avatarUrl: string | null): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+
+  const next =
+    avatarUrl === null || avatarUrl === ""
+      ? null
+      : avatarUrl.trim();
+
+  if (next !== null && !isAvatarPreset(next)) {
+    return { ok: false, message: "Invalid avatar selection." };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_url: next })
+    .eq("id", profile.id);
+
+  if (error) {
+    console.error("[profile] updateOwnAvatar:", error.message);
+    return { ok: false, message: "Couldn't save your avatar." };
+  }
+
+  revalidatePath("/app/profile");
+  revalidatePath("/app", "layout");
+  return { ok: true, message: "Avatar updated." };
 }
 
 /** Updates the caller's own banking & tax fields (employee-editable). */

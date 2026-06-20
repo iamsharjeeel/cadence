@@ -38,11 +38,16 @@ import {
   groupHoursByProject,
 } from "@/lib/time/week-stats-client";
 import {
+  addDays,
   isoWeekLabel,
-  shiftWeekMonday,
+  periodDays,
+  shiftViewPeriod,
   thisWeekMonday,
-  weekDays,
+  toIsoDate,
+  viewPeriodForDate,
+  VIEW_PERIOD_OPTIONS,
   type PayPeriod,
+  type ViewPeriodCadence,
 } from "@/lib/time/periods";
 import {
   OVERTIME_HOURS_THRESHOLD,
@@ -176,9 +181,10 @@ export function TimeTrackingView({
   initialFocusDate?: string | null;
 }) {
   const { toast } = useToast();
-  const [weekMonday, setWeekMonday] = useState(
-    initialWeekMonday ?? thisWeekMonday(),
-  );
+  const today = toIsoDate(new Date());
+  const defaultAnchor = initialWeekMonday ?? thisWeekMonday();
+  const [periodAnchor, setPeriodAnchor] = useState(defaultAnchor);
+  const [viewCadence, setViewCadence] = useState<ViewPeriodCadence>("weekly");
   const [week, setWeek] = useState<PayPeriod | null>(null);
   const [timesheetId, setTimesheetId] = useState("");
   const [orgId, setOrgId] = useState("");
@@ -203,7 +209,8 @@ export function TimeTrackingView({
   const [loading, setLoading] = useState(!initialData);
   const skipInitialFetch = useRef(Boolean(initialData));
   const prefillApplied = useRef(false);
-  const ssrWeekMonday = initialWeekMonday ?? thisWeekMonday();
+  const ssrPeriodAnchor = defaultAnchor;
+  const ssrViewCadence = useRef<ViewPeriodCadence>("weekly");
 
   const loadSeq = useRef(0);
   const entriesByDayRef = useRef(entriesByDay);
@@ -223,9 +230,16 @@ export function TimeTrackingView({
   editableRef.current = status === "draft" || status === "submitted" || status === "rejected";
 
   const editable = status === "draft" || status === "submitted" || status === "rejected";
-  const days = useMemo(() => weekDays(weekMonday), [weekMonday]);
-  const isoWeek = useMemo(() => isoWeekLabel(weekMonday), [weekMonday]);
-  const isCurrentWeek = weekMonday === thisWeekMonday();
+  const days = useMemo(
+    () => (week ? periodDays(week) : periodDays(viewPeriodForDate(periodAnchor, viewCadence))),
+    [week, periodAnchor, viewCadence],
+  );
+  const isoWeek = useMemo(() => isoWeekLabel(week?.start ?? periodAnchor), [week, periodAnchor]);
+  const currentViewPeriod = useMemo(
+    () => viewPeriodForDate(today, viewCadence),
+    [today, viewCadence],
+  );
+  const isCurrentPeriod = week?.start === currentViewPeriod.start;
 
   const allEntries = useMemo(
     () => Object.values(entriesByDay).flat(),
@@ -277,7 +291,7 @@ export function TimeTrackingView({
     // quickly — only the latest request is allowed to apply its result.
     const seq = ++loadSeq.current;
     setLoading(true);
-    const res = await getTimeTrackingData(weekMonday);
+    const res = await getTimeTrackingData(periodAnchor, viewCadence);
     if (seq !== loadSeq.current) return;
     setLoading(false);
     if (!res.ok || !("entries" in res)) {
@@ -299,13 +313,14 @@ export function TimeTrackingView({
       setCurrency,
       setEntriesByDay,
     });
-  }, [weekMonday, toast]);
+  }, [periodAnchor, viewCadence, toast]);
 
   useEffect(() => {
     if (
       skipInitialFetch.current &&
       initialData &&
-      weekMonday === ssrWeekMonday
+      periodAnchor === ssrPeriodAnchor &&
+      viewCadence === ssrViewCadence.current
     ) {
       skipInitialFetch.current = false;
       applyTrackingData(initialData, {
@@ -327,7 +342,7 @@ export function TimeTrackingView({
       return;
     }
     load();
-  }, [load, weekMonday, initialData, ssrWeekMonday]);
+  }, [load, periodAnchor, viewCadence, initialData, ssrPeriodAnchor]);
 
   useEffect(() => {
     const timers = debounceTimers.current;
@@ -580,6 +595,53 @@ export function TimeTrackingView({
     }
   }
 
+  async function copyEntryToDays(sourceDate: string, source: DraftEntry) {
+    if (!editable || !week) return;
+    if (!entryIsPersistable(source)) {
+      toast("Save this entry before copying.", "error");
+      return;
+    }
+
+    const targetDates: string[] = [];
+    let cur = week.start;
+    while (cur <= week.end) {
+      if (cur !== sourceDate) targetDates.push(cur);
+      cur = addDays(cur, 1);
+    }
+    if (targetDates.length === 0) return;
+
+    let copied = 0;
+    for (const date of targetDates) {
+      const draft: DraftEntry = {
+        ...newDraft(date, source.end_time || undefined),
+        entry_mode: source.entry_mode,
+        start_time: source.start_time,
+        end_time: source.end_time,
+        decimal_hours: source.decimal_hours,
+        project_id: source.project_id,
+        asana_project_id: source.asana_project_id,
+        description: source.description,
+        billable: source.billable,
+        billableTouched: true,
+        saveState: "idle",
+        collapsed: false,
+      };
+      setEntriesByDay((prev) => ({
+        ...prev,
+        [date]: [...(prev[date] ?? []), draft],
+      }));
+      await persistEntry(date, draft.clientId, draft, { collapse: true });
+      copied++;
+    }
+
+    toast(
+      copied === 1
+        ? "Entry copied to 1 other day."
+        : `Entry copied to ${copied} other days.`,
+      "success",
+    );
+  }
+
   const hasOrgContext = Boolean(orgId);
 
   return (
@@ -595,31 +657,65 @@ export function TimeTrackingView({
               <TimesheetStatusPill status={status} />
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-card)] bg-surface p-1.5 shadow-card">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setWeekMonday((m) => shiftWeekMonday(m, -1))}
+          <div className="flex flex-col gap-2 sm:items-end">
+            <div
+              className="inline-flex rounded-full border border-[var(--line)] p-0.5"
+              role="group"
+              aria-label="Period view"
             >
-              ← Prev week
-            </Button>
-            <Button
-              type="button"
-              variant={isCurrentWeek ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setWeekMonday(thisWeekMonday())}
-            >
-              This week
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setWeekMonday((m) => shiftWeekMonday(m, 1))}
-            >
-              Next week →
-            </Button>
+              {VIEW_PERIOD_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    setViewCadence(opt.value);
+                    setPeriodAnchor(today);
+                  }}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                    viewCadence === opt.value
+                      ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                      : "text-muted hover:text-ink",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-card)] bg-surface p-1.5 shadow-card">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const period = week ?? viewPeriodForDate(periodAnchor, viewCadence);
+                  const prev = shiftViewPeriod(period, viewCadence, -1);
+                  setPeriodAnchor(prev.start);
+                }}
+              >
+                ← Prev
+              </Button>
+              <Button
+                type="button"
+                variant={isCurrentPeriod ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setPeriodAnchor(currentViewPeriod.start)}
+              >
+                This period
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const period = week ?? viewPeriodForDate(periodAnchor, viewCadence);
+                  const next = shiftViewPeriod(period, viewCadence, 1);
+                  setPeriodAnchor(next.start);
+                }}
+              >
+                Next →
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -748,6 +844,11 @@ export function TimeTrackingView({
                       onCreateProject={handleCreateProject}
                       onExpand={() =>
                         updateEntry(day.date, entry.clientId, { collapsed: false })
+                      }
+                      onCopy={
+                        editable && entry.id
+                          ? () => void copyEntryToDays(day.date, entry)
+                          : undefined
                       }
                     />
                   ))}

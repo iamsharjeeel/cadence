@@ -510,6 +510,7 @@ export type Database = {
           emergency_relation: string | null
           full_name: string | null
           id: string
+          avatar_url: string | null
           job_title: string | null
           onboarding_complete: boolean
           org_id: string | null
@@ -535,6 +536,7 @@ export type Database = {
           emergency_relation?: string | null
           full_name?: string | null
           id: string
+          avatar_url?: string | null
           job_title?: string | null
           onboarding_complete?: boolean
           org_id?: string | null
@@ -560,6 +562,7 @@ export type Database = {
           emergency_relation?: string | null
           full_name?: string | null
           id?: string
+          avatar_url?: string | null
           job_title?: string | null
           onboarding_complete?: boolean
           org_id?: string | null
