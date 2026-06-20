@@ -1768,3 +1768,91 @@ _(none logged)_
 #### Notes on `profiles.role` default at signup
 - App onboarding (`src/lib/onboarding.ts`) does not assign a non-superadmin role on signup; it only promotes superadmin by configured email and activates status.
 - The persisted default role still comes from DB-side profile creation logic (historically employee). This session intentionally does **not** mutate stored `profiles.role`; it only fixes workspace-context role resolution.
+
+---
+
+## Session G — Avatar system, header dropdown, log time UX, Asana projects fix
+
+**Branch:** `session-g-avatar-header-logtime-asana`  
+**Date:** 2026-06-20  
+**Build:** `next build` passed cleanly (2 pre-existing ESLint image warnings only)
+
+### Item 1 — Profile avatar system + header dropdown
+
+**Migration:** `supabase/migrations/20260620100000_profile_avatar_url.sql`
+- Added `avatar_url text` column to `profiles` table
+- Created `avatars` storage bucket (public — profile photos are non-sensitive)
+- RLS policies: authenticated users can upload/update/delete their own folder; all authenticated users can read
+
+**Types:** `src/types/db.ts` — added `avatar_url` to profiles Row/Insert/Update types
+
+**Server actions:** `src/app/app/profile/actions.ts`
+- `updateOwnAvatar(url)` — saves preset URL or null (remove)
+- `uploadProfileAvatar(formData)` — uploads file to `avatars/{userId}/avatar.{ext}`, stores public URL
+
+**SVG presets:** `/public/avatars/preset-1.svg` through `preset-5.svg` — gold-tinted geometric abstracts
+
+**UI:** `src/app/app/profile/AvatarPickerSection.tsx`
+- Shows current avatar (or initials fallback)
+- "Presets" tab: 5 clickable geometric presets, instant optimistic update
+- "Upload photo" tab: file input, auto-uploads on change
+- "Remove" button when avatar is set
+
+**Profile page:** `src/app/app/profile/page.tsx`
+- AvatarPickerSection added to Personal details card above the name form
+
+**Topbar:** `src/components/app/Topbar.tsx` — fully replaced old avatar+name+SignOutButton with:
+- Avatar + caret dropdown (click-outside closes)
+- Two menu items: "View profile" → `/app/profile`, "Logout" → `POST /auth/signout`
+- Removed: name/email text, separate SignOutButton import
+
+### Item 2 — Duplicate "Log time" button
+
+Confirmed: no duplicate exists on `main`. The issue was only on the deployed Session F branch. No code change needed. Managers see one "Log my time" button in `TimesheetPageActions`; employees see the inline log view directly.
+
+### Item 3 — Back button on Log Time page
+
+**Fix:** `src/app/app/timesheets/log/page.tsx`
+- Removed `isManager ?` condition — "Back to timesheets" button now shows for ALL users
+- Removed unused `isManager` variable
+
+### Item 4 — Per-entry copy icon
+
+**TimeEntryRow.tsx:** Added `onCopy?: () => void` prop and Copy icon button in collapsed view (shows only when `editable && onCopy`)
+
+**TimeTrackingView.tsx:** Added `copyEntryToDays(entry)` function:
+- Creates new draft entries for all other days in the week period
+- Optimistically adds them to state, auto-saves all via `persistEntry` with `collapse: true`
+- Shows toast with count of days copied to
+- `onCopy={() => void copyEntryToDays(entry)}` wired to each TimeEntryRow
+
+### Item 5 — Asana projects tab regression (root cause + fix)
+
+**Root cause confirmed:** The Projects page (`/app/projects`) reads exclusively from the `projects` table (Cadence-native projects). Asana imported projects are stored in a separate `asana_imported_projects` table. These two tables were never joined. The function `listImportedAsanaProjects` in `asana-actions.ts` was private (lowercase, unexported) — there was no code path that surfaced Asana imports on the Projects page.
+
+**Fix:**
+- `src/app/app/profile/asana-actions.ts` — exported new `getMyImportedAsanaProjects()` server action wrapping the private function
+- `src/app/app/projects/page.tsx` — added `getMyImportedAsanaProjects()` to parallel fetch
+- `src/app/app/projects/ProjectsManager.tsx` — added `asanaProjects: AsanaImportedProject[]` prop; renders a separate "Asana projects" section below Cadence projects when the user has any imported
+
+### Files changed
+
+```
+supabase/migrations/20260620100000_profile_avatar_url.sql  (new)
+src/types/db.ts
+src/app/app/profile/actions.ts
+src/app/app/profile/AvatarPickerSection.tsx  (new)
+src/app/app/profile/page.tsx
+src/app/app/profile/asana-actions.ts
+src/components/app/Topbar.tsx
+src/app/app/timesheets/log/page.tsx
+src/app/app/timesheets/TimeEntryRow.tsx
+src/app/app/timesheets/TimeTrackingView.tsx
+src/app/app/projects/page.tsx
+src/app/app/projects/ProjectsManager.tsx
+public/avatars/preset-1.svg  (new)
+public/avatars/preset-2.svg  (new)
+public/avatars/preset-3.svg  (new)
+public/avatars/preset-4.svg  (new)
+public/avatars/preset-5.svg  (new)
+```

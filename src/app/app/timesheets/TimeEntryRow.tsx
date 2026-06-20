@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, Trash2 } from "lucide-react";
+import { Check, Copy, Loader2, Trash2 } from "lucide-react";
 
 import { AsanaProjectPickerMeta } from "@/components/asana/AsanaProjectPicker";
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
@@ -249,6 +249,7 @@ export function TimeEntryRow({
   onAsanaSync,
   onCreateProject,
   onExpand,
+  onCopy,
 }: {
   entry: EntryRowData;
   editable: boolean;
@@ -269,6 +270,7 @@ export function TimeEntryRow({
   onAsanaSync?: () => void;
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onExpand?: () => void;
+  onCopy?: () => void;
 }) {
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -308,12 +310,13 @@ export function TimeEntryRow({
   if (isCollapsed) {
     return (
       <motion.div layout {...ROW_MOTION} className="overflow-hidden">
+        <div className="flex items-center gap-1">
         <button
           type="button"
           onClick={onExpand}
           disabled={!editable}
           className={cn(
-            "flex w-full items-center gap-3 rounded-[var(--radius-input)] bg-surface-low px-3 py-2.5 text-left transition-colors",
+            "flex min-w-0 flex-1 items-center gap-3 rounded-[var(--radius-input)] bg-surface-low px-3 py-2.5 text-left transition-colors",
             editable && "hover:bg-[var(--accent-soft)]/40",
             !editable && "cursor-default",
           )}
@@ -385,6 +388,17 @@ export function TimeEntryRow({
             </>
           ) : null}
         </button>
+        {editable && onCopy ? (
+          <button
+            type="button"
+            aria-label="Copy entry to other days"
+            onClick={(e) => { e.stopPropagation(); onCopy(); }}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-[var(--line)] hover:text-ink"
+          >
+            <Copy className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        ) : null}
+        </div>
       </motion.div>
     );
   }

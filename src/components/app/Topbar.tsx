@@ -1,16 +1,94 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, LogOut, User } from "lucide-react";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { SignOutButton } from "@/components/auth/SignOutButton";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { useNavigation } from "./NavigationProvider";
 import type { Profile } from "@/types/db";
 import { navForContext, type NavContext } from "./nav";
 import { usePathname } from "next/navigation";
+
+function AvatarDropdown({ profile }: { profile: Profile }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 rounded-[var(--radius-input)] p-1 transition-colors hover:bg-[var(--accent-soft)]/40"
+      >
+        {profile.avatar_url ? (
+          <span className="relative inline-block h-8 w-8 overflow-hidden rounded-full ring-1 ring-[var(--line)]">
+            <Image
+              src={profile.avatar_url}
+              alt={profile.full_name ?? profile.email}
+              fill
+              className="object-cover"
+              unoptimized={profile.avatar_url.startsWith("/avatars/")}
+            />
+          </span>
+        ) : (
+          <Avatar name={profile.full_name} email={profile.email} size={32} />
+        )}
+        <ChevronDown
+          className={`h-3.5 w-3.5 text-muted transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute right-0 top-full z-50 mt-1.5 w-44 overflow-hidden rounded-[var(--radius-card)] border border-[var(--line)] bg-surface shadow-card"
+          >
+            <Link
+              href="/app/profile"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-ink transition-colors hover:bg-[var(--accent-soft)]/40"
+            >
+              <User className="h-4 w-4 text-muted" aria-hidden />
+              View profile
+            </Link>
+            <form action="/auth/signout" method="post" className="border-t border-[var(--line)]">
+              <button
+                type="submit"
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-ink transition-colors hover:bg-[var(--accent-soft)]/40"
+              >
+                <LogOut className="h-4 w-4 text-muted" aria-hidden />
+                Logout
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export function Topbar({
   profile,
@@ -61,25 +139,7 @@ export function Topbar({
         <div className="flex items-center justify-end gap-2 sm:gap-3">
           <ThemeToggle />
           <NotificationsBell userId={profile.id} />
-          <Link
-            href="/app/profile"
-            className="flex min-w-0 items-center gap-2.5 rounded-[var(--radius-input)] px-1 py-1 transition-colors hover:bg-[var(--accent-soft)]/40"
-          >
-            <Avatar
-              name={profile.full_name}
-              email={profile.email}
-              size={32}
-            />
-            <span className="hidden min-w-0 sm:block">
-              <span className="block truncate text-sm font-medium text-ink">
-                {profile.full_name ?? profile.email}
-              </span>
-              <span className="block truncate text-xs text-muted">
-                {profile.email}
-              </span>
-            </span>
-          </Link>
-          <SignOutButton />
+          <AvatarDropdown profile={profile} />
         </div>
       </div>
     </header>

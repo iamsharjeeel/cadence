@@ -180,3 +180,54 @@ export async function updateOwnEmergency(
   revalidatePath("/app/profile");
   return { ok: true, message: "Emergency contact saved." };
 }
+
+/** Updates the caller's own avatar URL (pointing to a preset or an uploaded file). */
+export async function updateOwnAvatar(url: string | null): Promise<ActionResult> {
+  const profile = await requireActiveProfile();
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_url: url || null })
+    .eq("id", profile.id);
+
+  if (error) return { ok: false, message: "Couldn't save avatar." };
+
+  revalidatePath("/app/profile");
+  revalidatePath("/app");
+  return { ok: true, message: "Avatar updated." };
+}
+
+const SUPABASE_URL = "https://irybkcryeywmwpcmhlaa.supabase.co";
+
+/** Uploads an avatar image to Supabase Storage and saves the public URL to the profile. */
+export async function uploadProfileAvatar(formData: FormData): Promise<ActionResult & { url?: string }> {
+  const profile = await requireActiveProfile();
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { ok: false, message: "No file provided." };
+  if (file.size > 2 * 1024 * 1024) return { ok: false, message: "File must be under 2 MB." };
+
+  const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type)) return { ok: false, message: "Unsupported file type." };
+
+  const ext = file.type.split("/")[1].replace("jpeg", "jpg");
+  const path = `${profile.id}/avatar.${ext}`;
+
+  const supabase = createClient();
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) return { ok: false, message: "Upload failed." };
+
+  const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ avatar_url: publicUrl })
+    .eq("id", profile.id);
+
+  if (updateError) return { ok: false, message: "Uploaded but couldn't save URL." };
+
+  revalidatePath("/app/profile");
+  revalidatePath("/app");
+  return { ok: true, message: "Avatar uploaded.", url: publicUrl };
+}

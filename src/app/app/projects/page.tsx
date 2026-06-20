@@ -3,15 +3,17 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/PageHeader";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { listProjects, getProjectsPageContext } from "./actions";
+import { getMyImportedAsanaProjects } from "../profile/asana-actions";
 import { ProjectsManager } from "./ProjectsManager";
 
 export const metadata: Metadata = { title: "Projects" };
 
 export default async function ProjectsPage() {
   const ctx = await getWorkspaceContext();
-  const [{ canCreate, inOrg }, projects] = await Promise.all([
+  const [{ canCreate, inOrg }, projects, asanaProjects] = await Promise.all([
     getProjectsPageContext(),
     listProjects(),
+    getMyImportedAsanaProjects(),
   ]);
 
   const inOrgWorkspace = Boolean(ctx?.activeOrgId);
@@ -28,6 +30,7 @@ export default async function ProjectsPage() {
       />
       <ProjectsManager
         projects={projects}
+        asanaProjects={asanaProjects}
         canCreate={canCreate}
         inOrg={inOrg}
       />

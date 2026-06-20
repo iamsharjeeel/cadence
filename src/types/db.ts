@@ -498,6 +498,7 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          avatar_url: string | null
           bank_account_name: string | null
           bank_account_number: string | null
           bank_bsb_swift: string | null
@@ -523,6 +524,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          avatar_url?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_bsb_swift?: string | null
@@ -548,6 +550,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          avatar_url?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_bsb_swift?: string | null

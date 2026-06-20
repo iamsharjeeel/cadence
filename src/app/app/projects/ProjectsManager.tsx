@@ -7,7 +7,9 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
+import { AsanaIcon } from "@/components/icons/AsanaIcon";
 import { cn } from "@/lib/utils";
+import type { AsanaImportedProject } from "@/types/db";
 import {
   archiveProject,
   createProject,
@@ -18,10 +20,12 @@ import { ProjectFormModal, type ProjectFormValues } from "./ProjectFormModal";
 
 export function ProjectsManager({
   projects,
+  asanaProjects,
   canCreate,
   inOrg,
 }: {
   projects: ProjectListItem[];
+  asanaProjects: AsanaImportedProject[];
   canCreate: boolean;
   inOrg: boolean;
 }) {
@@ -205,6 +209,47 @@ export function ProjectsManager({
         }}
         onSubmit={handleSubmit}
       />
+
+      {asanaProjects.length > 0 && (
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <AsanaIcon size={16} />
+            <span className="font-display text-sm font-semibold text-ink">
+              Asana projects
+            </span>
+            <span className="text-xs text-muted">({asanaProjects.length})</span>
+          </div>
+          <p className="mb-3 text-sm text-muted">
+            Imported from Asana — used for tagging time entries. Manage from your{" "}
+            <a href="/app/profile#section-connected" className="underline hover:text-ink">
+              profile
+            </a>
+            .
+          </p>
+          <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--line)] bg-surface shadow-card">
+            <ul className="divide-y divide-[var(--line)]">
+              {asanaProjects.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center gap-3 px-4 py-3 sm:px-5"
+                >
+                  <AsanaIcon size={14} className="shrink-0 text-muted" />
+                  <div className="min-w-0 flex-1">
+                    <span className="truncate text-sm font-medium text-ink">
+                      {p.asana_project_name}
+                    </span>
+                    {p.asana_workspace_name && (
+                      <span className="ml-2 text-xs text-muted">
+                        · {p.asana_workspace_name}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

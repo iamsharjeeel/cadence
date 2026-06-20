@@ -549,6 +549,41 @@ export function TimeTrackingView({
     }));
   }
 
+  async function copyEntryToDays(entry: DraftEntry) {
+    if (!editable || !entry.id) return;
+    const targetDates = days
+      .map((d) => d.date)
+      .filter((d) => d !== entry.entry_date);
+    if (!targetDates.length) return;
+
+    const copies: DraftEntry[] = targetDates.map((date) => ({
+      ...newDraft(date),
+      entry_mode: entry.entry_mode,
+      start_time: entry.start_time,
+      end_time: entry.end_time,
+      decimal_hours: entry.decimal_hours,
+      project_id: entry.project_id,
+      asana_project_id: entry.asana_project_id,
+      description: entry.description,
+      billable: entry.billable,
+      billableTouched: entry.billableTouched,
+    }));
+
+    setEntriesByDay((prev) => {
+      const next = { ...prev };
+      for (const copy of copies) {
+        next[copy.entry_date] = [...(next[copy.entry_date] ?? []), copy];
+      }
+      return next;
+    });
+
+    toast(`Copied to ${targetDates.length} day${targetDates.length === 1 ? "" : "s"}.`, "success");
+
+    await Promise.all(
+      copies.map((copy) => persistEntry(copy.entry_date, copy.clientId, undefined, { collapse: true })),
+    );
+  }
+
   async function handleCreateProject(name: string, color?: string) {
     const res = await createProject({ name, color });
     if (!res.ok) {
@@ -749,6 +784,7 @@ export function TimeTrackingView({
                       onExpand={() =>
                         updateEntry(day.date, entry.clientId, { collapsed: false })
                       }
+                      onCopy={() => void copyEntryToDays(entry)}
                     />
                   ))}
                 </AnimatePresence>

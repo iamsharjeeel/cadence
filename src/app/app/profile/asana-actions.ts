@@ -245,6 +245,12 @@ async function listImportedAsanaProjects(
   return (data ?? []) as AsanaImportedProject[];
 }
 
+/** Public server action: returns the current user's imported Asana projects. */
+export async function getMyImportedAsanaProjects(): Promise<AsanaImportedProject[]> {
+  const profile = await requireActiveProfile();
+  return listImportedAsanaProjects(profile.id);
+}
+
 async function markAsanaProjectNamesSynced(userId: string): Promise<void> {
   const db = createAdminClient();
   const { error } = await db

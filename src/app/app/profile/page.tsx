@@ -26,6 +26,7 @@ import { ProfileRateForm } from "./ProfileRateForm";
 import { ProfileEmergencyForm } from "./ProfileEmergencyForm";
 import { ProfileCompleteness } from "./ProfileCompleteness";
 import { ProfileDeveloperSection } from "./ProfileDeveloperSection";
+import { AvatarPickerSection } from "./AvatarPickerSection";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -95,9 +96,14 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         <Card id="section-personal" className="scroll-mt-20">
           <CardHeader>
             <CardTitle className="text-base">Personal details</CardTitle>
-            <CardDescription>Your display name and email.</CardDescription>
+            <CardDescription>Your display name, email, and avatar.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-6">
+            <AvatarPickerSection
+              currentAvatarUrl={profile.avatar_url ?? null}
+              name={profile.full_name ?? null}
+              email={profile.email}
+            />
             <ProfileNameForm
               defaultName={profile.full_name ?? ""}
               email={profile.email}
