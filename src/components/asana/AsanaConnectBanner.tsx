@@ -5,6 +5,7 @@ import Link from "next/link";
 import { X } from "lucide-react";
 
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
+import { GoogleCalendarIcon } from "@/components/icons/GoogleCalendarIcon";
 import { buttonStyles } from "@/components/ui/Button";
 
 export function AsanaConnectBanner({ show }: { show: boolean }) {
@@ -15,22 +16,25 @@ export function AsanaConnectBanner({ show }: { show: boolean }) {
   return (
     <div
       role="status"
-      className="mb-6 flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface px-4 py-3 shadow-sm"
+      className="mb-4 flex items-start gap-2.5 rounded-[var(--radius-card)] border border-[var(--line)] bg-surface px-3 py-2.5 shadow-sm"
     >
-      <AsanaIcon size={22} className="mt-0.5" />
+      <div className="mt-0.5 flex items-center gap-1.5">
+        <AsanaIcon size={18} />
+        <GoogleCalendarIcon size={18} />
+      </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-ink">
-          Connect Asana to import your projects
+          Connect Asana and Google Calendar
         </p>
-        <p className="mt-0.5 text-sm text-muted">
-          Tag time entries with your Asana projects without changing Cadence
-          projects.
+        <p className="mt-0.5 text-xs text-muted">
+          Link accounts for project tagging, leave sync visibility, and calendar
+          suggestions.
         </p>
         <Link
           href="/app/profile#section-connected"
-          className={buttonStyles("primary", "sm", "mt-3 inline-flex")}
+          className={buttonStyles("primary", "sm", "mt-2 inline-flex")}
         >
-          Connected accounts
+          Connect accounts
         </Link>
       </div>
       <button

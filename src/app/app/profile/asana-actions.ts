@@ -113,6 +113,7 @@ export async function importAsanaProjects(
     await markAsanaProjectNamesSynced(profile.id);
 
     revalidatePath("/app/profile");
+    revalidatePath("/app/projects");
     return {
       ok: true,
       message: `Imported ${selected.length} project${selected.length === 1 ? "" : "s"}.`,
@@ -141,6 +142,7 @@ export async function removeImportedAsanaProject(
   }
 
   revalidatePath("/app/profile");
+  revalidatePath("/app/projects");
   return { ok: true, message: "Project removed from your list." };
 }
 
@@ -186,6 +188,7 @@ export async function syncImportedAsanaProjectNames(): Promise<ActionResult> {
     await markAsanaProjectNamesSynced(profile.id);
 
     revalidatePath("/app/profile");
+    revalidatePath("/app/projects");
     revalidatePath("/app/timesheets");
     revalidatePath("/app/timesheets/log");
     return {
@@ -217,6 +220,7 @@ export async function disconnectAsana(): Promise<ActionResult> {
 
     await deleteAsanaConnection(profile.id);
     revalidatePath("/app/profile");
+    revalidatePath("/app/projects");
     return { ok: true, message: "Asana disconnected." };
   } catch (err) {
     console.error("[asana] disconnect failed:", err);
@@ -226,6 +230,12 @@ export async function disconnectAsana(): Promise<ActionResult> {
         err instanceof Error ? err.message : "Couldn't disconnect Asana.",
     };
   }
+}
+
+/** Public server action: returns the current user's imported Asana projects. */
+export async function getMyImportedAsanaProjects(): Promise<AsanaImportedProject[]> {
+  const profile = await requireActiveProfile();
+  return listImportedAsanaProjects(profile.id);
 }
 
 async function listImportedAsanaProjects(

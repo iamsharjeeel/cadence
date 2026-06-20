@@ -21,6 +21,12 @@ const PATHS: Record<NavItem["icon"], React.ReactNode> = {
       <path d="M8 3v3M16 3v3M8 11h8M8 15h5" />
     </>
   ),
+  timeTracked: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
   leave: (
     <>
       <rect x="3" y="5" width="18" height="16" rx="2" />

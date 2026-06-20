@@ -86,7 +86,12 @@ export function AsanaConnectionPanel({
       {needsReconnect ? (
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[12px] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent-strong)]">
           Your Asana connection needs additional permissions.
-          <Link href="/api/asana/connect" className={buttonStyles("primary", "sm")}>
+          <Link
+            href="/api/asana/connect"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonStyles("primary", "sm")}
+          >
             Reconnect Asana
           </Link>
         </div>

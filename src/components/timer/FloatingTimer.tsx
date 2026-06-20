@@ -25,7 +25,25 @@ function ModalTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function FloatingTimer() {
+type TimerPosition = { x: number; y: number };
+
+const EDGE_PADDING = 16;
+const STORAGE_KEY_PREFIX = "cadence:timer-widget-position:v1:";
+
+function clampPositionToViewport(
+  value: TimerPosition,
+  width: number,
+  height: number,
+): TimerPosition {
+  const maxX = Math.max(EDGE_PADDING, window.innerWidth - width - EDGE_PADDING);
+  const maxY = Math.max(EDGE_PADDING, window.innerHeight - height - EDGE_PADDING);
+  return {
+    x: Math.min(Math.max(value.x, EDGE_PADDING), maxX),
+    y: Math.min(Math.max(value.y, EDGE_PADDING), maxY),
+  };
+}
+
+export function FloatingTimer({ userId }: { userId: string }) {
   const {
     running,
     elapsedSeconds,
@@ -55,11 +73,91 @@ export function FloatingTimer() {
   const [saving, setSaving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const midnightHandledRef = useRef<string | null>(null);
+  const widgetRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    offsetX: number;
+    offsetY: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [position, setPosition] = useState<TimerPosition | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const storageKey = `${STORAGE_KEY_PREFIX}${userId}`;
+
+  const clampWithCurrentSize = useCallback((value: TimerPosition) => {
+    const rect = widgetRef.current?.getBoundingClientRect();
+    const width = rect?.width ?? 320;
+    const height = rect?.height ?? 56;
+    return clampPositionToViewport(value, width, height);
+  }, []);
 
   useEffect(() => {
     if (!running && !showProjectPrompt) return;
     if (!projectsLoaded) void loadProjects();
   }, [running, showProjectPrompt, projectsLoaded, loadProjects]);
+
+  useEffect(() => {
+    if (position !== null) return;
+    const raf = window.requestAnimationFrame(() => {
+      let initial: TimerPosition | null = null;
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<TimerPosition>;
+          if (
+            typeof parsed?.x === "number" &&
+            Number.isFinite(parsed.x) &&
+            typeof parsed?.y === "number" &&
+            Number.isFinite(parsed.y)
+          ) {
+            initial = clampWithCurrentSize({ x: parsed.x, y: parsed.y });
+          }
+        }
+      } catch {
+        initial = null;
+      }
+
+      if (!initial) {
+        const rect = widgetRef.current?.getBoundingClientRect();
+        const width = rect?.width ?? 320;
+        const height = rect?.height ?? 56;
+        initial = clampPositionToViewport(
+          {
+            x: window.innerWidth - width - EDGE_PADDING,
+            y: window.innerHeight - height - EDGE_PADDING,
+          },
+          width,
+          height,
+        );
+      }
+
+      setPosition(initial);
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [position, storageKey, clampWithCurrentSize]);
+
+  useEffect(() => {
+    if (position === null) return;
+    const onResize = () => {
+      setPosition((prev) => (prev ? clampWithCurrentSize(prev) : prev));
+    };
+    window.addEventListener("resize", onResize);
+    const raf = window.requestAnimationFrame(onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.cancelAnimationFrame(raf);
+    };
+  }, [position, clampWithCurrentSize, running, expanded]);
+
+  useEffect(() => {
+    if (!position || dragging) return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(position));
+    } catch {
+      // Best effort: if storage is unavailable, position still works in-session.
+    }
+  }, [position, dragging, storageKey]);
 
   const persistTimer = useCallback(
     async (timer: NonNullable<typeof running>) => {
@@ -129,13 +227,75 @@ export function FloatingTimer() {
     ? timerProjectName(running.project, projects, asanaProjects)
     : null;
 
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || !position) return;
+      const target = event.target as HTMLElement;
+      if (target.closest("button, input, textarea, select, a")) return;
+      const rect = widgetRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      dragRef.current = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - position.x,
+        offsetY: event.clientY - position.y,
+        width: rect.width,
+        height: rect.height,
+      };
+      setDragging(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    },
+    [position],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const next = clampPositionToViewport(
+        {
+          x: event.clientX - drag.offsetX,
+          y: event.clientY - drag.offsetY,
+        },
+        drag.width,
+        drag.height,
+      );
+      setPosition(next);
+    },
+    [],
+  );
+
+  const handlePointerEnd = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      dragRef.current = null;
+      setDragging(false);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [],
+  );
+
   return (
     <>
       <div
+        ref={widgetRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
         className={cn(
-          "fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-2",
-          "pointer-events-none",
+          "fixed z-[60] touch-none select-none",
+          position ? "left-0 top-0" : "bottom-6 right-6",
+          dragging ? "cursor-grabbing" : "cursor-grab",
         )}
+        style={
+          position
+            ? { transform: `translate3d(${position.x}px, ${position.y}px, 0)` }
+            : undefined
+        }
       >
         <div
           className={cn(
