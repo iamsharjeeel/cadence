@@ -100,6 +100,12 @@ export async function approveTimesheet(
       rate_type_snapshot: employee.rate_type,
       currency_snapshot: employee.currency,
       calculated_total: total,
+      edit_request_status: null,
+      edit_request_note: null,
+      edit_requested_at: null,
+      edit_requested_by: null,
+      edit_request_reviewed_at: null,
+      edit_request_reviewed_by: null,
     })
     .eq("id", id);
   if (updErr) return { ok: false, message: "Couldn't approve the timesheet." };
@@ -204,6 +210,12 @@ export async function bulkApproveTimesheets(
         rate_type_snapshot: employee.rate_type,
         currency_snapshot: employee.currency,
         calculated_total: total,
+      edit_request_status: null,
+      edit_request_note: null,
+      edit_requested_at: null,
+      edit_requested_by: null,
+      edit_request_reviewed_at: null,
+      edit_request_reviewed_by: null,
       })
       .eq("id", id);
     if (updErr) continue;
@@ -294,7 +306,16 @@ export async function rejectTimesheet(
 
   const { error } = await db
     .from("timesheets")
-    .update({ status: "rejected", rejection_note: note })
+    .update({
+      status: "rejected",
+      rejection_note: note,
+      edit_request_status: null,
+      edit_request_note: null,
+      edit_requested_at: null,
+      edit_requested_by: null,
+      edit_request_reviewed_at: null,
+      edit_request_reviewed_by: null,
+    })
     .eq("id", id);
   if (error) return { ok: false, message: "Couldn't reject the timesheet." };
 
@@ -350,7 +371,16 @@ export async function recallTimesheet(id: string): Promise<ActionResult> {
 
   const { error } = await db
     .from("timesheets")
-    .update({ status: "draft" })
+    .update({
+      status: "draft",
+      submitted_at: null,
+      edit_request_status: null,
+      edit_request_note: null,
+      edit_requested_at: null,
+      edit_requested_by: null,
+      edit_request_reviewed_at: null,
+      edit_request_reviewed_by: null,
+    })
     .eq("id", id);
   if (error) return { ok: false, message: "Couldn't recall the timesheet." };
 
@@ -376,7 +406,7 @@ export async function returnTimesheetToDraft(id: string): Promise<ActionResult> 
   const db = createAdminClient();
   const { data: ts } = await db
     .from("timesheets")
-    .select("id, org_id, employee_id, status, period_start, period_end")
+    .select("id, org_id, employee_id, status, period_start, period_end, resubmit_count")
     .eq("id", id)
     .single();
   if (!ts) return { ok: false, message: "Timesheet not found." };
@@ -396,7 +426,18 @@ export async function returnTimesheetToDraft(id: string): Promise<ActionResult> 
 
   const { error } = await db
     .from("timesheets")
-    .update({ status: "draft", rejection_note: null })
+    .update({
+      status: "draft",
+      rejection_note: null,
+      submitted_at: null,
+      resubmit_count: (ts.resubmit_count ?? 0) + 1,
+      edit_request_status: null,
+      edit_request_note: null,
+      edit_requested_at: null,
+      edit_requested_by: null,
+      edit_request_reviewed_at: null,
+      edit_request_reviewed_by: null,
+    })
     .eq("id", id);
   if (error) return { ok: false, message: "Couldn't update timesheet." };
 

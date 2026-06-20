@@ -6,6 +6,7 @@ import type {
 } from "@/types/db";
 import type { PayPeriod } from "@/lib/time/periods";
 import type { WeekStats } from "@/lib/time/week-constants";
+import type { EditRequestStatus } from "@/lib/timesheets/lifecycle";
 
 export type { Project, TimeEntry };
 
@@ -35,6 +36,10 @@ export type TimeTrackingData = {
   rate: number | null;
   rateType: string;
   currency: string | null;
+  submittedAt: string | null;
+  editRequestStatus: EditRequestStatus;
+  editRequestNote: string | null;
+  cadence: string | null;
 };
 
 export const PROJECT_PRESET_COLORS = [

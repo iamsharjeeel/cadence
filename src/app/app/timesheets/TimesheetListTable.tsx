@@ -20,6 +20,7 @@ import { DeleteTimesheetControl } from "./DeleteTimesheetControl";
 import { TimesheetStatusActions } from "./TimesheetStatusActions";
 import { bulkApproveTimesheets } from "./actions";
 import { currentSearchParams } from "@/lib/search-params";
+import { reviewTimesheetEditRequest } from "./time-actions";
 
 const TABLE_HEAD_CLASS =
   "bg-surface-low [&_th]:font-display [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.06em]";
@@ -34,12 +35,15 @@ export type TimesheetListRow = {
   period_end: string;
   rowCount: number;
   status: TimesheetStatus;
+  submitted_at: string | null;
   created_at: string;
   calculated_total: number | null;
   currency_snapshot: string | null;
   rejection_note: string | null;
   has_overtime: boolean;
   overtime_hours: number;
+  edit_request_status: "pending" | "approved" | "rejected" | null;
+  edit_request_note: string | null;
 };
 
 type SortKey = "period" | "total" | "submitted";
@@ -272,6 +276,11 @@ export function TimesheetListTable({
                       {t.rejection_note}
                     </span>
                   )}
+                  {t.edit_request_status === "pending" && t.edit_request_note && (
+                    <span className="max-w-xs text-xs text-muted">
+                      Edit requested: {t.edit_request_note}
+                    </span>
+                  )}
                 </div>
               </TD>
               {isManager && (
@@ -299,8 +308,43 @@ export function TimesheetListTable({
                     id={t.id}
                     status={t.status}
                     periodStart={t.period_start}
+                    periodEnd={t.period_end}
+                    submittedAt={t.submitted_at}
+                    editRequestStatus={t.edit_request_status}
                     isOwner={t.employee_id === currentUserId}
                   />
+                  {isManager && t.edit_request_status === "pending" && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={async () => {
+                          const result = await reviewTimesheetEditRequest({
+                            timesheetId: t.id,
+                            decision: "approve",
+                          });
+                          toast(result.message, result.ok ? "success" : "error");
+                          if (result.ok) router.refresh();
+                        }}
+                      >
+                        Approve edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          const result = await reviewTimesheetEditRequest({
+                            timesheetId: t.id,
+                            decision: "reject",
+                          });
+                          toast(result.message, result.ok ? "success" : "error");
+                          if (result.ok) router.refresh();
+                        }}
+                      >
+                        Reject edit
+                      </Button>
+                    </>
+                  )}
                   {t.status === "approved" && t.calculated_total !== null && (
                     <GenerateDocumentButton
                       timesheetIds={[t.id]}

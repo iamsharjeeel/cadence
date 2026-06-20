@@ -178,6 +178,9 @@ export default async function TimesheetDetailPage({
               id={timesheet.id}
               status={status}
               periodStart={timesheet.period_start}
+              periodEnd={timesheet.period_end}
+              submittedAt={timesheet.submitted_at}
+              editRequestStatus={timesheet.edit_request_status as "pending" | "approved" | "rejected" | null}
               isOwner={isOwner}
             />
             <DeleteTimesheetControl
@@ -275,6 +278,9 @@ export default async function TimesheetDetailPage({
                 id={timesheet.id}
                 status={status}
                 periodStart={timesheet.period_start}
+                periodEnd={timesheet.period_end}
+                submittedAt={timesheet.submitted_at}
+                editRequestStatus={timesheet.edit_request_status as "pending" | "approved" | "rejected" | null}
                 isOwner={isOwner}
               />
             )}

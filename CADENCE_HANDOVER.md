@@ -1768,3 +1768,59 @@ _(none logged)_
 #### Notes on `profiles.role` default at signup
 - App onboarding (`src/lib/onboarding.ts`) does not assign a non-superadmin role on signup; it only promotes superadmin by configured email and activates status.
 - The persisted default role still comes from DB-side profile creation logic (historically employee). This session intentionally does **not** mutate stored `profiles.role`; it only fixes workspace-context role resolution.
+
+### Session — Timesheets lifecycle + period length + unified view + reminders (Session D) ✅ (2026-06-20)
+
+#### Migration added (non-destructive)
+- `supabase/migrations/20260620112500_timesheets_lifecycle_edit_requests.sql`
+  - Adds lifecycle metadata on `timesheets`: `submitted_at`, `resubmit_count` default, and request-edit fields (`edit_request_status`, note/request/review metadata).
+  - Backfills `submitted_at` from `updated_at` for existing submitted/approved/rejected rows (best-effort).
+  - Adds indexes for reminder-window and pending-edit request lookups.
+
+#### Status lifecycle implementation (extends existing `timesheets.status`)
+- `timesheets.status` remains the only persisted status column (`draft|submitted|approved|rejected`).
+- New derived lifecycle helper (`src/lib/timesheets/lifecycle.ts`) resolves:
+  - `draft` / `submittable` (opens 3 days before `period_end`)
+  - `submitted_editable` (3 days from submission OR until `period_end`)
+  - `locked` (post edit-window submitted state)
+  - existing `approved` / `rejected`
+- Old submit gate (`5 days OR 40h`) removed. Submission now checks chronological validity only (entries in period + no overlaps); entry count is informational.
+
+#### Request-edit flow (locked submitted periods)
+- **Personal workspace:** request auto-approves immediately and unlocks timesheet to `draft`.
+- **Org workspace:** request is marked pending and routed to approvers from existing org settings (`org_settings.approver_scope`).
+- Approvers can approve/reject request from team timesheet actions; approvals unlock to `draft` and increment `resubmit_count`.
+
+#### Period length
+- `src/lib/time/get-time-tracking-data.ts` now resolves periods by context:
+  - **Org workspace:** uses org cadence (`default_cadence`, including `biweekly_15` compatibility in helper).
+  - **Personal workspace:** user-controlled 7/15/30-day period length per period (selection in log UI; can vary period-to-period).
+- Period shape continues to derive strictly from `period_start` + `period_end` (no length column).
+
+#### Copy entry
+- Added per-entry copy action in `TimeEntryRow` + modal in `TimeTrackingView`.
+- Copies one source entry to selected target day(s) in the same period with overlap checks.
+
+#### Unified timesheets view
+- `/app/timesheets` is now the base own-timesheets view for all roles:
+  - top filters,
+  - `Log my time` + `Export CSV` actions,
+  - own timesheet list.
+- Org manager/owner contexts additionally show a separate **Team approvals** section (kept distinct from "My timesheets").
+- Superadmin no longer defaults to a platform-wide timesheet list on this page.
+
+#### Reminders
+- **In-app reminder banner:** computed at page load from current date vs `period_end` and lifecycle state.
+- **Daily email reminder:** added cron route `GET /api/cron/timesheet-reminders` (Resend).
+  - Sends to users with draft periods inside the 3-day pre-end window.
+  - Deduped to max once/day/user via `notifications` log marker.
+- **Cron exception policy (explicit):** this is the single intentional scheduled-job exception for Cadence. No other cron jobs were added.
+
+#### Files touched (high-impact)
+- `src/lib/timesheets/lifecycle.ts` (new)
+- `src/lib/time/{periods.ts,get-time-tracking-data.ts}`
+- `src/app/app/timesheets/{page.tsx,TimeTrackingView.tsx,TimeEntryRow.tsx,time-actions.ts,TimesheetListTable.tsx,TimesheetStatusActions.tsx,actions.ts,log/page.tsx,[id]/page.tsx}`
+- `src/app/api/{timesheets/export/route.ts,cron/timesheet-reminders/route.ts}` (new cron route)
+- `src/lib/audit.ts` (new audit action literals)
+- `src/types/{db.ts,time-tracking.ts}`
+- `vercel.json` (single cron schedule)

@@ -198,6 +198,7 @@ npm run dev                        # http://localhost:3000
 | `DOCUMENT_ENCRYPTION_KEY` | server-only | AES-256-GCM for bank field encryption |
 | `RESEND_API_KEY` | server-only | Resend API key |
 | `RESEND_FROM_EMAIL` | server-only | Sender address for document emails |
+| `CRON_SECRET` | server-only | Optional bearer secret for the daily timesheet reminder cron route |
 | `ASANA_CLIENT_ID` | server-only | Asana OAuth app client ID |
 | `ASANA_CLIENT_SECRET` | server-only | Asana OAuth app client secret |
 | `ASANA_REDIRECT_URI` | server-only | Must match Asana app registration (`…/api/asana/callback`) |
@@ -224,6 +225,26 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 13. `supabase/migrations/20260624000000_google_calendar.sql` — **required for Google Calendar integration**
 14. `supabase/migrations/20260616000001_org_settings.sql` — org approval settings + `get_or_create_org_settings` RPC
 15. `supabase/migrations/20260630000001_time_entries_approval_status.sql` — `time_entries.status` (`pending_approval` | `approved`)
+16. `supabase/migrations/20260620112500_timesheets_lifecycle_edit_requests.sql` — timesheet lifecycle metadata (`submitted_at`, request-edit fields)
+
+### Timesheets lifecycle overhaul (Session D)
+- **Lifecycle now derives from the existing `timesheets.status` plus dates** (no parallel status column):
+  - `draft` (save/edit),
+  - `submittable` (derived: 3 days before `period_end`),
+  - `submitted_editable` (derived: up to 3 days after submission or until `period_end`, whichever is sooner),
+  - `locked` (derived post-window stage),
+  - existing `approved` / `rejected`.
+- **Submit gate updated:** removed the old `5 days OR 40h` requirement. Submission now validates chronological integrity (valid in-period entries, no overlaps); entry count remains informational.
+- **Personal period length selection:** personal workspace can create periods in **7 / 15 / 30** day lengths per period; org workspace period shape follows org cadence.
+- **Copy entry:** per-entry one-to-many copy to selected target days inside the same period.
+- **Request edit flow for locked timesheets:**
+  - personal workspace auto-approves and unlocks to draft,
+  - org workspace creates a pending edit request routed to approvers using existing `org_settings.approver_scope`.
+- **Unified timesheets page layout:** all roles see a shared "My timesheets" view shape (filters + Log time + Export CSV + own list); org managers/owners additionally get a separate "Team approvals" section.
+- **Reminder system (3-day window):**
+  - in-app banner computed live on page load,
+  - **one daily cron route only**: `GET /api/cron/timesheet-reminders` (Resend email, max once/day/user).
+- **Cron policy exception:** this repository still avoids scheduled jobs by default; the route above is the single explicit exception for timesheet reminders and should not be treated as precedent for adding additional cron jobs.
 
 ### F1 — Org approval settings (shipped)
 - **`org_settings` table** per org: tier, timesheet/leave/expense approval toggles, `approver_scope` (`owner_only` | `owner_and_managers`)

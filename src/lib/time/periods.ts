@@ -109,6 +109,10 @@ function formatLabel(start: string, end: string): string {
   return `${startStr} – ${endStr}`;
 }
 
+export function labelForDateRange(start: string, end: string): string {
+  return formatLabel(start, end);
+}
+
 function monthPeriod(iso: string): PayPeriod {
   const d = parseIso(iso);
   const start = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
@@ -139,12 +143,36 @@ function biweeklyPeriod(iso: string): PayPeriod {
   return { start, end, label: formatLabel(start, end) };
 }
 
+function biweekly15Period(iso: string): PayPeriod {
+  const d = parseIso(iso);
+  const anchor = `${d.getFullYear()}-01-01`;
+  const diffDays = Math.floor(
+    (parseIso(iso).getTime() - parseIso(anchor).getTime()) / 86_400_000,
+  );
+  const block = Math.floor(diffDays / 15);
+  const start = addDays(anchor, block * 15);
+  const end = addDays(start, 14);
+  return { start, end, label: formatLabel(start, end) };
+}
+
+export type PeriodCadenceLike = PeriodCadence | "biweekly_15" | string;
+
 export function periodForDate(
   isoDate: string,
   cadence: PeriodCadence,
 ): PayPeriod {
   if (cadence === "monthly") return monthPeriod(isoDate);
   if (cadence === "biweekly") return biweeklyPeriod(isoDate);
+  return weeklyPeriod(isoDate);
+}
+
+export function periodForDateByCadence(
+  isoDate: string,
+  cadence: PeriodCadenceLike,
+): PayPeriod {
+  if (cadence === "monthly") return monthPeriod(isoDate);
+  if (cadence === "biweekly") return biweeklyPeriod(isoDate);
+  if (cadence === "biweekly_15") return biweekly15Period(isoDate);
   return weeklyPeriod(isoDate);
 }
 
@@ -160,6 +188,25 @@ export function shiftPeriod(
   ));
   const pivot = addDays(mid, direction * (cadence === "monthly" ? 15 : cadence === "biweekly" ? 14 : 7));
   return periodForDate(pivot, cadence);
+}
+
+export function shiftPeriodByCadence(
+  period: PayPeriod,
+  cadence: PeriodCadenceLike,
+  direction: -1 | 1,
+): PayPeriod {
+  const mid = addDays(
+    period.start,
+    Math.floor(
+      (parseIso(period.end).getTime() - parseIso(period.start).getTime()) /
+        86_400_000 /
+        2,
+    ),
+  );
+  const step =
+    cadence === "monthly" ? 15 : cadence === "biweekly_15" ? 15 : cadence === "biweekly" ? 14 : 7;
+  const pivot = addDays(mid, direction * step);
+  return periodForDateByCadence(pivot, cadence);
 }
 
 export function datesInRange(start: string, end: string): string[] {

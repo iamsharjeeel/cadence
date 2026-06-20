@@ -12,8 +12,9 @@ function csvEscape(value: string | number | null | undefined): string {
 }
 
 /**
- * Streams approved timesheets as CSV. Admin/superadmin only; re-checks role
- * server-side. Never exposes unapproved timesheets.
+ * Streams timesheets as CSV.
+ * - Org-manager context (admin with active org): approved team export.
+ * - Everyone else: personal export of the caller's own timesheets.
  */
 export async function GET(request: NextRequest) {
   const profile = await getProfile();
@@ -21,18 +22,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  if (profile.role !== "admin" && profile.role !== "superadmin") {
-    return NextResponse.json(
-      { error: "Forbidden" },
-      { status: 403, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  if (profile.role === "admin" && !profile.org_id) {
-    return NextResponse.json(
-      { error: "Forbidden" },
-      { status: 403, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -52,24 +41,28 @@ export async function GET(request: NextRequest) {
   }
 
   const db = createAdminClient();
+  const isOrgManagerExport = profile.role === "admin" && Boolean(profile.org_id);
   let query = db
     .from("timesheets")
     .select(
-      "id, employee_id, period_start, period_end, calculated_total, currency_snapshot, rate_snapshot, rate_type_snapshot, approved_at, approved_by, org_id",
+      "id, employee_id, status, period_start, period_end, calculated_total, currency_snapshot, rate_snapshot, rate_type_snapshot, submitted_at, approved_at, approved_by, org_id",
     )
-    .eq("status", "approved")
     .gte("period_start", from)
     .lte("period_end", to)
     .order("period_start", { ascending: true });
 
-  if (profile.role === "admin") {
-    query = query.eq("org_id", profile.org_id!);
+  if (isOrgManagerExport) {
+    query = query.eq("org_id", profile.org_id!).eq("status", "approved");
+  } else {
+    query = query.eq("employee_id", profile.id);
+    query = profile.org_id ? query.eq("org_id", profile.org_id) : query.is("org_id", null);
   }
 
   const { data: timesheets } = await query;
   if (!timesheets?.length) {
-    const header =
-      "employee_name,email,role,rate,rate_type,currency,period_start,period_end,total_hours,calculated_total,approved_at,approved_by\n";
+    const header = isOrgManagerExport
+      ? "employee_name,email,role,rate,rate_type,currency,period_start,period_end,status,total_hours,calculated_total,submitted_at,approved_at,approved_by\n"
+      : "period_start,period_end,status,total_hours,calculated_total,currency,submitted_at,approved_at\n";
     return new NextResponse(header, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
@@ -78,70 +71,123 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const employeeIds = [...new Set(timesheets.map((t) => t.employee_id))];
-  const approverIds = [
-    ...new Set(timesheets.map((t) => t.approved_by).filter(Boolean)),
-  ] as string[];
-
-  const { data: profiles } = await db
-    .from("profiles")
-    .select("id, full_name, email, role, rate, rate_type, currency")
-    .in("id", [...employeeIds, ...approverIds]);
-
-  const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const profileById = new Map<string, any>();
+  if (isOrgManagerExport) {
+    const employeeIds = [...new Set(timesheets.map((t) => t.employee_id))];
+    const approverIds = [
+      ...new Set(timesheets.map((t) => t.approved_by).filter(Boolean)),
+    ] as string[];
+    const { data: profiles } = await db
+      .from("profiles")
+      .select("id, full_name, email, role, rate, rate_type, currency")
+      .in("id", [...employeeIds, ...approverIds]);
+    for (const person of profiles ?? []) {
+      profileById.set(person.id, person);
+    }
+  }
 
   const timesheetIds = timesheets.map((t) => t.id);
-  const { data: rowData } = await db
-    .from("timesheet_rows")
-    .select("timesheet_id, hours")
-    .in("timesheet_id", timesheetIds);
+  const [{ data: legacyRows }, { data: timeEntries }] = await Promise.all([
+    db
+      .from("timesheet_rows")
+      .select("timesheet_id, hours")
+      .in("timesheet_id", timesheetIds),
+    db
+      .from("time_entries")
+      .select("timesheet_id, entry_mode, decimal_hours, start_time, end_time")
+      .in("timesheet_id", timesheetIds),
+  ]);
 
   const hoursByTimesheet = new Map<string, number>();
-  for (const row of rowData ?? []) {
+  for (const row of legacyRows ?? []) {
     hoursByTimesheet.set(
       row.timesheet_id,
       (hoursByTimesheet.get(row.timesheet_id) ?? 0) + Number(row.hours),
     );
   }
+  for (const entry of timeEntries ?? []) {
+    if (!entry.timesheet_id) continue;
+    const hours =
+      entry.entry_mode === "decimal_hours" && entry.decimal_hours != null
+        ? Number(entry.decimal_hours)
+        : (new Date(`1970-01-01T${String(entry.end_time).slice(0, 5)}:00Z`).getTime() -
+            new Date(`1970-01-01T${String(entry.start_time).slice(0, 5)}:00Z`).getTime()) /
+          3_600_000;
+    const normalized = hours < 0 ? hours + 24 : hours;
+    hoursByTimesheet.set(
+      entry.timesheet_id,
+      (hoursByTimesheet.get(entry.timesheet_id) ?? 0) + normalized,
+    );
+  }
 
-  const columns = [
-    "employee_name",
-    "email",
-    "role",
-    "rate",
-    "rate_type",
-    "currency",
-    "period_start",
-    "period_end",
-    "total_hours",
-    "calculated_total",
-    "approved_at",
-    "approved_by",
-  ];
-
+  const columns = isOrgManagerExport
+    ? [
+        "employee_name",
+        "email",
+        "role",
+        "rate",
+        "rate_type",
+        "currency",
+        "period_start",
+        "period_end",
+        "status",
+        "total_hours",
+        "calculated_total",
+        "submitted_at",
+        "approved_at",
+        "approved_by",
+      ]
+    : [
+        "period_start",
+        "period_end",
+        "status",
+        "total_hours",
+        "calculated_total",
+        "currency",
+        "submitted_at",
+        "approved_at",
+      ];
   const lines = [columns.join(",")];
 
-  for (const t of timesheets) {
-    const emp = profileById.get(t.employee_id);
-    const approver = t.approved_by
-      ? profileById.get(t.approved_by)
-      : null;
-    lines.push(
-      [
-        csvEscape(emp?.full_name?.trim() || emp?.email),
-        csvEscape(emp?.email),
-        csvEscape(emp?.role),
-        csvEscape(t.rate_snapshot ?? emp?.rate),
-        csvEscape(t.rate_type_snapshot ?? emp?.rate_type),
-        csvEscape(t.currency_snapshot ?? emp?.currency),
-        csvEscape(t.period_start),
-        csvEscape(t.period_end),
-        csvEscape(hoursByTimesheet.get(t.id) ?? 0),
-        csvEscape(t.calculated_total),
-        csvEscape(t.approved_at),
-        csvEscape(approver?.full_name?.trim() || approver?.email),
-      ].join(","),
-    );
+  for (const timesheet of timesheets) {
+    const totalHours = Math.round((hoursByTimesheet.get(timesheet.id) ?? 0) * 100) / 100;
+    if (isOrgManagerExport) {
+      const employee = profileById.get(timesheet.employee_id);
+      const approver = timesheet.approved_by
+        ? profileById.get(timesheet.approved_by)
+        : null;
+      lines.push(
+        [
+          csvEscape(employee?.full_name?.trim() || employee?.email),
+          csvEscape(employee?.email),
+          csvEscape(employee?.role),
+          csvEscape(timesheet.rate_snapshot ?? employee?.rate),
+          csvEscape(timesheet.rate_type_snapshot ?? employee?.rate_type),
+          csvEscape(timesheet.currency_snapshot ?? employee?.currency),
+          csvEscape(timesheet.period_start),
+          csvEscape(timesheet.period_end),
+          csvEscape(timesheet.status),
+          csvEscape(totalHours),
+          csvEscape(timesheet.calculated_total),
+          csvEscape(timesheet.submitted_at),
+          csvEscape(timesheet.approved_at),
+          csvEscape(approver?.full_name?.trim() || approver?.email),
+        ].join(","),
+      );
+    } else {
+      lines.push(
+        [
+          csvEscape(timesheet.period_start),
+          csvEscape(timesheet.period_end),
+          csvEscape(timesheet.status),
+          csvEscape(totalHours),
+          csvEscape(timesheet.calculated_total),
+          csvEscape(timesheet.currency_snapshot ?? profile.currency),
+          csvEscape(timesheet.submitted_at),
+          csvEscape(timesheet.approved_at),
+        ].join(","),
+      );
+    }
   }
 
   const body = lines.join("\n") + "\n";

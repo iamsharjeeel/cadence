@@ -8,7 +8,7 @@ import { getWorkspaceContext } from "@/lib/workspace";
 import { decodeGoogleCalendarPrefill } from "@/lib/google-calendar/prefill";
 import { getEventsForDay } from "@/lib/google-calendar/sync";
 import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
-import { mondayOfWeek, thisWeekMonday, weekDays } from "@/lib/time/periods";
+import { datesInRange, toIsoDate } from "@/lib/time/periods";
 import type { GoogleCalendarEventWithMeta } from "@/lib/google-calendar/sync";
 import { TimeTrackingView } from "../TimeTrackingView";
 import { TimeLogReminder } from "../TimeLogReminder";
@@ -29,19 +29,19 @@ export default async function LogTimePage({
     ctx.isSuperadmin ||
     (Boolean(ctx.activeOrgId) &&
       (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin"));
-  const weekMonday = searchParams?.date
-    ? mondayOfWeek(searchParams.date)
-    : thisWeekMonday();
-  const days = weekDays(weekMonday);
+  const anchorDate = searchParams?.date ?? toIsoDate(new Date());
+  const initialData = await getTimeTrackingDataForProfile(profile, anchorDate);
+  const periodDays =
+    initialData.ok && "week" in initialData
+      ? datesInRange(initialData.week.start, initialData.week.end)
+      : [];
 
   const calendarEventsByDay: Record<string, GoogleCalendarEventWithMeta[]> = {};
   await Promise.all(
-    days.map(async (day) => {
-      calendarEventsByDay[day.date] = await getEventsForDay(profile.id, day.date);
+    periodDays.map(async (date) => {
+      calendarEventsByDay[date] = await getEventsForDay(profile.id, date);
     }),
   );
-
-  const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
   const initialPrefill = decodeGoogleCalendarPrefill(searchParams?.prefill);
 
   return (
@@ -61,7 +61,7 @@ export default async function LogTimePage({
         }
       />
       <TimeTrackingView
-        initialWeekMonday={weekMonday}
+        initialWeekMonday={anchorDate}
         initialData={initialData.ok ? initialData : null}
         calendarEventsByDay={calendarEventsByDay}
         initialPrefill={initialPrefill}

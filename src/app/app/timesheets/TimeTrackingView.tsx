@@ -38,16 +38,15 @@ import {
   groupHoursByProject,
 } from "@/lib/time/week-stats-client";
 import {
+  addDays,
+  dayName,
+  datesInRange,
   isoWeekLabel,
-  shiftWeekMonday,
-  thisWeekMonday,
-  weekDays,
+  toIsoDate,
   type PayPeriod,
 } from "@/lib/time/periods";
 import {
   OVERTIME_HOURS_THRESHOLD,
-  SUBMIT_MIN_DAYS,
-  SUBMIT_MIN_HOURS,
   type WeekStats,
 } from "@/lib/time/week-constants";
 import type { TimesheetStatus } from "@/types/db";
@@ -55,7 +54,9 @@ import type { AsanaImportedProject } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
 import type { TimeTrackingData } from "@/types/time-tracking";
 import {
+  copyTimeEntryToDays,
   getTimeTrackingData,
+  requestTimesheetEdit,
   submitTimesheetForApproval,
 } from "./time-actions";
 import { createProject } from "../projects/actions";
@@ -63,6 +64,8 @@ import { syncImportedAsanaProjectNames } from "../profile/asana-actions";
 import { LogSummarySkeleton, LogWeekSkeleton } from "./LogWeekSkeleton";
 import { TimeEntryRow, type EntryRowData } from "./TimeEntryRow";
 import { cn } from "@/lib/utils";
+import { MotionModal } from "@/components/motion/MotionModal";
+import { computeTimesheetLifecycle, periodLengthDays } from "@/lib/timesheets/lifecycle";
 
 type DraftEntry = EntryRowData;
 
@@ -144,6 +147,9 @@ function applyTrackingData(
     setRate: (v: number | null) => void;
     setRateType: (v: string) => void;
     setCurrency: (v: string | null) => void;
+    setSubmittedAt: (v: string | null) => void;
+    setEditRequestStatus: (v: "pending" | "approved" | "rejected" | null) => void;
+    setEditRequestNote: (v: string | null) => void;
     setEntriesByDay: (v: Record<string, DraftEntry[]>) => void;
   },
 ) {
@@ -159,6 +165,9 @@ function applyTrackingData(
   setters.setRate(data.rate);
   setters.setRateType(data.rateType);
   setters.setCurrency(data.currency);
+  setters.setSubmittedAt(data.submittedAt);
+  setters.setEditRequestStatus(data.editRequestStatus);
+  setters.setEditRequestNote(data.editRequestNote);
   setters.setEntriesByDay(entriesGrouped(data.entries));
 }
 
@@ -177,13 +186,18 @@ export function TimeTrackingView({
 }) {
   const { toast } = useToast();
   const [weekMonday, setWeekMonday] = useState(
-    initialWeekMonday ?? thisWeekMonday(),
+    initialWeekMonday ?? toIsoDate(new Date()),
   );
   const [week, setWeek] = useState<PayPeriod | null>(null);
   const [timesheetId, setTimesheetId] = useState("");
   const [orgId, setOrgId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [status, setStatus] = useState<TimesheetStatus>("draft");
+  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
+  const [editRequestStatus, setEditRequestStatus] = useState<
+    "pending" | "approved" | "rejected" | null
+  >(null);
+  const [editRequestNote, setEditRequestNote] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [asanaConnected, setAsanaConnected] = useState(false);
   const [asanaImportedProjects, setAsanaImportedProjects] = useState<
@@ -201,16 +215,33 @@ export function TimeTrackingView({
   const [currency, setCurrency] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(!initialData);
+  const [personalLengthDays, setPersonalLengthDays] = useState<7 | 15 | 30>(7);
+  const [requestEditOpen, setRequestEditOpen] = useState(false);
+  const [requestEditNote, setRequestEditNote] = useState("");
+  const [requestEditPending, setRequestEditPending] = useState(false);
+  const [copySource, setCopySource] = useState<DraftEntry | null>(null);
+  const [copyTargets, setCopyTargets] = useState<string[]>([]);
+  const [copyPending, setCopyPending] = useState(false);
   const skipInitialFetch = useRef(Boolean(initialData));
   const prefillApplied = useRef(false);
-  const ssrWeekMonday = initialWeekMonday ?? thisWeekMonday();
+  const ssrWeekMonday = initialWeekMonday ?? toIsoDate(new Date());
 
   const loadSeq = useRef(0);
   const entriesByDayRef = useRef(entriesByDay);
   const timesheetIdRef = useRef(timesheetId);
   const orgIdRef = useRef(orgId);
   const employeeIdRef = useRef(employeeId);
-  const editableRef = useRef(status === "draft" || status === "submitted" || status === "rejected");
+  const lifecycle = useMemo(
+    () =>
+      computeTimesheetLifecycle({
+        status,
+        periodEnd: week?.end ?? addDays(weekMonday, 6),
+        submittedAt,
+        editRequestStatus,
+      }),
+    [status, submittedAt, week, weekMonday, editRequestStatus],
+  );
+  const editableRef = useRef(lifecycle.canEditEntries);
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
@@ -220,12 +251,32 @@ export function TimeTrackingView({
   timesheetIdRef.current = timesheetId;
   orgIdRef.current = orgId;
   employeeIdRef.current = employeeId;
-  editableRef.current = status === "draft" || status === "submitted" || status === "rejected";
+  editableRef.current = lifecycle.canEditEntries;
 
-  const editable = status === "draft" || status === "submitted" || status === "rejected";
-  const days = useMemo(() => weekDays(weekMonday), [weekMonday]);
-  const isoWeek = useMemo(() => isoWeekLabel(weekMonday), [weekMonday]);
-  const isCurrentWeek = weekMonday === thisWeekMonday();
+  const editable = lifecycle.canEditEntries;
+  const days = useMemo(() => {
+    if (!week) return [];
+    const today = toIsoDate(new Date());
+    return datesInRange(week.start, week.end).map((date) => {
+      const jsDay = new Date(`${date}T00:00:00`).getDay();
+      return {
+        date,
+        dayName: dayName(date),
+        isFuture: date > today,
+        isToday: date === today,
+        isWeekend: jsDay === 0 || jsDay === 6,
+      };
+    });
+  }, [week]);
+  const isoWeek = useMemo(
+    () => (week ? isoWeekLabel(week.start) : isoWeekLabel(weekMonday)),
+    [week, weekMonday],
+  );
+  const isCurrentPeriod = useMemo(() => {
+    if (!week) return false;
+    const today = toIsoDate(new Date());
+    return today >= week.start && today <= week.end;
+  }, [week]);
 
   const allEntries = useMemo(
     () => Object.values(entriesByDay).flat(),
@@ -277,7 +328,10 @@ export function TimeTrackingView({
     // quickly — only the latest request is allowed to apply its result.
     const seq = ++loadSeq.current;
     setLoading(true);
-    const res = await getTimeTrackingData(weekMonday);
+    const res = await getTimeTrackingData(
+      weekMonday,
+      orgIdRef.current ? undefined : personalLengthDays,
+    );
     if (seq !== loadSeq.current) return;
     setLoading(false);
     if (!res.ok || !("entries" in res)) {
@@ -297,9 +351,18 @@ export function TimeTrackingView({
       setRate,
       setRateType,
       setCurrency,
+      setSubmittedAt,
+      setEditRequestStatus,
+      setEditRequestNote,
       setEntriesByDay,
     });
-  }, [weekMonday, toast]);
+    if (!res.orgId) {
+      const length = periodLengthDays(res.week.start, res.week.end);
+      if (length === 7 || length === 15 || length === 30) {
+        setPersonalLengthDays(length);
+      }
+    }
+  }, [weekMonday, personalLengthDays, toast]);
 
   useEffect(() => {
     if (
@@ -321,8 +384,17 @@ export function TimeTrackingView({
         setRate,
         setRateType,
         setCurrency,
+        setSubmittedAt,
+        setEditRequestStatus,
+        setEditRequestNote,
         setEntriesByDay,
       });
+      if (!initialData.orgId) {
+        const length = periodLengthDays(initialData.week.start, initialData.week.end);
+        if (length === 7 || length === 15 || length === 30) {
+          setPersonalLengthDays(length);
+        }
+      }
       setLoading(false);
       return;
     }
@@ -580,7 +652,40 @@ export function TimeTrackingView({
     }
   }
 
-  const hasOrgContext = Boolean(orgId);
+  async function handleRequestEdit() {
+    if (!timesheetId || !requestEditNote.trim()) return;
+    setRequestEditPending(true);
+    try {
+      const result = await requestTimesheetEdit(timesheetId, requestEditNote.trim());
+      toast(result.message, result.ok ? "success" : "error");
+      if (result.ok) {
+        setRequestEditOpen(false);
+        setRequestEditNote("");
+        await load();
+      }
+    } finally {
+      setRequestEditPending(false);
+    }
+  }
+
+  async function handleCopyEntry() {
+    if (!copySource?.id) return;
+    setCopyPending(true);
+    try {
+      const result = await copyTimeEntryToDays({
+        sourceEntryId: copySource.id,
+        targetDates: copyTargets,
+      });
+      toast(result.message, result.ok ? "success" : "error");
+      if (result.ok) {
+        setCopySource(null);
+        setCopyTargets([]);
+        await load();
+      }
+    } finally {
+      setCopyPending(false);
+    }
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -600,26 +705,46 @@ export function TimeTrackingView({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setWeekMonday((m) => shiftWeekMonday(m, -1))}
+              onClick={() => {
+                if (!week) return;
+                setWeekMonday(addDays(week.start, -1));
+              }}
             >
-              ← Prev week
+              ← Prev period
             </Button>
             <Button
               type="button"
-              variant={isCurrentWeek ? "secondary" : "ghost"}
+              variant={isCurrentPeriod ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setWeekMonday(thisWeekMonday())}
+              onClick={() => setWeekMonday(toIsoDate(new Date()))}
             >
-              This week
+              Current period
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setWeekMonday((m) => shiftWeekMonday(m, 1))}
+              onClick={() => {
+                if (!week) return;
+                setWeekMonday(addDays(week.end, 1));
+              }}
             >
-              Next week →
+              Next period →
             </Button>
+            {!orgId && (
+              <select
+                value={String(personalLengthDays)}
+                onChange={(event) =>
+                  setPersonalLengthDays(Number(event.target.value) as 7 | 15 | 30)
+                }
+                className="h-8 rounded-[var(--radius-input)] border border-[var(--line)] bg-surface px-2 text-xs text-ink"
+                aria-label="Personal period length"
+              >
+                <option value="7">7 days</option>
+                <option value="15">15 days</option>
+                <option value="30">30 days</option>
+              </select>
+            )}
           </div>
         </div>
 
@@ -749,6 +874,11 @@ export function TimeTrackingView({
                       onExpand={() =>
                         updateEntry(day.date, entry.clientId, { collapsed: false })
                       }
+                      onCopy={() => {
+                        if (!entry.id) return;
+                        setCopySource(entry);
+                        setCopyTargets([]);
+                      }}
                     />
                   ))}
                 </AnimatePresence>
@@ -804,8 +934,14 @@ export function TimeTrackingView({
         ) : (
           <>
             <h3 className="font-display text-base font-medium tracking-tightest text-ink">
-              Week summary
+              Period summary
             </h3>
+
+            {lifecycle.showReminderBanner && (
+              <p className="rounded-[var(--radius-card)] border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent-strong)]">
+                Submission window is open for this period.
+              </p>
+            )}
 
             <div className="border-b border-[var(--line)] pb-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted">
@@ -889,17 +1025,17 @@ export function TimeTrackingView({
               </div>
             )}
 
-            {hasOrgContext && (
-              <div className="border-t border-[var(--line)] pt-4">
-                <p className="text-xs text-muted">Submit progress</p>
-                <p className="tabular mt-0.5 text-sm font-medium text-ink">
-                  {weekStats.daysLogged} / {SUBMIT_MIN_DAYS} days ·{" "}
-                  {weekStats.totalHours.toFixed(1)} / {SUBMIT_MIN_HOURS}.0h
-                </p>
-              </div>
-            )}
+            <div className="border-t border-[var(--line)] pt-4">
+              <p className="text-xs text-muted">Entry count</p>
+              <p className="tabular mt-0.5 text-sm font-medium text-ink">
+                {allEntries.length} {allEntries.length === 1 ? "entry" : "entries"}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Informational only — gaps in days are allowed.
+              </p>
+            </div>
 
-            {showOvertimeNotice && editable && hasOrgContext && (
+            {showOvertimeNotice && editable && (
               <p className="rounded-[var(--radius-card)] border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-3 py-2.5 text-sm text-[var(--accent-strong)]">
                 <span className="tabular font-medium">
                   {(totalHours - OVERTIME_HOURS_THRESHOLD).toFixed(1)}h
@@ -908,15 +1044,10 @@ export function TimeTrackingView({
               </p>
             )}
 
-            {editable && hasOrgContext && (
+            {lifecycle.stage === "submittable" && (
               <Button
                 className="w-full"
-                disabled={pending || !timesheetId || !weekStats.canSubmit}
-                title={
-                  !weekStats.canSubmit
-                    ? `Log at least ${SUBMIT_MIN_DAYS} days or ${SUBMIT_MIN_HOURS} hours`
-                    : undefined
-                }
+                disabled={pending || !timesheetId}
                 onClick={() => {
                   const tsId = timesheetIdRef.current;
                   if (!tsId) {
@@ -933,8 +1064,41 @@ export function TimeTrackingView({
                   });
                 }}
               >
-                Submit for approval
+                Submit timesheet
               </Button>
+            )}
+
+            {lifecycle.stage === "submitted_editable" && (
+              <p className="text-sm text-muted">
+                You can still edit this submission until{" "}
+                <span className="tabular font-medium text-ink">
+                  {lifecycle.submittedEditEndsOn}
+                </span>
+                .
+              </p>
+            )}
+
+            {lifecycle.stage === "locked" && (
+              <div className="rounded-[var(--radius-card)] border border-[var(--line)] bg-surface-low p-3">
+                <p className="text-sm text-ink">
+                  This timesheet is locked. Request edit access to make changes.
+                </p>
+                {editRequestStatus === "pending" ? (
+                  <p className="mt-1 text-xs text-muted">
+                    Edit request pending review.
+                    {editRequestNote ? ` Reason: ${editRequestNote}` : ""}
+                  </p>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setRequestEditOpen(true)}
+                  >
+                    Request edit
+                  </Button>
+                )}
+              </div>
             )}
 
             <Link
@@ -946,6 +1110,118 @@ export function TimeTrackingView({
           </>
         )}
       </aside>
+
+      <MotionModal
+        open={requestEditOpen}
+        onClose={() => {
+          if (requestEditPending) return;
+          setRequestEditOpen(false);
+        }}
+        panelClassName="max-w-md"
+      >
+        <h3 className="font-display text-base font-semibold text-ink">
+          Request edit access
+        </h3>
+        <p className="mt-1 text-sm text-muted">
+          Add a short reason. In personal workspace this unlocks immediately;
+          in organization workspace it routes to configured approvers.
+        </p>
+        <textarea
+          value={requestEditNote}
+          onChange={(event) => setRequestEditNote(event.target.value)}
+          maxLength={500}
+          rows={4}
+          placeholder="Why do you need to update this timesheet?"
+          className="mt-4 w-full rounded-[var(--radius-input)] border border-[var(--line)] bg-surface px-3 py-2 text-sm text-ink"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={requestEditPending}
+            onClick={() => setRequestEditOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            loading={requestEditPending}
+            disabled={!requestEditNote.trim()}
+            onClick={() => void handleRequestEdit()}
+          >
+            Send request
+          </Button>
+        </div>
+      </MotionModal>
+
+      <MotionModal
+        open={Boolean(copySource)}
+        onClose={() => {
+          if (copyPending) return;
+          setCopySource(null);
+        }}
+        panelClassName="max-w-lg"
+      >
+        <h3 className="font-display text-base font-semibold text-ink">
+          Copy entry to other days
+        </h3>
+        <p className="mt-1 text-sm text-muted">
+          Select one or more target days in this period.
+        </p>
+        <div className="mt-4 max-h-64 space-y-2 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--line)] p-3">
+          {days.map((day) => {
+            const disabled = day.date === copySource?.entry_date;
+            const checked = copyTargets.includes(day.date);
+            return (
+              <label
+                key={day.date}
+                className={cn(
+                  "flex items-center justify-between rounded-[var(--radius-input)] px-2 py-1.5 text-sm",
+                  disabled ? "opacity-50" : "hover:bg-surface-low",
+                )}
+              >
+                <span>
+                  {day.dayName} · {day.date}
+                </span>
+                <input
+                  type="checkbox"
+                  disabled={disabled}
+                  checked={checked}
+                  onChange={(event) => {
+                    setCopyTargets((prev) => {
+                      if (event.target.checked) return [...prev, day.date];
+                      return prev.filter((date) => date !== day.date);
+                    });
+                  }}
+                  className="h-4 w-4 accent-[var(--accent)]"
+                />
+              </label>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={copyPending}
+            onClick={() => setCopySource(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            loading={copyPending}
+            disabled={copyTargets.length === 0}
+            onClick={() => void handleCopyEntry()}
+          >
+            Copy to selected days
+          </Button>
+        </div>
+      </MotionModal>
     </div>
   );
 }

@@ -632,6 +632,12 @@ export type Database = {
           calculated_total: number | null
           created_at: string
           currency_snapshot: string | null
+          edit_request_note: string | null
+          edit_request_reviewed_at: string | null
+          edit_request_reviewed_by: string | null
+          edit_request_status: string | null
+          edit_requested_at: string | null
+          edit_requested_by: string | null
           employee_id: string
           has_overtime: boolean
           id: string
@@ -643,7 +649,9 @@ export type Database = {
           rate_type_snapshot: string | null
           raw_file_path: string | null
           rejection_note: string | null
+          resubmit_count: number
           status: string
+          submitted_at: string | null
           updated_at: string
         }
         Insert: {
@@ -652,6 +660,12 @@ export type Database = {
           calculated_total?: number | null
           created_at?: string
           currency_snapshot?: string | null
+          edit_request_note?: string | null
+          edit_request_reviewed_at?: string | null
+          edit_request_reviewed_by?: string | null
+          edit_request_status?: string | null
+          edit_requested_at?: string | null
+          edit_requested_by?: string | null
           employee_id: string
           has_overtime?: boolean
           id?: string
@@ -663,7 +677,9 @@ export type Database = {
           rate_type_snapshot?: string | null
           raw_file_path?: string | null
           rejection_note?: string | null
+          resubmit_count?: number
           status?: string
+          submitted_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -672,6 +688,12 @@ export type Database = {
           calculated_total?: number | null
           created_at?: string
           currency_snapshot?: string | null
+          edit_request_note?: string | null
+          edit_request_reviewed_at?: string | null
+          edit_request_reviewed_by?: string | null
+          edit_request_status?: string | null
+          edit_requested_at?: string | null
+          edit_requested_by?: string | null
           employee_id?: string
           has_overtime?: boolean
           id?: string
@@ -683,10 +705,26 @@ export type Database = {
           rate_type_snapshot?: string | null
           raw_file_path?: string | null
           rejection_note?: string | null
+          resubmit_count?: number
           status?: string
+          submitted_at?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "timesheets_edit_request_reviewed_by_fkey"
+            columns: ["edit_request_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_edit_requested_by_fkey"
+            columns: ["edit_requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "timesheets_approved_by_fkey"
             columns: ["approved_by"]

@@ -249,6 +249,7 @@ export function TimeEntryRow({
   onAsanaSync,
   onCreateProject,
   onExpand,
+  onCopy,
 }: {
   entry: EntryRowData;
   editable: boolean;
@@ -269,6 +270,7 @@ export function TimeEntryRow({
   onAsanaSync?: () => void;
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onExpand?: () => void;
+  onCopy?: () => void;
 }) {
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -542,6 +544,11 @@ export function TimeEntryRow({
               <Button type="button" size="sm" variant="ghost" onClick={onSave}>
                 Save
               </Button>
+              {entry.id && onCopy && (
+                <Button type="button" size="sm" variant="ghost" onClick={onCopy}>
+                  Copy
+                </Button>
+              )}
               <button
                 type="button"
                 aria-label="Delete entry"

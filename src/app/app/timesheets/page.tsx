@@ -5,30 +5,20 @@ import { PageHeader } from "@/components/app/PageHeader";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getWorkspaceContext } from "@/lib/workspace";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
-import { thisWeekMonday } from "@/lib/time/periods";
-import type { Organization, Profile, Timesheet, TimesheetStatus } from "@/types/db";
+import { computeTimesheetLifecycle } from "@/lib/timesheets/lifecycle";
+import { getWorkspaceContext } from "@/lib/workspace";
+import type { Profile, Timesheet, TimesheetStatus } from "@/types/db";
 import { TimesheetFilters } from "./controls";
 import { TimesheetListTable, type TimesheetListRow } from "./TimesheetListTable";
-import { TimeTrackingView } from "./TimeTrackingView";
-import { TimeLogReminder } from "./TimeLogReminder";
 import { TimesheetPageActions } from "./TimesheetPageActions";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const ctx = await getWorkspaceContext();
-  if (ctx?.isPersonal || ctx?.workspaceRole === "employee") {
-    return { title: { absolute: "Log time · Cadence" } };
-  }
-  return { title: "Timesheets" };
-}
+export const metadata: Metadata = { title: "Timesheets" };
 
 type Row = Timesheet & { rows: { count: number }[] };
 type SortKey = "period" | "total" | "submitted";
@@ -38,193 +28,178 @@ export default async function TimesheetsPage({
 }: {
   searchParams: {
     status?: string;
-    employee?: string;
     from?: string;
     to?: string;
-    org?: string;
     sort?: string;
     dir?: string;
   };
 }) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
+
   const profile = ctx.effectiveProfile;
-  const isSuperadmin = ctx.isSuperadmin;
-  const isOrgManager =
+  const showTeamSection =
     Boolean(ctx.activeOrgId) &&
     (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
-  const isManager = isSuperadmin || isOrgManager;
-
-  if (!isManager) {
-    const weekMonday = thisWeekMonday();
-    const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
-
-    return (
-      <div>
-        <TimeLogReminder />
-        <PageHeader
-          title="Timesheets"
-          description="Log your hours for the week (Mon–Sun), then submit for approval."
-        />
-        <TimeTrackingView
-          initialWeekMonday={weekMonday}
-          initialData={initialData.ok ? initialData : null}
-        />
-      </div>
-    );
-  }
 
   const statusFilter = (searchParams.status ?? "") as TimesheetStatus | "";
-  const employeeFilter = searchParams.employee ?? "";
   const fromFilter = searchParams.from ?? "";
   const toFilter = searchParams.to ?? "";
-  const orgFilter = isSuperadmin ? searchParams.org ?? "" : "";
   const sort = (searchParams.sort ?? "period") as SortKey;
   const dir = searchParams.dir === "asc" ? "asc" : "desc";
 
-  const db = isSuperadmin ? createAdminClient() : createClient();
-  let query = db
+  const db = createClient();
+  let myQuery = db
     .from("timesheets")
-    .select("*, rows:timesheet_rows(count)");
+    .select("*, rows:timesheet_rows(count)")
+    .eq("employee_id", profile.id);
 
-  if (!isManager) query = query.eq("employee_id", profile.id);
-  else if (!isSuperadmin && ctx.activeOrgId) query = query.eq("org_id", ctx.activeOrgId);
-  if (statusFilter) query = query.eq("status", statusFilter);
-  if (isManager && employeeFilter) query = query.eq("employee_id", employeeFilter);
-  if (orgFilter) query = query.eq("org_id", orgFilter);
-  if (fromFilter) query = query.gte("period_start", fromFilter);
-  if (toFilter) query = query.lte("period_end", toFilter);
+  myQuery = ctx.activeOrgId ? myQuery.eq("org_id", ctx.activeOrgId) : myQuery.is("org_id", null);
+
+  if (statusFilter) myQuery = myQuery.eq("status", statusFilter);
+  if (fromFilter) myQuery = myQuery.gte("period_start", fromFilter);
+  if (toFilter) myQuery = myQuery.lte("period_end", toFilter);
 
   if (sort === "total") {
-    query = query.order("calculated_total", {
-      ascending: dir === "asc",
-      nullsFirst: false,
-    });
+    myQuery = myQuery.order("calculated_total", { ascending: dir === "asc", nullsFirst: false });
   } else if (sort === "submitted") {
-    query = query.order("created_at", { ascending: dir === "asc" });
+    myQuery = myQuery.order("created_at", { ascending: dir === "asc" });
   } else {
-    query = query.order("period_start", { ascending: dir === "asc" });
+    myQuery = myQuery.order("period_start", { ascending: dir === "asc" });
   }
 
-  const { data } = await query;
-  const timesheets = (data ?? []) as Row[];
+  const { data: myData } = await myQuery;
+  const myTimesheets = (myData ?? []) as Row[];
 
+  let teamTimesheets: Row[] = [];
+  if (showTeamSection && ctx.activeOrgId) {
+    const { data: teamData } = await db
+      .from("timesheets")
+      .select("*, rows:timesheet_rows(count)")
+      .eq("org_id", ctx.activeOrgId)
+      .neq("employee_id", profile.id)
+      .order("period_start", { ascending: false })
+      .limit(200);
+    teamTimesheets = (teamData ?? []) as Row[];
+  }
+
+  const allIds = [...myTimesheets, ...teamTimesheets].map((timesheet) => timesheet.id);
   const entryCounts = new Map<string, number>();
-  if (timesheets.length > 0) {
-    const ids = timesheets.map((t) => t.id);
+  if (allIds.length > 0) {
     const { data: entryRows } = await db
       .from("time_entries")
       .select("timesheet_id")
-      .in("timesheet_id", ids);
-    for (const e of entryRows ?? []) {
-      entryCounts.set(
-        e.timesheet_id as string,
-        (entryCounts.get(e.timesheet_id as string) ?? 0) + 1,
-      );
+      .in("timesheet_id", allIds);
+    for (const entry of entryRows ?? []) {
+      const timesheetId = entry.timesheet_id as string;
+      entryCounts.set(timesheetId, (entryCounts.get(timesheetId) ?? 0) + 1);
     }
   }
 
+  const teamEmployeeIds = [...new Set(teamTimesheets.map((timesheet) => timesheet.employee_id))];
   const nameById = new Map<string, string>();
-  let employeeOptions: { id: string; name: string }[] = [];
-  let orgOptions: { id: string; name: string }[] = [];
-  const orgNameById = new Map<string, string>();
-
-  if (isManager) {
-    const pdb = isSuperadmin ? createAdminClient() : createClient();
-    let pq = pdb.from("profiles").select("id, full_name, email");
-    if (!isSuperadmin && ctx.activeOrgId) pq = pq.eq("org_id", ctx.activeOrgId);
-    const { data: people } = await pq;
-    for (const p of (people ?? []) as Pick<
-      Profile,
-      "id" | "full_name" | "email"
-    >[]) {
-      const name = p.full_name?.trim() || p.email;
-      nameById.set(p.id, name);
-      employeeOptions.push({ id: p.id, name });
-    }
-    employeeOptions.sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  if (isSuperadmin) {
-    const { data: orgs } = await createAdminClient()
-      .from("organizations")
-      .select("id, name")
-      .order("name");
-    for (const o of (orgs ?? []) as Pick<Organization, "id" | "name">[]) {
-      orgNameById.set(o.id, o.name);
-      orgOptions.push({ id: o.id, name: o.name });
+  if (teamEmployeeIds.length > 0) {
+    const { data: people } = await db
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", teamEmployeeIds);
+    for (const person of (people ?? []) as Pick<Profile, "id" | "full_name" | "email">[]) {
+      nameById.set(person.id, person.full_name?.trim() || person.email);
     }
   }
 
-  const listRows: TimesheetListRow[] = timesheets.map((t) => ({
-    id: t.id,
-    org_id: t.org_id,
-    employee_id: t.employee_id,
-    employeeName: nameById.get(t.employee_id) ?? "—",
-    orgName: orgNameById.get(t.org_id),
-    period_start: t.period_start,
-    period_end: t.period_end,
-    rowCount: entryCounts.get(t.id) ?? t.rows?.[0]?.count ?? 0,
-    status: t.status as TimesheetStatus,
-    created_at: t.created_at,
-    calculated_total: t.calculated_total,
-    currency_snapshot: t.currency_snapshot,
-    rejection_note: t.rejection_note,
-    has_overtime: t.has_overtime,
-    overtime_hours: t.overtime_hours,
-  }));
+  const toListRows = (timesheets: Row[], includeTeamNames: boolean): TimesheetListRow[] =>
+    timesheets.map((timesheet) => ({
+      id: timesheet.id,
+      org_id: timesheet.org_id,
+      employee_id: timesheet.employee_id,
+      employeeName: includeTeamNames
+        ? (nameById.get(timesheet.employee_id) ?? "—")
+        : (profile.full_name?.trim() || profile.email),
+      orgName: undefined,
+      period_start: timesheet.period_start,
+      period_end: timesheet.period_end,
+      rowCount: entryCounts.get(timesheet.id) ?? timesheet.rows?.[0]?.count ?? 0,
+      status: timesheet.status as TimesheetStatus,
+      submitted_at: timesheet.submitted_at,
+      created_at: timesheet.created_at,
+      calculated_total: timesheet.calculated_total,
+      currency_snapshot: timesheet.currency_snapshot,
+      rejection_note: timesheet.rejection_note,
+      has_overtime: timesheet.has_overtime,
+      overtime_hours: timesheet.overtime_hours,
+      edit_request_status:
+        (timesheet.edit_request_status as "pending" | "approved" | "rejected" | null) ?? null,
+      edit_request_note: timesheet.edit_request_note,
+    }));
+
+  const myRows = toListRows(myTimesheets, false);
+  const teamRows = toListRows(teamTimesheets, true);
+
+  const reminderTimesheet = myRows.find((timesheet) =>
+    computeTimesheetLifecycle({
+      status: timesheet.status,
+      periodEnd: timesheet.period_end,
+      submittedAt: timesheet.submitted_at,
+      editRequestStatus: timesheet.edit_request_status,
+    }).showReminderBanner,
+  );
 
   return (
     <div>
       <PageHeader
         title="Timesheets"
-        description="Review employee timesheets — including live drafts in progress."
-        action={
-          <TimesheetPageActions
-            showExport={isManager}
-            showLogTime
-          />
-        }
+        description="Your own timesheet history in the active workspace."
+        action={<TimesheetPageActions showExport showLogTime />}
       />
 
-      {isManager && (
-        <Card className="mb-4">
-          <CardContent>
-            <TimesheetFilters
-              status={statusFilter}
-              employee={employeeFilter}
-              employees={employeeOptions}
-              from={fromFilter}
-              to={toFilter}
-              org={orgFilter}
-              orgs={orgOptions}
-              isSuperadmin={isSuperadmin}
-            />
+      {reminderTimesheet && (
+        <Card className="mb-4 border-[var(--accent)]">
+          <CardContent className="py-4 text-sm text-ink">
+            Submission reminder: period{" "}
+            <span className="tabular font-semibold">
+              {reminderTimesheet.period_start} – {reminderTimesheet.period_end}
+            </span>{" "}
+            is now within the 3-day submission window.
           </CardContent>
         </Card>
       )}
 
+      <Card className="mb-4">
+        <CardContent>
+          <TimesheetFilters
+            status={statusFilter}
+            employee=""
+            employees={[]}
+            from={fromFilter}
+            to={toFilter}
+            org=""
+            orgs={[]}
+            isSuperadmin={false}
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
-          <CardTitle>{isManager ? "All timesheets" : "Your timesheets"}</CardTitle>
+          <CardTitle>My timesheets</CardTitle>
           <CardDescription>
-            {timesheets.length}{" "}
-            {timesheets.length === 1 ? "timesheet" : "timesheets"}
+            {myRows.length} {myRows.length === 1 ? "timesheet" : "timesheets"}
           </CardDescription>
         </CardHeader>
         <CardContent className="overflow-hidden p-0">
-          {timesheets.length === 0 ? (
+          {myRows.length === 0 ? (
             <div className="px-6 py-10">
               <EmptyState
                 title="No timesheets yet"
-                description="Submitted and draft timesheets will appear here."
+                description="Your saved periods will appear here."
               />
             </div>
           ) : (
             <TimesheetListTable
-              timesheets={listRows}
-              isManager={isManager}
-              isSuperadmin={isSuperadmin}
+              timesheets={myRows}
+              isManager={false}
+              isSuperadmin={false}
               currentUserId={profile.id}
               currentUserRole={profile.role}
               currentUserOrgId={profile.org_id}
@@ -234,6 +209,38 @@ export default async function TimesheetsPage({
           )}
         </CardContent>
       </Card>
+
+      {showTeamSection && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Team approvals</CardTitle>
+            <CardDescription>
+              Separate queue for team submissions and edit requests.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-hidden p-0">
+            {teamRows.length === 0 ? (
+              <div className="px-6 py-10">
+                <EmptyState
+                  title="No team timesheets yet"
+                  description="Team submissions will appear here."
+                />
+              </div>
+            ) : (
+              <TimesheetListTable
+                timesheets={teamRows}
+                isManager
+                isSuperadmin={false}
+                currentUserId={profile.id}
+                currentUserRole={profile.role}
+                currentUserOrgId={profile.org_id}
+                sort={sort}
+                dir={dir}
+              />
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
