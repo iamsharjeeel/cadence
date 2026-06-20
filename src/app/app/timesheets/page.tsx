@@ -138,7 +138,7 @@ export default async function TimesheetsPage({
     id: t.id,
     org_id: t.org_id,
     employee_id: t.employee_id,
-    employeeName: nameById.get(t.employee_id) ?? profile.full_name?.trim() || profile.email,
+    employeeName: nameById.get(t.employee_id) ?? (profile.full_name?.trim() || profile.email),
     orgName: orgNameById.get(t.org_id),
     period_start: t.period_start,
     period_end: t.period_end,
