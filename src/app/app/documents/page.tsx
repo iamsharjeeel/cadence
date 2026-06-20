@@ -23,7 +23,6 @@ import { PayDocumentRowActions } from "@/components/documents/PayDocumentRowActi
 import { UserDocumentsLibrary } from "@/components/documents/UserDocumentsLibrary";
 import { OrgDocumentLibrary } from "@/components/documents/OrgDocumentLibrary";
 import { MotionTR } from "@/components/motion/MotionTR";
-import { requireActiveProfile } from "@/lib/auth";
 import { getApprovedTimesheetsWithoutDocuments } from "@/lib/documents/queries";
 import {
   listOrgLibraryDocuments,
@@ -68,9 +67,14 @@ export default async function DocumentsPage({
     org?: string;
   };
 }) {
-  const profile = await requireActiveProfile();
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
-  const isSuperadmin = profile.role === "superadmin";
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  const profile = ctx.effectiveProfile;
+  const isSuperadmin = ctx.isSuperadmin;
+  const isOrgManager =
+    Boolean(ctx.activeOrgId) &&
+    (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin");
+  const isManager = isSuperadmin || isOrgManager;
   const tab = searchParams.tab ?? "pay";
 
   const adminDb = createAdminClient();
@@ -82,7 +86,7 @@ export default async function DocumentsPage({
 
   if (isManager) {
     let pq = adminDb.from("profiles").select("id, full_name, email, role, org_id");
-    if (!isSuperadmin) pq = pq.eq("org_id", profile.org_id!);
+    if (!isSuperadmin && ctx.activeOrgId) pq = pq.eq("org_id", ctx.activeOrgId);
     const { data: people } = await pq;
     for (const p of (people ?? []) as Pick<
       Profile,
@@ -106,9 +110,6 @@ export default async function DocumentsPage({
   }
 
   if (tab === "org") {
-    const ctx = await getWorkspaceContext();
-    if (!ctx) redirect("/login");
-
     const inOrg = Boolean(ctx.activeOrgId);
     const isOrgManager =
       inOrg &&
@@ -136,9 +137,6 @@ export default async function DocumentsPage({
   }
 
   if (tab === "official") {
-    const ctx = await getWorkspaceContext();
-    if (!ctx) redirect("/login");
-
     const userId = ctx.effectiveProfile.id;
     const inOrg = Boolean(ctx.activeOrgId);
     const isOrgManager =
@@ -180,7 +178,7 @@ export default async function DocumentsPage({
     .order("created_at", { ascending: false });
 
   if (!isManager) query = query.eq("employee_id", profile.id);
-  else if (!isSuperadmin) query = query.eq("org_id", profile.org_id!);
+  else if (!isSuperadmin && ctx.activeOrgId) query = query.eq("org_id", ctx.activeOrgId);
 
   if (searchParams.type) query = query.eq("type", searchParams.type);
   if (searchParams.status) query = query.eq("status", searchParams.status);

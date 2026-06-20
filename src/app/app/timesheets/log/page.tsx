@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { requireActiveProfile } from "@/lib/auth";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { decodeGoogleCalendarPrefill } from "@/lib/google-calendar/prefill";
 import { getEventsForDay } from "@/lib/google-calendar/sync";
 import { getTimeTrackingDataForProfile } from "@/lib/time/get-time-tracking-data";
@@ -21,9 +22,13 @@ export default async function LogTimePage({
 }: {
   searchParams?: { date?: string; prefill?: string };
 }) {
-  const profile = await requireActiveProfile();
-
-  const isManager = profile.role === "admin" || profile.role === "superadmin";
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  const profile = ctx.effectiveProfile;
+  const isManager =
+    ctx.isSuperadmin ||
+    (Boolean(ctx.activeOrgId) &&
+      (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin"));
   const weekMonday = searchParams?.date
     ? mondayOfWeek(searchParams.date)
     : thisWeekMonday();

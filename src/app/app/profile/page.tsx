@@ -9,7 +9,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card";
-import { RolePill, StatusPill } from "@/components/ui/Badge";
+import { Badge, RolePill, StatusPill } from "@/components/ui/Badge";
 import { requireActiveProfile } from "@/lib/auth";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { getAsanaConnectionStatus } from "@/lib/asana/connection";
@@ -116,7 +116,13 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
             <Field label="Role">
-              <RolePill role={profile.role} />
+              {ctx?.isPersonal && !ctx.isSuperadmin ? (
+                <Badge tone="pending" className="text-[12px]">
+                  Admin
+                </Badge>
+              ) : (
+                <RolePill role={profile.role} />
+              )}
             </Field>
             <Field label="Status">
               <StatusPill status={profile.status} />

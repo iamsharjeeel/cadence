@@ -17,7 +17,7 @@ import type { Profile, UserRole } from "@/types/db";
  * fields at the active workspace so existing role/org-scoped code keeps working:
  *   - superadmin  -> role 'superadmin', org_id null (platform oversight)
  *   - active org  -> role 'admin' (owner/admin) or 'employee', org_id = that org
- *   - personal    -> role 'employee', org_id null
+ *   - personal    -> role 'admin' (full-control solo workspace), org_id null
  */
 
 export type WorkspaceRole = "owner" | "admin" | "employee";
@@ -131,14 +131,15 @@ export const getWorkspaceContext = cache(
         : null;
 
     const activeOrgId = activeMembership?.orgId ?? null;
-    const workspaceRole = activeMembership?.role ?? null;
+    const workspaceRole: WorkspaceRole | null = activeMembership?.role
+      ?? (isSuperadmin ? null : "admin");
     const isPersonal = !isSuperadmin && !activeMembership;
 
     const effectiveRole: UserRole = isSuperadmin
       ? "superadmin"
-      : workspaceRole === "owner" || workspaceRole === "admin"
-        ? "admin"
-        : "employee";
+      : workspaceRole === "employee"
+        ? "employee"
+        : "admin";
 
     const effectiveProfile: Profile = {
       ...realProfile,

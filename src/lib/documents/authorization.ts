@@ -33,7 +33,7 @@ export async function authorizeTimesheetForDocument(
   }
   if (
     actor.role === "admin" &&
-    timesheet.org_id !== actor.org_id
+    (!actor.org_id || timesheet.org_id !== actor.org_id)
   ) {
     return { ok: false, status: 403, message: "Forbidden." };
   }

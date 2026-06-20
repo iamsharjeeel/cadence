@@ -29,6 +29,12 @@ export async function GET(request: NextRequest) {
       { status: 403, headers: { "Content-Type": "application/json" } },
     );
   }
+  if (profile.role === "admin" && !profile.org_id) {
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   const from = request.nextUrl.searchParams.get("from") ?? "";
   const to = request.nextUrl.searchParams.get("to") ?? "";
