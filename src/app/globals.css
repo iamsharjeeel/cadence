@@ -3,31 +3,32 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Cadence design tokens v2 — "Quiet luxury for data".
+   Cadence design tokens v3 — clean, sharp, professional.
    Light is the default; `.dark` (next-themes class strategy) inverts to ink.
 --------------------------------------------------------------------------- */
 :root {
-  --background: #fbfaf7;
+  --background: #f8f8f7;
   --surface: #ffffff;
-  --surface-low: #f5f3f0;
-  --surface-container: #efedea;
-  --ink: #1a1917;
-  --ink-muted: #6b6560;
-  --line: rgba(26, 25, 23, 0.065);
+  --surface-low: #f3f3f2;
+  --surface-container: #eaeae9;
+  --ink: #111110;
+  --ink-muted: #6d6d68;
+  --line: rgba(0, 0, 0, 0.08);
 
-  --accent: #7f560c;
-  --accent-soft: rgba(127, 86, 12, 0.1);
-  --accent-mid: #c9974a;
-  --accent-strong: #624000;
-  --accent-rgb: 127, 86, 12;
+  /* Gold accent #C8973E */
+  --accent: #c8973e;
+  --accent-soft: rgba(200, 151, 62, 0.1);
+  --accent-mid: #c8973e;
+  --accent-strong: #7a4e08;
+  --accent-rgb: 200, 151, 62;
 
-  --shadow-card: 0px 1px 2px rgba(26, 25, 23, 0.04),
-    0px 8px 20px rgba(26, 25, 23, 0.035);
-  --shadow-float: 0px 2px 6px rgba(26, 25, 23, 0.05),
-    0px 14px 28px rgba(26, 25, 23, 0.045);
+  /* Stripe-style clean shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.04);
+  --shadow-float: 0 4px 8px rgba(0, 0, 0, 0.07), 0 20px 40px rgba(0, 0, 0, 0.06);
 
-  --radius-card: 10px;
-  --radius-input: 7px;
+  /* Sharp corners */
+  --radius-card: 6px;
+  --radius-input: 4px;
   --radius-chip: 9999px;
 
   --border-hairline: 1px solid var(--line);
@@ -37,28 +38,30 @@
 }
 
 .dark {
-  --background: #0a0a08;
-  --surface: #131310;
-  --surface-low: #1a1a17;
-  --surface-container: #222220;
-  --ink: #e8e8e2;
-  --ink-muted: #8a8a82;
-  --line: rgba(255, 255, 248, 0.08);
+  --background: #0a0a09;
+  --surface: #101010;
+  --surface-low: #181816;
+  --surface-container: #212120;
+  --ink: #edede8;
+  --ink-muted: #898983;
+  --line: rgba(255, 255, 255, 0.08);
 
-  --accent: #f7bd48;
-  --accent-soft: rgba(247, 189, 72, 0.12);
-  --accent-mid: #f7bd48;
-  --accent-strong: #ffd070;
-  --accent-rgb: 247, 189, 72;
+  /* Warm gold for dark */
+  --accent: #d4a040;
+  --accent-soft: rgba(200, 151, 62, 0.14);
+  --accent-mid: #d4a040;
+  --accent-strong: #e8ba5a;
+  --accent-rgb: 212, 160, 64;
 
   --shadow-card: none;
   --shadow-float: none;
 
+  /* Flat in dark — Vercel-style */
   --radius-card: 0px;
   --radius-input: 0px;
   --radius-chip: 0px;
 
-  --border-hairline: 1px solid rgba(255, 255, 248, 0.1);
+  --border-hairline: 1px solid rgba(255, 255, 255, 0.09);
 
   --danger: #f2655c;
   --danger-soft: rgba(242, 101, 92, 0.14);

@@ -18,7 +18,7 @@ export function THead({
   return (
     <thead
       className={cn(
-        "bg-surface-low text-left font-display text-xs font-semibold uppercase tracking-[0.06em] text-muted dark:border-b dark:border-[var(--line)] dark:bg-[var(--surface-low)] dark:text-[var(--ink-muted)] dark:tracking-[0.08em] dark:text-[11px]",
+        "border-b border-[var(--line)] bg-[var(--surface-low)] text-left font-display text-[11px] font-semibold uppercase tracking-[0.07em] text-muted",
         className,
       )}
       {...props}
@@ -33,7 +33,7 @@ export function TR({
   return (
     <tr
       className={cn(
-        "border-0 odd:bg-surface-low dark:border-b dark:border-[var(--line)] dark:bg-[var(--surface)] dark:odd:bg-[var(--surface)] dark:hover:bg-[var(--surface-low)]",
+        "border-b border-[var(--line)] transition-colors last:border-0 hover:bg-[var(--surface-low)]",
         className,
       )}
       {...props}

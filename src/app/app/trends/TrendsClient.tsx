@@ -137,7 +137,7 @@ export function TrendsClient({
                   </THead>
                   <TBody>
                     {adminData.employeeRows.map((e) => (
-                      <TR key={e.name} className="border-0 odd:bg-surface-low">
+                      <TR key={e.name}>
                         <TD>{e.name}</TD>
                         <TD className="tabular dark:text-[var(--accent)]">
                           {e.hours.toFixed(1)}

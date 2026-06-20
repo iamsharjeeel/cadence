@@ -89,7 +89,7 @@ export function ConnectedAccountsSection({
       {toast ? (
         <div
           role="status"
-          className="mb-4 rounded-[12px] border border-line bg-[var(--accent-soft)] px-4 py-3 text-sm text-ink"
+          className="mb-4 rounded-[var(--radius-card)] border border-line bg-[var(--accent-soft)] px-4 py-3 text-sm text-ink"
         >
           {toast}
         </div>
@@ -97,9 +97,9 @@ export function ConnectedAccountsSection({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Asana tile */}
-        <div className="min-w-0 rounded-[12px] bg-surface p-5 shadow-card">
+        <div className="min-w-0 rounded-[var(--radius-card)] bg-surface p-5 shadow-card">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#F06A6A]/10">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-card)] bg-[#F06A6A]/10">
               <AsanaIcon size={22} />
             </div>
             <div className="min-w-0">
@@ -145,9 +145,9 @@ export function ConnectedAccountsSection({
         </div>
 
         {/* Google Calendar tile */}
-        <div className="min-w-0 rounded-[12px] bg-surface p-5 shadow-card">
+        <div className="min-w-0 rounded-[var(--radius-card)] bg-surface p-5 shadow-card">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#4285F4]/10">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-card)] bg-[#4285F4]/10">
               <GoogleCalendarIcon size={22} />
             </div>
             <div className="min-w-0">

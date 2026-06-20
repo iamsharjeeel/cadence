@@ -140,7 +140,7 @@ export async function OrgTeamView({
               </THead>
               <TBody>
                 {pendingInvites.map((inv) => (
-                  <TR key={inv.id} className="odd:bg-surface-low">
+                  <TR key={inv.id} className="">
                     <TD className="text-sm text-ink">{inv.email}</TD>
                     <TD>
                       <RolePill role={inv.role} />
@@ -210,7 +210,7 @@ export async function OrgTeamView({
                     !(actorIsManager && (targetIsOwner || m.role === "admin"));
 
                   return (
-                    <TR key={m.id} className="odd:bg-surface-low">
+                    <TR key={m.id} className="">
                       <TD>
                         <MemberCell member={m} />
                       </TD>

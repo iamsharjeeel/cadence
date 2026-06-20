@@ -94,7 +94,7 @@ export async function PlatformMembersAudit() {
               </THead>
               <TBody>
                 {members.map((m) => (
-                  <TR key={m.id} className="odd:bg-surface-low">
+                  <TR key={m.id}>
                     <TD>
                       <div className="flex items-center gap-3">
                         <Avatar name={m.full_name} email={m.email} size={36} />

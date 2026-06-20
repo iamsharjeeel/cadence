@@ -30,7 +30,7 @@ export function Topbar({
   const current = items.find((i) => i.href === currentPath);
 
   return (
-    <header className="sticky top-0 z-20 h-14 border-b border-[var(--line)] bg-surface dark:bg-[var(--background)] dark:border-[var(--line)]">
+    <header className="sticky top-0 z-20 h-14 border-b border-[var(--line)] bg-surface/95 backdrop-blur-sm dark:bg-[var(--background)]/95">
       <div className="grid h-14 grid-cols-[auto_1fr_auto] items-center gap-3 px-5 sm:px-8">
         <button
           type="button"

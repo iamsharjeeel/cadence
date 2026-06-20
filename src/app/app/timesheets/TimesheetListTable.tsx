@@ -21,8 +21,7 @@ import { TimesheetStatusActions } from "./TimesheetStatusActions";
 import { bulkApproveTimesheets } from "./actions";
 import { currentSearchParams } from "@/lib/search-params";
 
-const TABLE_HEAD_CLASS =
-  "bg-surface-low [&_th]:font-display [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.06em]";
+const TABLE_HEAD_CLASS = "[&_th]:font-display";
 
 export type TimesheetListRow = {
   id: string;
@@ -232,7 +231,7 @@ export function TimesheetListTable({
         </THead>
         <TBody>
           {timesheets.map((t) => (
-            <TR key={t.id} className="odd:bg-surface-low dark:border-b dark:border-[var(--line)] dark:bg-[var(--surface)] dark:odd:bg-[var(--surface)] dark:hover:bg-[var(--surface-low)]">
+            <TR key={t.id}>
               <TD>
                 {(t.status === "submitted" || t.status === "approved") && (
                   <input

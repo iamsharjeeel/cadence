@@ -158,7 +158,7 @@ export function AdminDashboardView({
               </THead>
               <TBody>
                 {data.employeeBreakdown.map((e) => (
-                  <TR key={e.id} className="border-0 odd:bg-surface-low">
+                  <TR key={e.id}>
                     <TD className="text-sm font-medium">{e.name}</TD>
                     <TD className="text-sm text-muted">{titleCase(e.role)}</TD>
                     <TD className="tabular text-sm">

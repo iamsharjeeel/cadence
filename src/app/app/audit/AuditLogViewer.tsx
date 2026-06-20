@@ -226,8 +226,8 @@ export function AuditLogViewer({
       </div>
 
       <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-card dark:border dark:border-[var(--line)] dark:shadow-none">
-        <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50 dark:[&_tbody_tr:nth-child(even)]:bg-[var(--surface)]">
-          <THead className="bg-surface-low dark:border-b dark:border-[var(--line)] dark:bg-[var(--surface-low)] [&_th]:text-[11px] [&_th]:tracking-[0.08em]">
+        <Table>
+          <THead className="[&_th]:text-[11px] [&_th]:tracking-[0.07em]">
             <TR>
               <TH>Timestamp</TH>
               <TH>Actor</TH>
@@ -247,7 +247,7 @@ export function AuditLogViewer({
               entries.map((entry) => (
                 <TR
                   key={entry.id}
-                  className="dark:border-b dark:border-[var(--line)] dark:bg-[var(--surface)] dark:odd:bg-[var(--surface)] dark:hover:bg-[var(--surface-low)]"
+                  className=""
                 >
                   <TD className="tabular whitespace-nowrap text-sm">
                     {new Date(entry.created_at).toLocaleString()}

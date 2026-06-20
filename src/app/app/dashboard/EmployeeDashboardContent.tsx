@@ -94,7 +94,7 @@ export async function EmployeeDashboardContent({
             ) : (
               <ul>
                 {data.recentTimesheets.map((t) => (
-                  <li key={t.id} className="odd:bg-surface-low">
+                  <li key={t.id} className="border-b border-[var(--line)] last:border-0">
                     <Link
                       href={`/app/timesheets/${t.id}`}
                       className="flex items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-[var(--accent-soft)]/30"
