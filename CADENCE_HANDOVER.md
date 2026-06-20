@@ -1768,3 +1768,24 @@ _(none logged)_
 #### Notes on `profiles.role` default at signup
 - App onboarding (`src/lib/onboarding.ts`) does not assign a non-superadmin role on signup; it only promotes superadmin by configured email and activates status.
 - The persisted default role still comes from DB-side profile creation logic (historically employee). This session intentionally does **not** mutate stored `profiles.role`; it only fixes workspace-context role resolution.
+
+### Session G follow-up — Fix 3 live-testing regressions (avatar, timesheets nav, period copy) ✅ (2026-06-20, app-layer + `avatar_url` migration)
+
+**Branch:** `cursor/fix-three-regressions-246e` (pushed as PR; direct-to-main also acceptable for these regressions).
+
+#### Bug 1 — Avatar presets reverted to initials
+- **Root cause (multi-part):** The avatar feature was not fully wired end-to-end on `main`. `Topbar` never passed `src` to `Avatar` (always fell back to initials). Profile had no picker UI or `updateOwnAvatar` action. `profiles.avatar_url` column was missing from schema/types. No `resolveAvatarUrl()` — any future private-key paths would have been at risk of incorrect routing.
+- **Fix:** Added `profiles.avatar_url` migration (`20260631000001_profiles_avatar_url.sql`) + types. `src/lib/avatar-url.ts` — presets (`/avatars/preset-N.svg`) pass through unchanged; private keys route to `/api/avatar`. `AvatarPickerSection` + `updateOwnAvatar` with error surfacing (no silent success). `revalidatePath("/app/profile")` + `revalidatePath("/app", "layout")` so Topbar refreshes. Replaced preset SVGs with 5 gold (`#C8973E`) head-and-shoulders silhouettes (3 male, 2 female) in `/public/avatars/`.
+
+#### Bug 2 — Timesheets nav skipped list/history, opened log view directly
+- **Root cause:** `src/app/app/timesheets/page.tsx` had an early `if (!isManager)` branch (introduced with the personal-workspace role fix, #17) that rendered `TimeTrackingView` inline instead of the list page. Personal and org-employee users hit this branch because `isManager` requires `activeOrgId` + owner/admin workspace role (or superadmin). The list page, filters, and “Log my time” CTA still existed in code but were unreachable.
+- **Fix:** Removed the inline log branch. All roles now land on the unified list page (own timesheets for employees/personal; org-wide for managers). Status/date filters shown for everyone; employee filter remains manager-only. `TimesheetPageActions` “Log my time” → `/app/timesheets/log`. Log page back button restored for all users.
+
+#### Bug 3 — Period-aware copy non-functional
+- **Root cause:** Copy-to-period-days was never implemented on `main`. `TimeTrackingView` was week-only (`weekDays(weekMonday)`); no period toggle; no `copyEntryToDays`; no copy control on `TimeEntryRow`. Server loader (`getTimeTrackingData`) only ensured/fetched a Mon–Sun timesheet regardless of UI period intent.
+- **Fix:** Added `ViewPeriodCadence` (`weekly` / `biweekly_15` / `monthly`) toggle + `periodDays()` rendering in `TimeTrackingView`. `getTimeTrackingData(anchor, viewCadence)` + `ensureTimesheetForViewPeriod` align timesheet boundaries and entry fetch to the selected period. `copyEntryToDays` enumerates `week.start`…`week.end` via `addDays` (the server-returned `week` now matches the active period view) and auto-persists copies. Copy icon on saved entries in `TimeEntryRow` (collapsed + expanded).
+
+#### Verification
+- `npm run build` passes.
+- Manual QA recommended: preset avatar persist across reload (Profile + Topbar); timesheets nav → list → Log time → back; copy in week / 15-day / month views.
+

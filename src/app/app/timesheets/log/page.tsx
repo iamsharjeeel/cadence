@@ -25,10 +25,6 @@ export default async function LogTimePage({
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
   const profile = ctx.effectiveProfile;
-  const isManager =
-    ctx.isSuperadmin ||
-    (Boolean(ctx.activeOrgId) &&
-      (ctx.workspaceRole === "owner" || ctx.workspaceRole === "admin"));
   const weekMonday = searchParams?.date
     ? mondayOfWeek(searchParams.date)
     : thisWeekMonday();
@@ -51,13 +47,11 @@ export default async function LogTimePage({
         title="Log time"
         description="Log your hours for the week (Mon–Sun), then submit for approval."
         action={
-          isManager ? (
-            <Link href="/app/timesheets">
-              <Button variant="ghost" size="sm">
-                Back to timesheets
-              </Button>
-            </Link>
-          ) : undefined
+          <Link href="/app/timesheets">
+            <Button variant="ghost" size="sm">
+              Back to timesheets
+            </Button>
+          </Link>
         }
       />
       <TimeTrackingView

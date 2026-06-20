@@ -67,9 +67,12 @@ export async function ensureTimesheetForWeek(
   return result;
 }
 
-export async function getTimeTrackingData(weekMonday: string) {
+export async function getTimeTrackingData(
+  anchorDate: string,
+  viewCadence?: import("@/lib/time/periods").ViewPeriodCadence,
+) {
   const profile = await requireActiveProfile();
-  return getTimeTrackingDataForProfile(profile, weekMonday);
+  return getTimeTrackingDataForProfile(profile, anchorDate, viewCadence ?? "weekly");
 }
 
 async function assertEditableTimesheet(timesheetId: string, employeeId: string) {

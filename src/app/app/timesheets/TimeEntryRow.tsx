@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, Trash2 } from "lucide-react";
+import { Check, Copy, Loader2, Trash2 } from "lucide-react";
 
 import { AsanaProjectPickerMeta } from "@/components/asana/AsanaProjectPicker";
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
@@ -249,6 +249,7 @@ export function TimeEntryRow({
   onAsanaSync,
   onCreateProject,
   onExpand,
+  onCopy,
 }: {
   entry: EntryRowData;
   editable: boolean;
@@ -269,6 +270,7 @@ export function TimeEntryRow({
   onAsanaSync?: () => void;
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onExpand?: () => void;
+  onCopy?: () => void;
 }) {
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -308,16 +310,17 @@ export function TimeEntryRow({
   if (isCollapsed) {
     return (
       <motion.div layout {...ROW_MOTION} className="overflow-hidden">
-        <button
-          type="button"
-          onClick={onExpand}
-          disabled={!editable}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-[var(--radius-input)] bg-surface-low px-3 py-2.5 text-left transition-colors",
-            editable && "hover:bg-[var(--accent-soft)]/40",
-            !editable && "cursor-default",
-          )}
-        >
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onExpand}
+            disabled={!editable}
+            className={cn(
+              "flex min-w-0 flex-1 items-center gap-3 rounded-[var(--radius-input)] bg-surface-low px-3 py-2.5 text-left transition-colors",
+              editable && "hover:bg-[var(--accent-soft)]/40",
+              !editable && "cursor-default",
+            )}
+          >
           <span className="tabular shrink-0 text-sm font-medium text-ink">
             {timeSummary}
           </span>
@@ -384,7 +387,21 @@ export function TimeEntryRow({
               ) : null}
             </>
           ) : null}
-        </button>
+          </button>
+          {onCopy ? (
+            <button
+              type="button"
+              aria-label="Copy entry to other days in this period"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy();
+              }}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-[var(--line)] hover:text-[var(--accent)]"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
       </motion.div>
     );
   }
@@ -542,6 +559,16 @@ export function TimeEntryRow({
               <Button type="button" size="sm" variant="ghost" onClick={onSave}>
                 Save
               </Button>
+              {onCopy ? (
+                <button
+                  type="button"
+                  aria-label="Copy entry to other days in this period"
+                  onClick={onCopy}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-[var(--line)] hover:text-[var(--accent)]"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+              ) : null}
               <button
                 type="button"
                 aria-label="Delete entry"

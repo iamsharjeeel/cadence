@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { useNavigation } from "./NavigationProvider";
+import { resolveAvatarUrl } from "@/lib/avatar-url";
 import type { Profile } from "@/types/db";
 import { navForContext, type NavContext } from "./nav";
 import { usePathname } from "next/navigation";
@@ -28,6 +29,7 @@ export function Topbar({
   const items = navForContext(navContext);
   const currentPath = optimisticPath ?? pathname;
   const current = items.find((i) => i.href === currentPath);
+  const avatarSrc = resolveAvatarUrl(profile.avatar_url);
 
   return (
     <header className="sticky top-0 z-20 h-14 border-b border-[var(--line)] bg-surface dark:bg-[var(--background)] dark:border-[var(--line)]">
@@ -68,6 +70,7 @@ export function Topbar({
             <Avatar
               name={profile.full_name}
               email={profile.email}
+              src={avatarSrc}
               size={32}
             />
             <span className="hidden min-w-0 sm:block">

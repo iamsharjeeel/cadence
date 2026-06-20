@@ -6,6 +6,15 @@ export type PayPeriod = {
   label: string;
 };
 
+/** UI period toggle for the time log (week / 15-day / month). */
+export type ViewPeriodCadence = "weekly" | "biweekly_15" | "monthly";
+
+export const VIEW_PERIOD_OPTIONS: { value: ViewPeriodCadence; label: string }[] = [
+  { value: "weekly", label: "Week" },
+  { value: "biweekly_15", label: "15-day" },
+  { value: "monthly", label: "Month" },
+];
+
 function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -137,6 +146,62 @@ function biweeklyPeriod(iso: string): PayPeriod {
   const start = addDays(anchor, block * 14);
   const end = addDays(start, 13);
   return { start, end, label: formatLabel(start, end) };
+}
+
+function biweekly15Period(iso: string): PayPeriod {
+  const d = parseIso(iso);
+  const anchor = `${d.getFullYear()}-01-01`;
+  const diffDays = Math.floor(
+    (parseIso(iso).getTime() - parseIso(anchor).getTime()) / 86_400_000,
+  );
+  const block = Math.floor(diffDays / 15);
+  const start = addDays(anchor, block * 15);
+  const end = addDays(start, 14);
+  return { start, end, label: formatLabel(start, end) };
+}
+
+export function viewPeriodForDate(
+  isoDate: string,
+  cadence: ViewPeriodCadence,
+): PayPeriod {
+  if (cadence === "monthly") return monthPeriod(isoDate);
+  if (cadence === "biweekly_15") return biweekly15Period(isoDate);
+  return weeklyPeriod(isoDate);
+}
+
+export function shiftViewPeriod(
+  period: PayPeriod,
+  cadence: ViewPeriodCadence,
+  direction: -1 | 1,
+): PayPeriod {
+  const span =
+    Math.floor(
+      (parseIso(period.end).getTime() - parseIso(period.start).getTime()) /
+        86_400_000,
+    ) + 1;
+  const pivot = addDays(period.start, Math.floor(span / 2));
+  const step =
+    cadence === "monthly" ? 15 : cadence === "biweekly_15" ? 15 : 7;
+  return viewPeriodForDate(addDays(pivot, direction * step), cadence);
+}
+
+/** All calendar days in a pay / view period. */
+export function periodDays(period: PayPeriod): WeekDayRow[] {
+  const today = toIsoDate(new Date());
+  return datesInRange(period.start, period.end).map((date) => {
+    const dow = parseIso(date).getDay();
+    return {
+      date,
+      dayName: dayName(date),
+      isFuture: date > today,
+      isToday: date === today,
+      isWeekend: dow === 0 || dow === 6,
+    };
+  });
+}
+
+export function periodLabel(start: string, cadence: ViewPeriodCadence): string {
+  return viewPeriodForDate(start, cadence).label;
 }
 
 export function periodForDate(
