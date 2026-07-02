@@ -187,9 +187,9 @@ export async function OrgTeamView({
                   <TH>Member</TH>
                   <TH>Role</TH>
                   <TH>Status</TH>
-                  <TH>Rate</TH>
-                  <TH>Onboarding</TH>
-                  <TH>Banking</TH>
+                  <TH className="hidden md:table-cell">Rate</TH>
+                  <TH className="hidden md:table-cell">Onboarding</TH>
+                  <TH className="hidden md:table-cell">Banking</TH>
                   {canInvite && <TH className="text-right">Actions</TH>}
                 </TR>
               </THead>
@@ -232,7 +232,7 @@ export async function OrgTeamView({
                           <StatusSelect id={m.id} current={m.status} />
                         )}
                       </TD>
-                      <TD>
+                      <TD className="hidden md:table-cell">
                         <div className="flex items-center gap-3">
                           <span className="tabular text-sm text-ink">
                             {formatMoney(m.rate, m.currency)}
@@ -250,7 +250,7 @@ export async function OrgTeamView({
                           )}
                         </div>
                       </TD>
-                      <TD>
+                      <TD className="hidden md:table-cell">
                         {onboardingByEmployee.get(m.id)?.label === "Complete" ? (
                           <span className="text-sm text-muted">Complete</span>
                         ) : m.role === "employee" ? (
@@ -262,7 +262,7 @@ export async function OrgTeamView({
                           <span className="text-sm text-muted">—</span>
                         )}
                       </TD>
-                      <TD>
+                      <TD className="hidden md:table-cell">
                         {canChangeRoles && (!isSuper || isSelf) ? (
                           <BankingEditor
                             id={m.id}

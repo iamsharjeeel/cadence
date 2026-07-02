@@ -293,6 +293,16 @@ Cadence uses a **quiet luxury** token system — parchment light mode and true-b
 - **Nav active state** uses longest-prefix matching on nested routes; mobile topbar shows section label.
 - **Time-log reminder** notifications link to `/app/timesheets/log`.
 
+### Phase 3 coverage — loading/error boundaries, empty states, leave nav (2026-07-02)
+
+- **Error boundaries:** `error.tsx` added for reports, time-tracked, projects, user-settings, onboarding, organizations, org dashboard, and timesheet detail routes (reusing `RouteError`).
+- **Loading skeletons:** layout-matched `loading.tsx` for dashboard, timesheets, log, leave, documents, employees, reports, projects, trends, time-tracked, audit, user-settings, profile, and settings.
+- **Empty-state CTAs:** dashboard timesheets/orgs, timesheets list, reports, time tracked, leave history/admin queue, and documents unavailable rows.
+- **Leave calendar:** `?month=YYYY-MM` navigation with prev/next/Today controls; Google Calendar events fetched for displayed month.
+- **Mobile team table:** Onboarding, Banking, and Rate columns hidden below `md`.
+- **Profile badge:** personal workspace shows "Personal account" (neutral) instead of "Admin".
+- **Legal pages:** real Privacy Policy and Terms of Service content (July 2026).
+
 ## License
 
 Private — all rights reserved.

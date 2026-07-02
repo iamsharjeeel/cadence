@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { OrgLogo } from "@/components/brand/OrgLogo";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminDashboard, getSuperadminOrgSummaries } from "@/lib/dashboard/queries";
@@ -106,7 +107,17 @@ export default async function DashboardPage({
             </Link>
           ))}
           {orgs.length === 0 ? (
-            <p className="text-sm text-muted">No organizations yet.</p>
+            <div className="col-span-full">
+              <EmptyState
+                title="No organizations yet"
+                description="Create an organization to manage teams and approvals."
+                action={
+                  <Link href="/app/organizations">
+                    <Button size="sm">Manage organizations</Button>
+                  </Link>
+                }
+              />
+            </div>
           ) : null}
         </div>
       </div>

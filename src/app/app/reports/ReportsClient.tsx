@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import {
   Bar,
@@ -196,7 +197,15 @@ export function ReportsClient({
             </CardHeader>
             <CardContent>
               {chartData.length === 0 ? (
-                <p className="text-sm text-muted">No time logged in this range.</p>
+                <div className="py-6 text-center">
+                  <p className="text-sm text-muted">No time logged in this range.</p>
+                  <Link
+                    href="/app/timesheets/log"
+                    className="mt-2 inline-block text-sm font-medium text-[var(--accent-strong)] hover:underline"
+                  >
+                    Log time
+                  </Link>
+                </div>
               ) : (
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -236,14 +245,22 @@ export function ReportsClient({
                   </TR>
                 </THead>
                 <TBody>
-                  {personal.byProject.map((p) => (
-                    <TR key={p.projectId ?? "none"}>
-                      <TD>{p.name}</TD>
-                      <TD className="tabular text-right">
-                        {hoursLabel(p.hours)}
+                  {personal.byProject.length === 0 ? (
+                    <TR>
+                      <TD colSpan={2} className="px-6 py-8 text-center text-sm text-muted">
+                        No projects with logged time in this range.
                       </TD>
                     </TR>
-                  ))}
+                  ) : (
+                    personal.byProject.map((p) => (
+                      <TR key={p.projectId ?? "none"}>
+                        <TD>{p.name}</TD>
+                        <TD className="tabular text-right">
+                          {hoursLabel(p.hours)}
+                        </TD>
+                      </TR>
+                    ))
+                  )}
                 </TBody>
               </Table>
             </CardContent>
@@ -277,21 +294,29 @@ export function ReportsClient({
                   </TR>
                 </THead>
                 <TBody>
-                  {org.byMember.map((m) => (
-                    <TR key={m.memberId}>
-                      <TD>
-                        <p className="text-sm font-medium text-ink">{m.name}</p>
-                        <p className="text-xs text-muted">{m.email}</p>
-                      </TD>
-                      <TD className="tabular text-right">
-                        {hoursLabel(m.hours)}
-                      </TD>
-                      <TD className="tabular text-right">{m.billablePct}%</TD>
-                      <TD className="tabular text-right">
-                        {m.utilizationPct}%
+                  {org.byMember.length === 0 ? (
+                    <TR>
+                      <TD colSpan={4} className="px-6 py-8 text-center text-sm text-muted">
+                        No data in this range.
                       </TD>
                     </TR>
-                  ))}
+                  ) : (
+                    org.byMember.map((m) => (
+                      <TR key={m.memberId}>
+                        <TD>
+                          <p className="text-sm font-medium text-ink">{m.name}</p>
+                          <p className="text-xs text-muted">{m.email}</p>
+                        </TD>
+                        <TD className="tabular text-right">
+                          {hoursLabel(m.hours)}
+                        </TD>
+                        <TD className="tabular text-right">{m.billablePct}%</TD>
+                        <TD className="tabular text-right">
+                          {m.utilizationPct}%
+                        </TD>
+                      </TR>
+                    ))
+                  )}
                 </TBody>
               </Table>
             </CardContent>
@@ -311,17 +336,25 @@ export function ReportsClient({
                   </TR>
                 </THead>
                 <TBody>
-                  {org.byProject.map((p) => (
-                    <TR key={p.projectId ?? "none"}>
-                      <TD>{p.name}</TD>
-                      <TD className="tabular text-right">
-                        {hoursLabel(p.hours)}
-                      </TD>
-                      <TD className="tabular text-right">
-                        {hoursLabel(p.billableHours)}
+                  {org.byProject.length === 0 ? (
+                    <TR>
+                      <TD colSpan={3} className="px-6 py-8 text-center text-sm text-muted">
+                        No data in this range.
                       </TD>
                     </TR>
-                  ))}
+                  ) : (
+                    org.byProject.map((p) => (
+                      <TR key={p.projectId ?? "none"}>
+                        <TD>{p.name}</TD>
+                        <TD className="tabular text-right">
+                          {hoursLabel(p.hours)}
+                        </TD>
+                        <TD className="tabular text-right">
+                          {hoursLabel(p.billableHours)}
+                        </TD>
+                      </TR>
+                    ))
+                  )}
                 </TBody>
               </Table>
             </CardContent>

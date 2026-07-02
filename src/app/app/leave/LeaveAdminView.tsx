@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { fieldBase } from "@/components/ui/Input";
 import { formatLeaveAmount, type LeaveUnit } from "@/lib/leave/types";
@@ -56,7 +57,12 @@ export function LeaveAdminView({
       </CardHeader>
       <CardContent className="p-0">
         {pending.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-muted">No pending requests.</p>
+          <div className="px-6 py-6">
+            <EmptyState
+              title="You're all caught up"
+              description="No pending leave requests to review."
+            />
+          </div>
         ) : (
           <ul className="divide-y">
             {pending.map((r) => {

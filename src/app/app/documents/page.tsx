@@ -328,7 +328,7 @@ export default async function DocumentsPage({
                       {formatDate(doc.created_at)}
                     </TD>
                     <TD>
-                      {downloadUrls.get(doc.id) && (
+                      {downloadUrls.get(doc.id) ? (
                         <PayDocumentRowActions
                           id={doc.id}
                           url={downloadUrls.get(doc.id)!}
@@ -336,6 +336,13 @@ export default async function DocumentsPage({
                           currentStatus={doc.status as DocumentStatus}
                           isManager={isManager}
                         />
+                      ) : (
+                        <span
+                          className="text-sm text-muted"
+                          title="Download link couldn't be generated — refresh to retry"
+                        >
+                          Unavailable
+                        </span>
                       )}
                     </TD>
                   </MotionTR>

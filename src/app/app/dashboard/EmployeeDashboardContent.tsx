@@ -9,6 +9,7 @@ import {
   CardDescription,
 } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { TimesheetStatusPill } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 import type { Profile, TimesheetStatus } from "@/types/db";
@@ -90,7 +91,17 @@ export async function EmployeeDashboardContent({
           </CardHeader>
           <CardContent className="p-0">
             {data.recentTimesheets.length === 0 ? (
-              <p className="px-6 py-8 text-sm text-muted">No timesheets yet.</p>
+              <div className="px-6 py-6">
+                <EmptyState
+                  title="No timesheets yet"
+                  description="Log time to start building your history."
+                  action={
+                    <Link href="/app/timesheets/log">
+                      <Button size="sm">Log time</Button>
+                    </Link>
+                  }
+                />
+              </div>
             ) : (
               <ul>
                 {data.recentTimesheets.map((t) => (

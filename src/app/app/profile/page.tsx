@@ -73,8 +73,8 @@ export default async function ProfilePage() {
           <CardContent className="flex flex-col gap-5">
             <Field label="Role">
               {ctx?.isPersonal && !ctx.isSuperadmin ? (
-                <Badge tone="pending" className="text-[12px]">
-                  Admin
+                <Badge tone="muted" className="text-[12px]">
+                  Personal account
                 </Badge>
               ) : (
                 <RolePill role={profile.role} />

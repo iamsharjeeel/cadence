@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/app/PageHeader";
@@ -9,6 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -195,6 +197,11 @@ export default async function TimesheetsPage({
               <EmptyState
                 title="No timesheets yet"
                 description="Submitted and draft timesheets will appear here."
+                action={
+                  <Link href="/app/timesheets/log">
+                    <Button size="sm">Log time</Button>
+                  </Link>
+                }
               />
             </div>
           ) : (

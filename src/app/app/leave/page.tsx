@@ -14,17 +14,46 @@ import { LeaveAdminView } from "./LeaveAdminView";
 
 export const metadata: Metadata = { title: "Leave" };
 
-export default async function LeavePage() {
+function shiftMonth(ym: string, delta: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthBounds(ym: string): { start: string; end: string } {
+  const [year, month] = ym.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    start: `${ym}-01`,
+    end: `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
+
+function resolveCalendarMonth(monthParam?: string): string {
+  const current = new Date().toISOString().slice(0, 7);
+  if (!monthParam || !/^\d{4}-\d{2}$/.test(monthParam)) return current;
+  const [y, m] = monthParam.split("-").map(Number);
+  if (m < 1 || m > 12) return current;
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
+export default async function LeavePage({
+  searchParams,
+}: {
+  searchParams: { month?: string };
+}) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
 
   const profile = ctx.effectiveProfile;
-  const calendarMonth = new Date().toISOString().slice(0, 7);
-  const [year, month] = calendarMonth.split("-").map(Number);
-  const monthStart = `${calendarMonth}-01`;
-  const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(
-    new Date(year, month, 0).getDate(),
-  ).padStart(2, "0")}`;
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const calendarMonth = resolveCalendarMonth(searchParams.month);
+  const { start: monthStart, end: monthEnd } = monthBounds(calendarMonth);
+  const isCurrentMonth = calendarMonth === currentMonth;
+  const prevMonthHref = `/app/leave?month=${shiftMonth(calendarMonth, -1)}`;
+  const nextMonthHref = `/app/leave?month=${shiftMonth(calendarMonth, 1)}`;
+  const todayHref = "/app/leave";
+
   const inOrg = Boolean(ctx.activeOrgId);
   const isManager =
     inOrg &&
@@ -58,6 +87,10 @@ export default async function LeavePage() {
         leaveTypes={leaveTypes}
         calendarMonth={calendarMonth}
         calendarEvents={calendarEvents}
+        prevMonthHref={prevMonthHref}
+        nextMonthHref={nextMonthHref}
+        todayHref={todayHref}
+        isCurrentMonth={isCurrentMonth}
       />
       {isManager ? (
         <div className="mt-10">

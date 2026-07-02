@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 
+import Link from "next/link";
+
 import { Button } from "@/components/ui/Button";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { MotionCard } from "@/components/motion/MotionCard";
 import { MotionTR } from "@/components/motion/MotionTR";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
@@ -106,12 +109,20 @@ export function LeaveEmployeeView({
   leaveTypes = [],
   calendarMonth,
   calendarEvents = [],
+  prevMonthHref,
+  nextMonthHref,
+  todayHref,
+  isCurrentMonth,
 }: {
   mode: "personal" | "org";
   requests: RequestWithMeta[];
   leaveTypes?: LeaveType[];
   calendarMonth: string;
   calendarEvents?: GoogleCalendarEventWithMeta[];
+  prevMonthHref: string;
+  nextMonthHref: string;
+  todayHref: string;
+  isCurrentMonth: boolean;
 }) {
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [requestSeedDate, setRequestSeedDate] = useState<string | undefined>();
@@ -179,7 +190,30 @@ export function LeaveEmployeeView({
 
       <MotionCard className="overflow-hidden">
         <CardHeader>
-          <CardTitle className="text-base">Calendar — {monthLabel}</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="text-base">Calendar — {monthLabel}</CardTitle>
+            <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-card)] bg-surface p-1.5 shadow-card">
+              <Link href={prevMonthHref}>
+                <Button type="button" variant="ghost" size="sm">
+                  ← Prev
+                </Button>
+              </Link>
+              <Link href={todayHref}>
+                <Button
+                  type="button"
+                  variant={isCurrentMonth ? "secondary" : "ghost"}
+                  size="sm"
+                >
+                  {isCurrentMonth ? "This month" : "Today"}
+                </Button>
+              </Link>
+              <Link href={nextMonthHref}>
+                <Button type="button" variant="ghost" size="sm">
+                  Next →
+                </Button>
+              </Link>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="bg-surface p-0">
           <div className="grid grid-cols-7 gap-px bg-[var(--line)]">
@@ -274,9 +308,29 @@ export function LeaveEmployeeView({
         </CardHeader>
         <CardContent className="p-0">
           {requests.length === 0 ? (
-            <p className="px-6 py-8 text-sm text-muted">
-              {mode === "personal" ? "No time off marked yet." : "No requests yet."}
-            </p>
+            <div className="px-6 py-6">
+              <EmptyState
+                title={
+                  mode === "personal" ? "No time off marked yet" : "No requests yet"
+                }
+                description={
+                  mode === "personal"
+                    ? "Mark days off on the calendar above, or add your first entry."
+                    : "Submit a leave request for manager approval."
+                }
+                action={
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setRequestSeedDate(undefined);
+                      setRequestModalOpen(true);
+                    }}
+                  >
+                    {ctaLabel}
+                  </Button>
+                }
+              />
+            </div>
           ) : (
             <Table className="[&_tbody_tr:nth-child(even)]:bg-surface-low/50">
               <THead className="bg-surface-low">

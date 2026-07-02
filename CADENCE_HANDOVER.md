@@ -2258,3 +2258,66 @@ Structure, custom graphics, stats, features all unchanged — this was a copy/to
 - `npm run build` — pass
 
 **DB migrations:** None.
+
+### Session — Phase 3 coverage: loading/error boundaries, empty-state CTAs, leave month nav, mobile team table, legal pages ✅ (2026-07-02)
+
+**Pushed directly to `main`** — no DB migrations.
+
+#### 1 — Error boundaries (`error.tsx`)
+
+Added route-level error boundaries reusing `RouteError` pattern for:
+- `src/app/app/reports/error.tsx`
+- `src/app/app/time-tracked/error.tsx`
+- `src/app/app/projects/error.tsx`
+- `src/app/app/user-settings/error.tsx`
+- `src/app/app/onboarding/error.tsx`
+- `src/app/app/organizations/error.tsx`
+- `src/app/app/orgs/[slug]/dashboard/error.tsx`
+- `src/app/app/timesheets/[id]/error.tsx`
+
+#### 2 — Route loading skeletons (`loading.tsx`)
+
+Layout-matched skeletons using `CardSkeleton`, `TableRowsSkeleton`, and local compositions:
+- `dashboard`, `timesheets`, `timesheets/log`, `leave`, `documents`, `employees`, `reports`, `projects`, `trends`, `time-tracked`, `audit`, `user-settings`, `profile`, `settings`
+
+#### 3 — Empty states with CTAs
+
+- **Employee dashboard** — recent timesheets empty → `EmptyState` + "Log time" → `/app/timesheets/log`
+- **Superadmin org grid** — no orgs → `EmptyState` → `/app/organizations`
+- **Timesheets list** — `EmptyState` action → `/app/timesheets/log`
+- **Reports** — personal chart empty links to log; project/member tables show friendly empty rows
+- **Time tracked** — description mentions floating timer + "Log time manually" link
+- **Leave history** — `EmptyState` with button opening request/mark-time-off modal
+- **Leave admin queue** — "You're all caught up" `EmptyState`
+- **Documents** — failed signed URL rows show muted "Unavailable" with tooltip
+
+#### 4 — Leave calendar month navigation
+
+- `leave/page.tsx` reads optional `?month=YYYY-MM`, computes month bounds, fetches GCal events for that range
+- `LeaveEmployeeView` renders prev/next/Today controls (styled like timesheet period nav); day-click mark-time-off unchanged
+- Admin view untouched
+
+#### 5 — Team table mobile
+
+- `OrgTeamView`: `Onboarding`, `Banking`, `Rate` columns use `hidden md:table-cell` on TH and TD
+
+#### 6 — Profile role badge
+
+- Personal workspace (non-superadmin): neutral "Personal account" badge instead of "Admin"
+
+#### 7 — Privacy & Terms
+
+- Replaced placeholder marketing pages with product-specific Privacy Policy and Terms of Service (last updated July 2026)
+
+#### Files touched
+
+- New: 8× `error.tsx`, 14× `loading.tsx`
+- Modified: `EmployeeDashboardContent.tsx`, `dashboard/page.tsx`, `timesheets/page.tsx`, `ReportsClient.tsx`, `time-tracked/page.tsx`, `LeaveEmployeeView.tsx`, `LeaveAdminView.tsx`, `leave/page.tsx`, `documents/page.tsx`, `OrgTeamView.tsx`, `profile/page.tsx`, `(marketing)/privacy/page.tsx`, `(marketing)/terms/page.tsx`, `README.md`, `CADENCE_HANDOVER.md`
+
+#### Verification
+
+- `npm run typecheck` — pass
+- `npm run lint` — pass (pre-existing `<img>` warnings only)
+- `npm run build` — pass
+
+**DB migrations:** None.

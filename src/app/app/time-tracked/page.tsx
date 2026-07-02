@@ -197,7 +197,15 @@ export default async function TimeTrackedPage({
             <div className="px-6 py-10">
               <EmptyState
                 title="No logged time yet"
-                description="Log time on your timesheet to build your history here."
+                description="Use the floating timer to track time as you work, or log entries manually."
+                action={
+                  <Link
+                    href="/app/timesheets/log"
+                    className="text-sm font-medium text-[var(--accent-strong)] hover:underline"
+                  >
+                    Log time manually
+                  </Link>
+                }
               />
             </div>
           ) : (
