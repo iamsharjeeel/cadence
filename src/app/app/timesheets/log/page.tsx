@@ -31,14 +31,17 @@ export default async function LogTimePage({
     : thisWeekMonday();
   const days = weekDays(weekMonday);
 
-  const calendarEventsByDay: Record<string, GoogleCalendarEventWithMeta[]> = {};
-  await Promise.all(
-    days.map(async (day) => {
-      calendarEventsByDay[day.date] = await getEventsForDay(profile.id, day.date);
-    }),
-  );
-
-  const initialData = await getTimeTrackingDataForProfile(profile, weekMonday);
+  const [calendarEventsByDay, initialData] = await Promise.all([
+    Promise.all(
+      days.map(async (day) => {
+        const events = await getEventsForDay(profile.id, day.date);
+        return [day.date, events] as const;
+      }),
+    ).then((entries) =>
+      Object.fromEntries(entries) as Record<string, GoogleCalendarEventWithMeta[]>,
+    ),
+    getTimeTrackingDataForProfile(profile, weekMonday),
+  ]);
   const initialPrefill = decodeGoogleCalendarPrefill(searchParams?.prefill);
 
   return (

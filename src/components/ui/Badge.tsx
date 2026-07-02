@@ -31,13 +31,13 @@ export function Badge({
         tone === "muted" &&
           "bg-surface-low text-muted dark:border dark:border-[var(--line)] dark:bg-transparent dark:text-[var(--ink-muted)]",
         tone === "danger" &&
-          "bg-[var(--danger-soft)] text-[var(--danger)] dark:border dark:border-[#8B2020] dark:bg-transparent dark:text-[#E07070]",
+          "bg-[var(--danger-soft)] text-[var(--danger)] dark:border dark:border-[var(--danger)] dark:bg-transparent",
         tone === "success" &&
-          "bg-[#E8F4EA] text-[#2D6A35] dark:border dark:border-[#3A6B2A] dark:bg-transparent dark:text-[#7DBF6A]",
+          "bg-[var(--success-soft)] text-[var(--success)] dark:border dark:border-[var(--success)] dark:bg-transparent",
         tone === "pending" &&
           "bg-[var(--accent-soft)] text-[var(--accent)] dark:border dark:border-[var(--accent)] dark:bg-transparent dark:text-[var(--accent)]",
         tone === "error" &&
-          "bg-[#FBE9E9] text-[#8B2020] dark:border dark:border-[#8B2020] dark:bg-transparent dark:text-[#E07070]",
+          "bg-[var(--danger-soft)] text-[var(--danger)] dark:border dark:border-[var(--danger)] dark:bg-transparent",
         className,
       )}
     >

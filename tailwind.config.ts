@@ -28,6 +28,10 @@ const config: Config = {
           DEFAULT: "var(--danger)",
           soft: "var(--danger-soft)",
         },
+        success: {
+          DEFAULT: "var(--success)",
+          soft: "var(--success-soft)",
+        },
       },
       borderColor: {
         DEFAULT: "var(--line)",

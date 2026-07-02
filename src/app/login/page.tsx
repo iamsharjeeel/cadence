@@ -39,7 +39,7 @@ export default function LoginPage({
 
           {errorMessage ? (
             <p
-              className="mb-6 rounded-[var(--radius-card)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm leading-relaxed text-red-700 dark:text-red-300"
+              className="mb-6 rounded-[var(--radius-card)] border border-[var(--danger)]/20 bg-[var(--danger-soft)] px-4 py-3 text-center text-sm leading-relaxed text-[var(--danger)]"
               role="alert"
             >
               {errorMessage}

@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { MotionModal } from "@/components/motion/MotionModal";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import type { AsanaImportedProject } from "@/types/db";
@@ -35,6 +36,9 @@ export function ProjectsManager({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editingProject, setEditingProject] = useState<ProjectListItem | null>(
+    null,
+  );
+  const [archiveTarget, setArchiveTarget] = useState<ProjectListItem | null>(
     null,
   );
 
@@ -82,13 +86,19 @@ export function ProjectsManager({
   }
 
   function handleArchive(project: ProjectListItem) {
-    if (!confirm(`Archive "${project.name}"? It will be hidden from time entry.`)) {
-      return;
-    }
+    setArchiveTarget(project);
+  }
+
+  function confirmArchive() {
+    if (!archiveTarget) return;
+    const project = archiveTarget;
     startTransition(async () => {
       const res = await archiveProject(project.id);
       toast(res.message, res.ok ? "success" : "error");
-      if (res.ok) refresh();
+      if (res.ok) {
+        setArchiveTarget(null);
+        refresh();
+      }
     });
   }
 
@@ -209,6 +219,41 @@ export function ProjectsManager({
         }}
         onSubmit={handleSubmit}
       />
+
+      <MotionModal
+        open={archiveTarget !== null}
+        onClose={() => !pending && setArchiveTarget(null)}
+        panelClassName="max-w-md"
+      >
+        <h3 className="font-display text-[18px] font-semibold tracking-tightest text-ink">
+          Archive this project?
+        </h3>
+        <p className="mt-2 font-body text-sm text-muted">
+          {archiveTarget
+            ? `"${archiveTarget.name}" will be hidden from time entry. You can restore it later from archived projects.`
+            : null}
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setArchiveTarget(null)}
+            disabled={pending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            loading={pending}
+            className="bg-[var(--danger)] text-white hover:opacity-90"
+            onClick={() => void confirmArchive()}
+          >
+            Archive
+          </Button>
+        </div>
+      </MotionModal>
 
       {asanaProjects.length > 0 && (
         <div>

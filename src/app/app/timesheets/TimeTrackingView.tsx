@@ -800,7 +800,7 @@ export function TimeTrackingView({
                 </span>
               )}
               {isPersonalLocked && (
-                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                <span className="rounded-full bg-[var(--danger-soft)] px-2 py-0.5 text-xs font-medium text-[var(--danger)]">
                   Locked
                 </span>
               )}
@@ -869,14 +869,14 @@ export function TimeTrackingView({
         </div>
 
         {isPersonalLocked && (
-          <div className="rounded-[var(--radius-card)] border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/30 dark:bg-red-900/10">
-            <p className="text-sm font-medium text-red-800 dark:text-red-300">
+          <div className="rounded-[var(--radius-card)] border border-[var(--danger)]/20 bg-[var(--danger-soft)] px-4 py-3">
+            <p className="text-sm font-medium text-[var(--danger)]">
               This timesheet is locked and can no longer be edited.
             </p>
             <button
               type="button"
               onClick={() => setRequestEditOpen(true)}
-              className="mt-1 text-sm font-medium text-red-700 underline underline-offset-2 hover:text-red-900 dark:text-red-400"
+              className="mt-1 text-sm font-medium text-[var(--danger)] underline underline-offset-2 hover:opacity-80"
             >
               Request edit access
             </button>

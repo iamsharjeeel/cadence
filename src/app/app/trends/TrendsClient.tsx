@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { Card, CardContent } from "@/components/ui/Card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
-import { fieldBase } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 import type { TrendRange, TrendsBundle } from "@/lib/time/trends";
 import { AdminTrendsView, EmployeeTrendsView } from "./TrendsCharts";
@@ -86,18 +86,14 @@ export function TrendsClient({
 
       {isSuperadmin && (
         <div className="mb-6 max-w-md">
-          <select
+          <Select
             value={orgId}
             onChange={(e) => applyFilters(range, e.target.value)}
-            className={cn(fieldBase, "appearance-none")}
-          >
-            <option value="">Select an organisation…</option>
-            {orgs.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
+            options={[
+              { label: "Select an organization…", value: "" },
+              ...orgs.map((o) => ({ label: o.name, value: o.id })),
+            ]}
+          />
         </div>
       )}
 
@@ -136,8 +132,11 @@ export function TrendsClient({
                     </TR>
                   </THead>
                   <TBody>
-                    {adminData.employeeRows.map((e) => (
-                      <TR key={e.name} className="border-0 odd:bg-surface-low">
+                    {adminData.employeeRows.map((e, index) => (
+                      <TR
+                        key={e.id ?? `${e.name}-${index}`}
+                        className="border-0 odd:bg-surface-low"
+                      >
                         <TD>{e.name}</TD>
                         <TD className="tabular dark:text-[var(--accent)]">
                           {e.hours.toFixed(1)}
@@ -162,7 +161,7 @@ export function TrendsClient({
 
         {isManager && isSuperadmin && !orgId && (
           <p className="rounded-[var(--radius-card)] border border-dashed border-line px-6 py-10 text-center text-sm text-muted">
-            Select an organisation to view its trends.
+            Select an organization to view its trends.
           </p>
         )}
       </div>

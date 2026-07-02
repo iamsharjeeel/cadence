@@ -150,16 +150,6 @@ export async function getEmployeeDashboard(
     hoursByPeriod,
   };
 
-  console.log("[dashboard] employee query result", {
-    employeeId: profile.id,
-    approvedTimesheetCount: approved.length,
-    approvedThisMonthCount: approvedThisMonth.length,
-    approvedHoursMonth: result.approvedHoursMonth,
-    earningsByCurrency: result.earningsByCurrency,
-    monthStart: start,
-    approvedTimesheetIds: approvedIds,
-  });
-
   return result;
 }
 

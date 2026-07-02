@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { fieldBase } from "@/components/ui/Input";
 import { cn, titleCase } from "@/lib/utils";
@@ -55,18 +56,13 @@ export function RoleSelect({
   return (
     <form ref={formRef} action={action}>
       <input type="hidden" name="id" value={id} />
-      <select
+      <Select
         name="role"
         defaultValue={current}
         onChange={() => formRef.current?.requestSubmit()}
-        className={cn(fieldBase, "h-9 w-36 text-sm")}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        className="h-9 w-36 text-sm"
+        options={options}
+      />
     </form>
   );
 }
@@ -84,16 +80,17 @@ export function StatusSelect({
   return (
     <form ref={formRef} action={action}>
       <input type="hidden" name="id" value={id} />
-      <select
+      <Select
         name="status"
         defaultValue={current}
         onChange={() => formRef.current?.requestSubmit()}
-        className={cn(fieldBase, "h-9 w-32 text-sm")}
-      >
-        <option value="active">Active</option>
-        <option value="suspended">Suspended</option>
-        <option value="pending">Pending</option>
-      </select>
+        className="h-9 w-32 text-sm"
+        options={[
+          { value: "active", label: "Active" },
+          { value: "suspended", label: "Suspended" },
+          { value: "pending", label: "Pending" },
+        ]}
+      />
     </form>
   );
 }

@@ -3,7 +3,6 @@
 import { CountUp } from "@/components/motion/CountUp";
 import { CardContent } from "@/components/ui/Card";
 import { MotionCard } from "@/components/motion/MotionCard";
-import { cn } from "@/lib/utils";
 
 export function StatCard({
   label,
@@ -11,7 +10,6 @@ export function StatCard({
   decimals = 0,
   prefix = "",
   suffix = "",
-  delta,
   children,
 }: {
   label: string;
@@ -19,7 +17,6 @@ export function StatCard({
   decimals?: number;
   prefix?: string;
   suffix?: string;
-  delta?: { value: string; positive?: boolean };
   children?: React.ReactNode;
 }) {
   return (
@@ -39,21 +36,6 @@ export function StatCard({
             />
           )}
         </div>
-        {delta && (
-          <p className="text-[13px] text-muted">
-            <span
-              className={cn(
-                "font-medium",
-                delta.positive === true && "text-[#2D6A35]",
-                delta.positive === false && "text-[#8B2020]",
-              )}
-            >
-              {delta.positive === true ? "↑ " : delta.positive === false ? "↓ " : ""}
-              {delta.value}
-            </span>
-            {" vs last period"}
-          </p>
-        )}
       </CardContent>
     </MotionCard>
   );

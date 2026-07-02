@@ -32,8 +32,10 @@
 
   --border-hairline: 1px solid var(--line);
 
-  --danger: #b3261e;
-  --danger-soft: rgba(179, 38, 30, 0.1);
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --success: #2d6a35;
+  --success-soft: #e8f4ea;
 }
 
 .dark {
@@ -60,8 +62,10 @@
 
   --border-hairline: 1px solid rgba(255, 255, 248, 0.1);
 
-  --danger: #f2655c;
-  --danger-soft: rgba(242, 101, 92, 0.14);
+  --danger: #e07070;
+  --danger-soft: rgba(139, 32, 32, 0.18);
+  --success: #7dbf6a;
+  --success-soft: rgba(45, 106, 53, 0.14);
 }
 
 .dark .card,

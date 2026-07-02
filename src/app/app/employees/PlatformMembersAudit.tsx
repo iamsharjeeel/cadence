@@ -60,13 +60,9 @@ export async function PlatformMembersAudit() {
   return (
     <div>
       <PageHeader
-        title="Organization"
+        title="Members"
         description="Platform audit view — read only."
       />
-
-      <p className="mb-4 text-sm font-medium text-muted">
-        Platform audit view — read only
-      </p>
 
       <Card>
         <CardHeader>

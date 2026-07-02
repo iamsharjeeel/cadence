@@ -53,7 +53,7 @@ export function HoursBarChart({
         />
         <Tooltip
           contentStyle={{
-            borderRadius: 12,
+            borderRadius: 8,
             border: "1px solid var(--line)",
             background: "var(--surface)",
           }}
@@ -111,7 +111,7 @@ export function HoursLineChart({
         />
         <Tooltip
           contentStyle={{
-            borderRadius: 12,
+            borderRadius: 8,
             border: "1px solid var(--line)",
             background: "var(--surface)",
           }}

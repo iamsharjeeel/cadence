@@ -11,7 +11,7 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { summarizePayload } from "@/lib/audit/summarize";
 import { currentSearchParams } from "@/lib/search-params";
 import type { AuditLogEntry } from "@/lib/audit/queries";
-import { cn, titleCase } from "@/lib/utils";
+import { cn, roleLabel } from "@/lib/utils";
 
 function auditActionBadgeClass(action: string): string {
   const a = action.toLowerCase();
@@ -260,7 +260,7 @@ export function AuditLogViewer({
                         </span>
                         {entry.actor.role ? (
                           <span className="ml-1 text-xs text-muted">
-                            {titleCase(entry.actor.role)}
+                            {roleLabel(entry.actor.role)}
                           </span>
                         ) : null}
                       </>

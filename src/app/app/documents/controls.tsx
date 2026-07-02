@@ -1,85 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useFormState, useFormStatus } from "react-dom";
 
-import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { useToast } from "@/components/ui/Toast";
-import {
-  DOCUMENT_STATUSES,
-  type DocumentStatus,
-} from "@/lib/documents/types";
+import { DOCUMENT_STATUSES } from "@/lib/documents/types";
 import { currentSearchParams } from "@/lib/search-params";
-import {
-  resendDocumentEmail,
-  updateDocumentStatus,
-  type ActionResult,
-} from "./actions";
-
-function useResultToast(state: ActionResult | null) {
-  const { toast } = useToast();
-  const last = useRef<ActionResult | null>(null);
-  useEffect(() => {
-    if (state && state !== last.current) {
-      last.current = state;
-      toast(state.message, state.ok ? "success" : "error");
-    }
-  }, [state, toast]);
-}
-
-function SubmitButton({ children }: { children: React.ReactNode }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" size="sm" variant="ghost" disabled={pending}>
-      {pending ? "…" : children}
-    </Button>
-  );
-}
-
-export function DocumentStatusSelect({
-  id,
-  current,
-}: {
-  id: string;
-  current: DocumentStatus;
-}) {
-  const [state, action] = useFormState(updateDocumentStatus, null);
-  useResultToast(state);
-  const formRef = useRef<HTMLFormElement>(null);
-
-  return (
-    <form ref={formRef} action={action}>
-      <input type="hidden" name="id" value={id} />
-      <select
-        name="status"
-        defaultValue={current}
-        onChange={() => formRef.current?.requestSubmit()}
-        className="h-9 rounded-[var(--radius-card)] border bg-surface px-2 text-sm"
-      >
-        {DOCUMENT_STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {s.replace(/_/g, " ")}
-          </option>
-        ))}
-      </select>
-    </form>
-  );
-}
-
-export function ResendEmailButton({ id }: { id: string }) {
-  const [state, action] = useFormState(resendDocumentEmail, null);
-  useResultToast(state);
-  return (
-    <form action={action}>
-      <input type="hidden" name="id" value={id} />
-      <SubmitButton>Re-send</SubmitButton>
-    </form>
-  );
-}
 
 export function DocumentFilters({
   type,

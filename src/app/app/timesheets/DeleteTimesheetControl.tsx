@@ -97,7 +97,7 @@ export function DeleteTimesheetControl({
             type="button"
             size="sm"
             loading={loading}
-            className="bg-red-600 text-white hover:bg-red-700"
+            className="bg-[var(--danger)] text-white hover:opacity-90"
             onClick={() => void handleDelete()}
           >
             Delete

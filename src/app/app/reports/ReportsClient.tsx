@@ -92,12 +92,14 @@ export function ReportsClient({
   function reload(nextPreset: ReportDatePreset, from?: string, to?: string) {
     setPreset(nextPreset);
     startTransition(async () => {
-      const p = await fetchPersonalReport(nextPreset, from, to);
+      const [p, o] = await Promise.all([
+        fetchPersonalReport(nextPreset, from, to),
+        showOrgTab
+          ? fetchOrgReport(nextPreset, from, to)
+          : Promise.resolve(null),
+      ]);
       setPersonal(p);
-      if (showOrgTab) {
-        const o = await fetchOrgReport(nextPreset, from, to);
-        if (!("error" in o)) setOrg(o);
-      }
+      if (o && !("error" in o)) setOrg(o);
     });
   }
 

@@ -59,6 +59,7 @@ export function FloatingTimer({ userId }: { userId: string }) {
     discardTimer,
     updateProject,
     updateDescription,
+    updateBillable,
     showProjectPrompt,
     setShowProjectPrompt,
     conflictPrompt,
@@ -319,6 +320,15 @@ export function FloatingTimer({ userId }: { userId: string }) {
                 placeholder="Description (optional)"
                 className="mt-2 h-8 text-sm"
               />
+              <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-muted">
+                <input
+                  type="checkbox"
+                  checked={running.billable}
+                  onChange={(e) => updateBillable(e.target.checked)}
+                  className="h-4 w-4 rounded border-line accent-[var(--accent)]"
+                />
+                Billable
+              </label>
             </div>
           )}
 

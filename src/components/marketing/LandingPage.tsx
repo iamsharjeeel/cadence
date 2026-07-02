@@ -186,7 +186,7 @@ export function LandingPage() {
                 Every Cadence account ships complete from day one — log hours,
                 track periods, manage time off, connect your calendar. Use it
                 entirely on your own, or bring in a team for a full org
-                platform with Manager/Admin roles, approval workflows, and
+                platform with Manager roles, approval workflows, and
                 shared projects. One account, either way.
               </motion.p>
 

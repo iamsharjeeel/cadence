@@ -40,6 +40,7 @@ type TimerContextValue = {
   discardTimer: () => void;
   updateProject: (value: TimerProjectValue) => void;
   updateDescription: (description: string) => void;
+  updateBillable: (billable: boolean) => void;
   showProjectPrompt: boolean;
   setShowProjectPrompt: (v: boolean) => void;
   conflictPrompt: string | null;
@@ -47,7 +48,6 @@ type TimerContextValue = {
   cancelConflict: () => void;
   idlePromptMinutes: number | null;
   acknowledgeIdle: () => void;
-  idleStopAndSave: () => void;
   idleDiscard: () => void;
   resetStartedAt: (ms: number) => void;
 };
@@ -207,6 +207,10 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     setRunning((prev) => (prev ? { ...prev, description } : prev));
   }, []);
 
+  const updateBillable = useCallback((billable: boolean) => {
+    setRunning((prev) => (prev ? { ...prev, billable } : prev));
+  }, []);
+
   const acknowledgeIdle = useCallback(() => {
     lastInteraction.current = Date.now();
     setIdlePromptMinutes(null);
@@ -233,6 +237,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       discardTimer,
       updateProject,
       updateDescription,
+      updateBillable,
       showProjectPrompt,
       setShowProjectPrompt,
       conflictPrompt,
@@ -240,9 +245,6 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       cancelConflict,
       idlePromptMinutes,
       acknowledgeIdle,
-      idleStopAndSave: () => {
-        setIdlePromptMinutes(null);
-      },
       idleDiscard: discardTimer,
       resetStartedAt,
     }),
@@ -260,6 +262,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       discardTimer,
       updateProject,
       updateDescription,
+      updateBillable,
       showProjectPrompt,
       conflictPrompt,
       confirmStopAndStart,

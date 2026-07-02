@@ -59,6 +59,7 @@ export function ApprovalControls({
   const [rejectState, rejectAction] = useFormState(rejectTimesheet, null);
 
   useResultToast(rejectState);
+  useResultToast(approveState);
 
   useEffect(() => {
     if (rejectState?.ok) {

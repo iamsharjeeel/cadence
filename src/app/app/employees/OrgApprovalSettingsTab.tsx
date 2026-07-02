@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -189,18 +188,6 @@ export function OrgApprovalSettingsTab({ orgId }: { orgId: string }) {
           </CardContent>
         </Card>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Plan</CardTitle>
-          <CardDescription>
-            Your organization&apos;s subscription tier (display only).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Badge tone="accent">{settings?.tier ?? "business"}</Badge>
-        </CardContent>
-      </Card>
 
       <div className="flex justify-end">
         <Button onClick={save} disabled={pending}>

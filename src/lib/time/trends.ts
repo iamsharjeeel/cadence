@@ -236,13 +236,15 @@ export async function getTrendsBundle(
   const selectedOrg = isSuperadmin ? orgIdParam?.trim() || undefined : undefined;
   const effectiveOrg = selectedOrg ?? profile.org_id ?? undefined;
 
-  const personalTrends = isSuperadmin ? null : await getEmployeeTrends(profile, range);
-  const orgAggregateData =
+  const [personalTrends, orgAggregateData, adminData] = await Promise.all([
+    isSuperadmin ? Promise.resolve(null) : getEmployeeTrends(profile, range),
     isManager && effectiveOrg
-      ? await getOrgAggregateTrends(effectiveOrg, range)
-      : null;
-  const adminData =
-    isManager && effectiveOrg ? await getAdminTrends(effectiveOrg, range) : null;
+      ? getOrgAggregateTrends(effectiveOrg, range)
+      : Promise.resolve(null),
+    isManager && effectiveOrg
+      ? getAdminTrends(effectiveOrg, range)
+      : Promise.resolve(null),
+  ]);
 
   return { personalTrends, orgAggregateData, adminData };
 }
@@ -358,7 +360,8 @@ export async function getAdminTrends(orgId: string, range: TrendRange) {
   const stackedEmployees = [...employeeNames.values()];
 
   return {
-    employeeRows: [...byEmployee.values()].map((e) => ({
+    employeeRows: [...byEmployee.entries()].map(([id, e]) => ({
+      id,
       ...e,
       billablePct: e.hours ? Math.round((e.billable / e.hours) * 100) : 0,
       earnings: e.rateType === "hourly" && e.rate ? e.billable * e.rate : null,

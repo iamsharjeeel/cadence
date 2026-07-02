@@ -125,7 +125,7 @@ export function AsanaImportModal({
             </h2>
             <p className="mt-1 text-sm text-muted">
               Choose projects from your Asana workspaces. This list is personal —
-              it does not change your organisation&apos;s Cadence projects yet.
+              it does not change your organization&apos;s Cadence projects yet.
             </p>
           </div>
         </div>
@@ -139,7 +139,7 @@ export function AsanaImportModal({
           </div>
         ) : loadError ? (
           <div className="px-4 py-10 text-center">
-            <p className="text-sm text-red-600">{loadError}</p>
+            <p className="text-sm text-[var(--danger)]">{loadError}</p>
             {showReconnect ? (
               <Link
                 href="/api/asana/connect"
@@ -197,7 +197,7 @@ export function AsanaImportModal({
 
       {actionError ? (
         <div className="mt-3 flex shrink-0 flex-wrap items-center gap-3">
-          <p className="text-sm text-red-600">{actionError}</p>
+          <p className="text-sm text-[var(--danger)]">{actionError}</p>
           {showReconnect ? (
             <Link
               href="/api/asana/connect"

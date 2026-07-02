@@ -303,6 +303,14 @@ Cadence uses a **quiet luxury** token system — parchment light mode and true-b
 - **Profile badge:** personal workspace shows "Personal account" (neutral) instead of "Admin".
 - **Legal pages:** real Privacy Policy and Terms of Service content (July 2026).
 
+### Phase 4 polish — tokens, primitives, dead code, perf, copy (2026-07-02)
+
+- **Semantic tokens:** `--danger`, `--danger-soft`, `--success`, `--success-soft` in `globals.css` + Tailwind; hardcoded reds/greens replaced across timesheets, login, dashboard, settings, and Badge.
+- **Shared primitives:** employee Role/Status selects and trends org picker use `Select`; project archive uses `MotionModal` instead of `confirm()`.
+- **Dead code removed:** `LeaveOrgSelect`, `SettingsForm`, `AssignUserDocumentModal`, unused document controls exports, `updateLeaveBalance`, `idleStopAndSave`, unused `StatCard` delta prop.
+- **Perf:** parallelized fetches in log page, trends bundle, and reports reload; removed dashboard debug log.
+- **Copy:** organisation → organization; admin role labels via `roleLabel()`; Members page header aligned; approve toast on detail view; floating timer billable toggle.
+
 ## License
 
 Private — all rights reserved.

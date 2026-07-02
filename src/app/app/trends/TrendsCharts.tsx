@@ -124,7 +124,7 @@ export function AdminTrendsView({
       <EmptyState
         icon={<TrendingUp className="h-5 w-5" />}
         title="No team trend data yet"
-        description="Once your team logs and submits time, organisation-wide trends and per-employee breakdowns will appear here."
+        description="Once your team logs and submits time, organization-wide trends and per-employee breakdowns will appear here."
       />
     );
   }

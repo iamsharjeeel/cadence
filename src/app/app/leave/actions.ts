@@ -611,34 +611,3 @@ export async function applyDefaultBalances(
     message: `Balances updated for ${count} records.`,
   };
 }
-
-export async function updateLeaveBalance(
-  id: string,
-  allocatedDays: number,
-): Promise<ActionResult> {
-  const gate = await requireOrgManager();
-  if (!gate.ok) return gate;
-
-  const db = createAdminClient();
-  const { data: bal } = await db
-    .from("leave_balances")
-    .select("org_id")
-    .eq("id", id)
-    .single();
-  if (!bal) return { ok: false, message: "Balance not found." };
-  if (bal.org_id !== gate.orgId) {
-    return { ok: false, message: "Forbidden." };
-  }
-
-  const daysV = validateNonNegativeNumber(allocatedDays, "Allocated days");
-  if (!daysV.ok) return { ok: false, message: daysV.error };
-
-  const { error } = await db
-    .from("leave_balances")
-    .update({ allocated_days: daysV.value })
-    .eq("id", id);
-  if (error) return { ok: false, message: "Couldn't update balance." };
-
-  revalidatePath("/app/leave");
-  return { ok: true, message: "Balance updated." };
-}

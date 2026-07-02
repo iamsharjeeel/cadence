@@ -90,7 +90,7 @@ export function GeneralSettingsTab({
     <div className="flex flex-col gap-8">
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-card">
         <h3 className="font-display text-base font-semibold text-ink">
-          Organisation details
+          Organization details
         </h3>
         <p className="mt-1 text-sm text-muted">
           Name, currency, and default pay period cadence.
@@ -198,7 +198,7 @@ export function GeneralSettingsTab({
       </section>
 
       {isAdmin && (
-        <section className="rounded-[var(--radius-card)] bg-[#FFF0F0] p-6 shadow-card dark:bg-[#1A0A0A]">
+        <section className="rounded-[var(--radius-card)] bg-[var(--danger-soft)] p-6 shadow-card">
           <h3 className="font-display text-base font-semibold text-[var(--danger)]">
             Danger zone
           </h3>
