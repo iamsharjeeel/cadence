@@ -86,21 +86,37 @@ export async function uploadOfficialDocument(
 
   let employeeIds: string[] = [];
   if (assignAll) {
-    const { data: people } = await db
-      .from("profiles")
-      .select("id")
+    const { data: memRows } = await db
+      .from("memberships")
+      .select("user_id")
       .eq("org_id", orgId)
-      .eq("status", "active")
       .eq("role", "employee");
-    employeeIds = (people ?? []).map((p) => p.id);
+
+    const employeeMemberIds = (memRows ?? []).map((m) => m.user_id as string);
+    if (employeeMemberIds.length) {
+      const { data: people } = await db
+        .from("profiles")
+        .select("id")
+        .in("id", employeeMemberIds)
+        .eq("status", "active");
+      employeeIds = (people ?? []).map((p) => p.id);
+    }
   } else if (assignee) {
+    const { data: membership } = await db
+      .from("memberships")
+      .select("user_id")
+      .eq("org_id", orgId)
+      .eq("user_id", assignee)
+      .maybeSingle();
+    if (!membership) {
+      return { ok: false, message: "Invalid employee for this organization." };
+    }
+
     const { data: assigneeProfile } = await db
       .from("profiles")
       .select("id")
       .eq("id", assignee)
-      .eq("org_id", orgId)
       .eq("status", "active")
-      .eq("role", "employee")
       .maybeSingle();
     if (!assigneeProfile) {
       return { ok: false, message: "Invalid employee for this organization." };

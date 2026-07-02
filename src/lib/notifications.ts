@@ -39,7 +39,7 @@ export async function notifyUser(params: {
   }
 }
 
-/** Notifies every active admin in an org (excludes superadmins unless they belong to the org). */
+/** Notifies every active owner and manager in an org (excludes superadmins unless they belong to the org). */
 export async function notifyOrgAdmins(params: {
   orgId: string;
   type: NotificationType;
@@ -50,11 +50,19 @@ export async function notifyOrgAdmins(params: {
   excludeUserId?: string;
 }): Promise<void> {
   const db = createAdminClient();
+  const { data: memberships } = await db
+    .from("memberships")
+    .select("user_id")
+    .eq("org_id", params.orgId)
+    .in("role", ["owner", "admin"]);
+
+  const memberIds = (memberships ?? []).map((m) => m.user_id as string);
+  if (!memberIds.length) return;
+
   const { data: admins } = await db
     .from("profiles")
     .select("id")
-    .eq("org_id", params.orgId)
-    .eq("role", "admin")
+    .in("id", memberIds)
     .eq("status", "active");
 
   for (const admin of admins ?? []) {

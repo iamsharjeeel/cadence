@@ -76,7 +76,7 @@ export function CreateOrgForm() {
         label="Allowed domains"
         name="allowed_domains"
         placeholder="acme.com, acme.io"
-        hint="Comma or space separated. New sign-ins from these domains are matched to this org."
+        hint="Comma or space separated. For reference only — members join via email invites."
       />
       <div>
         <CreateButton />

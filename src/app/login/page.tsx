@@ -49,9 +49,9 @@ export default function LoginPage({
           <GoogleButton />
 
           <p className="mt-6 text-center text-xs leading-relaxed text-muted">
-            Sign in with your organization&rsquo;s Google account. New members
-            are guided through onboarding — invite links or matching email
-            domains join your team automatically.
+            Sign in with Google. New accounts start with a personal workspace
+            — join an organization anytime via an email invite from its owner
+            or manager.
           </p>
         </div>
 

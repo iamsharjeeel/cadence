@@ -2150,3 +2150,47 @@ Structure, custom graphics, stats, features all unchanged — this was a copy/to
 
 **DB migrations:** None.
 
+---
+
+### Session — P0 fixes: memberships notifications, doc assignment, resubmit param, invite-only copy ✅ (2026-07-02)
+
+**Pushed directly to `main`** — no DB migrations.
+
+#### 1 — Org admin notifications broken
+
+- **Root cause:** Post–Track C, `notifyOrgAdmins()` queried `profiles` with `.eq("org_id", …).eq("role", "admin")`. `profiles.org_id` is vestigial (null for invite-joined members), so the query returned nobody; `owner` role was also excluded.
+- **Fix:** Query `memberships` for `org_id` + `role IN ('owner','admin')`, then filter to active users via `profiles` (`id IN (…)`, `status = 'active'`). Preserved `excludeUserId` and per-user `notifyUser` loop. JSDoc updated to say owners and managers.
+
+#### 2 — Org document assignment validates against stale profiles.org_id
+
+- **Root cause:** `uploadOfficialDocument` assign flow enumerated employees and validated a single assignee via `profiles.org_id`, missing every invite-joined member.
+- **Fix:** Resolve target users from `memberships` (`org_id = orgId`). Assign-all path: `role = 'employee'` + active `profiles`. Single assign: any org membership role + active profile. Matches pattern in `listOrgMembersForOfficialAssign`.
+
+#### 3 — "Edit & resubmit" opens wrong week
+
+- **Root cause:** `TimesheetStatusActions` pushed `/app/timesheets/log?week=…` but the log page reads `searchParams.date`.
+- **Fix:** Changed query param from `week` to `date`.
+
+#### 4 — Stale domain auto-join copy
+
+- **Root cause:** Domain auto-attach was removed (invite-only joining) but UI copy still claimed matching domains auto-join teams.
+- **Fix (copy only):** Updated login page, `CreateOrgForm` allowed-domains hint, and `GeneralSettingsTab` allowed-domains description to state invite-only joining and reference-only domains.
+
+#### Files touched
+
+- `src/lib/notifications.ts`
+- `src/app/app/official-documents/actions.ts`
+- `src/app/app/timesheets/TimesheetStatusActions.tsx`
+- `src/app/login/page.tsx`
+- `src/app/app/organizations/CreateOrgForm.tsx`
+- `src/app/app/settings/GeneralSettingsTab.tsx`
+- `README.md`
+- `CADENCE_HANDOVER.md`
+
+#### Verification
+
+- `npm run typecheck` — pass
+- `npm run lint` — pass (pre-existing `<img>` warnings only)
+- `npm run build` — pass
+
+**DB migrations:** None.

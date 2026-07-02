@@ -276,6 +276,13 @@ Cadence uses a **quiet luxury** token system — parchment light mode and true-b
 - **Primitives:** CSS variables in `src/app/globals.css`, mapped in `tailwind.config.ts` — `bg-background`, `bg-surface`, `bg-surface-low`, `text-ink`, `text-muted`, `shadow-card`, `shadow-float`, `rounded-card` / `rounded-input`
 - **Numeric data:** `.tabular` utility (`font-feature-settings: "tnum"`)
 
+### P0 fixes — memberships queries, resubmit param, invite-only copy (2026-07-02)
+
+- **`notifyOrgAdmins()`** resolves owners and managers via `memberships` (not vestigial `profiles.org_id`); active status still checked on `profiles`.
+- **Official document assignment** validates assignees via `memberships` — assign-all targets `employee` role; single assign accepts any org member with an active profile.
+- **Timesheet "Edit & resubmit"** navigates with `?date=` to match the log page query param.
+- **Copy updates:** login, org creation, and settings now state that joining is invite-only and allowed domains are reference-only.
+
 ## License
 
 Private — all rights reserved.

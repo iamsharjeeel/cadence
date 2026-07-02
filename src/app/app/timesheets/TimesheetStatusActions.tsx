@@ -66,7 +66,7 @@ export function TimesheetStatusActions({
             const res = await returnTimesheetToDraft(id);
             toast(res.message, res.ok ? "success" : "error");
             if (res.ok) {
-              router.push(`/app/timesheets/log?week=${periodStart}`);
+              router.push(`/app/timesheets/log?date=${periodStart}`);
             }
           } finally {
             setLoading(false);

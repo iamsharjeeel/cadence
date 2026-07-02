@@ -139,7 +139,8 @@ export function GeneralSettingsTab({
           Allowed domains
         </h3>
         <p className="mt-1 text-sm text-muted">
-          Employees must sign in with an email from one of these domains.
+          Stored for reference only. Members join your organization via email
+          invites — not by signing in from a matching domain.
         </p>
         {normalizeAllowedDomains(org.allowed_domains).length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
