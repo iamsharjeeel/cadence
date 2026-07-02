@@ -60,6 +60,7 @@ function relativeTime(iso: string): string {
 }
 
 function entityHref(n: NotificationRow): string | null {
+  if (n.type === "time_log_reminder") return "/app/timesheets/log";
   if (!n.entity || !n.entity_id) return null;
   if (n.entity === "timesheets") return `/app/timesheets/${n.entity_id}`;
   if (n.entity === "leave_requests") return "/app/leave";

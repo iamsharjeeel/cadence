@@ -80,7 +80,11 @@ export function OnboardingWizard({
       if (result.ok) {
         if (step >= 4) {
           const doneResult = await completeOnboarding();
-          if (doneResult.ok) setDone(true);
+          if (doneResult.ok) {
+            setDone(true);
+          } else {
+            showActionToast(doneResult);
+          }
         } else {
           setStep((s) => s + 1);
         }
@@ -100,7 +104,11 @@ export function OnboardingWizard({
         setStep(4);
       } else {
         const d = await completeOnboarding();
-        if (d.ok) setDone(true);
+        if (d.ok) {
+          setDone(true);
+        } else {
+          showActionToast(d);
+        }
       }
     } finally {
       setPending(false);
@@ -111,7 +119,11 @@ export function OnboardingWizard({
     setPending(true);
     try {
       const d = await completeOnboarding();
-      if (d.ok) setDone(true);
+      if (d.ok) {
+        setDone(true);
+      } else {
+        showActionToast(d);
+      }
     } finally {
       setPending(false);
     }

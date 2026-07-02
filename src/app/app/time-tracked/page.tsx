@@ -16,6 +16,7 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { fetchProjectsForTimeEntry } from "@/app/app/projects/actions";
 import { resolveReportRange } from "@/lib/reports/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { durationHours } from "@/lib/time/validation";
 import { getWorkspaceContext } from "@/lib/workspace";
 import type { AsanaImportedProject, TimeEntry } from "@/types/db";
 import { TimeTrackedFilters, type TimeWindowPreset } from "./TimeTrackedFilters";
@@ -31,12 +32,26 @@ type EntryRow = Pick<
   | "start_time"
   | "end_time"
   | "total_hours"
+  | "decimal_hours"
   | "description"
   | "billable"
   | "status"
   | "created_at"
   | "entry_mode"
 >;
+
+/** Correct hours — wraps overnight (DB total_hours goes negative). */
+function entryHours(e: EntryRow): number {
+  if (e.entry_mode === "decimal_hours" && e.decimal_hours != null) {
+    return Number(e.decimal_hours);
+  }
+  return (
+    durationHours(
+      String(e.start_time).slice(0, 5),
+      String(e.end_time).slice(0, 5),
+    ) ?? Number(e.total_hours)
+  );
+}
 
 function formatDuration(totalHours: number): string {
   if (!Number.isFinite(totalHours) || totalHours <= 0) return "—";
@@ -89,14 +104,13 @@ export default async function TimeTrackedPage({
   let entryQuery = db
     .from("time_entries")
     .select(
-      "id, project_id, asana_project_id, entry_date, start_time, end_time, total_hours, description, billable, status, created_at, entry_mode",
+      "id, project_id, asana_project_id, entry_date, start_time, end_time, total_hours, decimal_hours, description, billable, status, created_at, entry_mode",
     )
     .eq("employee_id", userId)
-    .eq("entry_mode", "time_range")
     .gte("entry_date", range.from)
     .lte("entry_date", range.to)
     .order("entry_date", { ascending: false })
-    .order("start_time", { ascending: false })
+    .order("start_time", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
 
   entryQuery = activeOrgId
@@ -152,7 +166,7 @@ export default async function TimeTrackedPage({
     <div>
       <PageHeader
         title="Time tracked"
-        description="History of your tracked timer entries."
+        description="History of all logged time entries in this workspace."
       />
 
       <Card className="mb-4">
@@ -172,7 +186,7 @@ export default async function TimeTrackedPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Tracked sessions</CardTitle>
+          <CardTitle>Logged entries</CardTitle>
           <CardDescription>
             {entries.length} {entries.length === 1 ? "entry" : "entries"} ·{" "}
             {range.from} to {range.to}
@@ -182,8 +196,8 @@ export default async function TimeTrackedPage({
           {entries.length === 0 ? (
             <div className="px-6 py-10">
               <EmptyState
-                title="No tracked time yet"
-                description="Start the timer to build your history here."
+                title="No logged time yet"
+                description="Log time on your timesheet to build your history here."
               />
             </div>
           ) : (
@@ -238,26 +252,51 @@ export default async function TimeTrackedPage({
                         </div>
                       </TD>
                       <TD className="tabular">
-                        {formatDuration(entry.total_hours)}
+                        {formatDuration(entryHours(entry))}
                       </TD>
                       <TD>
-                        {formatDateTime(
-                          entry.entry_date,
-                          String(entry.start_time).slice(0, 5),
+                        {entry.entry_mode === "decimal_hours" ? (
+                          <span className="text-muted">
+                            {new Date(`${entry.entry_date}T12:00:00`).toLocaleDateString(
+                              undefined,
+                              { dateStyle: "medium" },
+                            )}
+                          </span>
+                        ) : (
+                          formatDateTime(
+                            entry.entry_date,
+                            String(entry.start_time).slice(0, 5),
+                          )
                         )}
                       </TD>
                       <TD>
-                        {formatDateTime(
-                          entry.entry_date,
-                          String(entry.end_time).slice(0, 5),
+                        {entry.entry_mode === "decimal_hours" ? (
+                          <span className="text-muted">—</span>
+                        ) : (
+                          formatDateTime(
+                            entry.entry_date,
+                            String(entry.end_time).slice(0, 5),
+                          )
                         )}
                       </TD>
                       <TD>
-                        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-strong)]">
-                          {entry.status === "pending_approval"
-                            ? "Pending"
-                            : "Approved"}
-                        </span>
+                        {entry.status === "pending_approval" ? (
+                          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-strong)]">
+                            Pending
+                          </span>
+                        ) : entry.status === "approved" ? (
+                          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-strong)]">
+                            Approved
+                          </span>
+                        ) : entry.status ? (
+                          <span className="rounded-full bg-[var(--line)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                            {entry.status.replace(/_/g, " ")}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-[var(--line)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                            Logged
+                          </span>
+                        )}
                       </TD>
                       <TD className="max-w-[300px] truncate text-muted">
                         {entry.description?.trim() || "—"}

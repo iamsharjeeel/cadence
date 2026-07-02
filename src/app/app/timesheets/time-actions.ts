@@ -386,7 +386,7 @@ export async function requestPersonalTimesheetEdit(
     entity: "timesheets",
     payload: { timesheet_id: timesheetId, note: note.trim() },
   });
-  return { ok: true, message: "Edit request logged." };
+  return { ok: true, message: "Noted in your audit trail. Locked timesheets stay read-only." };
 }
 
 export async function submitTimesheetForApproval(

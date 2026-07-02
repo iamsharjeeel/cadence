@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 
 import { useNavigation } from "@/components/app/NavigationProvider";
+import { matchNavHref } from "@/components/app/nav";
 import { cn } from "@/lib/utils";
 
 export function NavLink({
@@ -13,6 +14,7 @@ export function NavLink({
   activeClassName,
   inactiveClassName,
   onClick,
+  allNavHrefs,
   children,
   ...props
 }: {
@@ -21,11 +23,18 @@ export function NavLink({
   activeClassName?: string;
   inactiveClassName?: string;
   onClick?: () => void;
+  /** All nav hrefs in the current sidebar — enables longest-prefix active match. */
+  allNavHrefs?: string[];
   children: React.ReactNode;
 } & Omit<React.ComponentProps<typeof Link>, "href" | "className" | "onClick">) {
   const pathname = usePathname();
   const { optimisticPath, setOptimisticPath, startNavigation } = useNavigation();
-  const active = (optimisticPath ?? pathname) === href;
+  const currentPath = optimisticPath ?? pathname;
+  const active = allNavHrefs?.length
+    ? allNavHrefs
+        .filter((h) => matchNavHref(currentPath, h))
+        .sort((a, b) => b.length - a.length)[0] === href
+    : matchNavHref(currentPath, href);
 
   return (
     <motion.div whileHover={{ x: 2 }} transition={{ duration: 0.08 }}>

@@ -775,10 +775,6 @@ export function TimeTrackingView({
   }
 
   async function handleRequestEdit() {
-    if (!requestEditNote.trim()) {
-      toast("Please explain why you need to edit this timesheet.", "error");
-      return;
-    }
     const res = await requestPersonalTimesheetEdit(timesheetId, requestEditNote);
     toast(res.message, res.ok ? "success" : "error");
     if (res.ok) {
@@ -891,15 +887,17 @@ export function TimeTrackingView({
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-[var(--radius-card)] bg-surface p-6 shadow-float">
               <h3 className="font-display text-base font-semibold text-ink">
-                Request edit access
+                Note edit request
               </h3>
               <p className="mt-1 text-sm text-muted">
-                Explain why you need to edit this locked timesheet.
+                Locked timesheets stay read-only. Your note is recorded in the
+                audit trail for record-keeping only — it does not unlock this
+                timesheet.
               </p>
               <textarea
                 className="mt-3 w-full rounded-[var(--radius-input)] border border-[var(--line)] bg-surface p-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                 rows={3}
-                placeholder="e.g. I forgot to log 2 hours on Wednesday..."
+                placeholder="Optional note for your records…"
                 value={requestEditNote}
                 onChange={(e) => setRequestEditNote(e.target.value)}
               />
@@ -915,10 +913,9 @@ export function TimeTrackingView({
                 <Button
                   type="button"
                   size="sm"
-                  disabled={!requestEditNote.trim()}
                   onClick={() => void handleRequestEdit()}
                 >
-                  Submit request
+                  Save note
                 </Button>
               </div>
             </div>
@@ -1053,7 +1050,8 @@ export function TimeTrackingView({
                         if (
                           field === "start_time" ||
                           field === "end_time" ||
-                          field === "description"
+                          field === "description" ||
+                          field === "decimal_hours"
                         ) {
                           scheduleSave(day.date, entry.clientId, {
                             [field]: value,

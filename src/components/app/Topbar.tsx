@@ -7,7 +7,7 @@ import { TopbarUserMenu } from "@/components/app/TopbarUserMenu";
 import { useNavigation } from "./NavigationProvider";
 import { resolveAvatarUrl } from "@/lib/avatar-url";
 import type { Profile } from "@/types/db";
-import { navForContext, type NavContext } from "./nav";
+import { navForContext, findActiveNavItem, type NavContext } from "./nav";
 import { usePathname } from "next/navigation";
 
 export function Topbar({
@@ -25,7 +25,7 @@ export function Topbar({
   const { optimisticPath } = useNavigation();
   const items = navForContext(navContext);
   const currentPath = optimisticPath ?? pathname;
-  const current = items.find((i) => i.href === currentPath);
+  const current = findActiveNavItem(currentPath, items);
   const avatarSrc = resolveAvatarUrl(profile.avatar_url);
 
   return (
@@ -50,7 +50,13 @@ export function Topbar({
 
         <div className="flex justify-center md:justify-start">
           <div className="md:hidden">
-            <Wordmark />
+            {current ? (
+              <h1 className="font-display text-base font-semibold tracking-tightest text-ink">
+                {current.label}
+              </h1>
+            ) : (
+              <Wordmark />
+            )}
           </div>
           <h1 className="hidden font-display text-base font-semibold tracking-tightest text-ink md:block dark:uppercase dark:tracking-[0.06em] dark:text-[12px] dark:font-semibold dark:text-[var(--ink-muted)]">
             {current?.label ?? "Cadence"}

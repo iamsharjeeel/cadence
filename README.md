@@ -283,6 +283,16 @@ Cadence uses a **quiet luxury** token system — parchment light mode and true-b
 - **Timesheet "Edit & resubmit"** navigates with `?date=` to match the log page query param.
 - **Copy updates:** login, org creation, and settings now state that joining is invite-only and allowed domains are reference-only.
 
+### Phase 2 P1 functional fixes (2026-07-02)
+
+- **Org leave approval toggle** now enforced: when `approvals_leave` is off, org leave is auto-approved with Google Calendar sync.
+- **Time tracked page** shows all logged entries (timer + manual), correct overnight durations, honest copy, and neutral status pills.
+- **Decimal-hours blur** auto-saves in Total-hours mode.
+- **Personal edit request** copy clarifies audit-trail-only (no unlock flow).
+- **Onboarding finish** surfaces `completeOnboarding()` errors via toast.
+- **Nav active state** uses longest-prefix matching on nested routes; mobile topbar shows section label.
+- **Time-log reminder** notifications link to `/app/timesheets/log`.
+
 ## License
 
 Private — all rights reserved.

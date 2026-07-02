@@ -10,6 +10,7 @@ import { countBusinessDays } from "@/lib/leave/days";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
 import { pushLeaveToGoogleCalendar, removeLeaveFromGoogleCalendar } from "@/lib/google-calendar/push-leave";
 import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
+import { fetchOrgSettings } from "@/lib/org-settings/actions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getWorkspaceContext } from "@/lib/workspace";
 import {
@@ -195,6 +196,83 @@ export async function requestLeave(input: {
     ? validateMaxLength(input.note, 500, "Note")
     : { ok: true as const, value: "" };
   if (!noteV.ok) return { ok: false, message: noteV.error };
+
+  const orgSettings = await fetchOrgSettings(orgId);
+  const requiresApproval = orgSettings?.approvals_leave ?? false;
+
+  if (!requiresApproval) {
+    const requestId = crypto.randomUUID();
+    const reviewedAt = new Date().toISOString();
+    const { error } = await db.from("leave_requests").insert({
+      id: requestId,
+      org_id: orgId,
+      employee_id: profile.id,
+      leave_type_id: leaveTypeId,
+      start_date: start,
+      end_date: end,
+      days_requested: days,
+      half_day: halfDay,
+      note: noteV.value || null,
+      status: "approved",
+      reviewed_by: profile.id,
+      reviewed_at: reviewedAt,
+    });
+    if (error) {
+      console.error("[leave] auto-approve request failed:", error.message);
+      return { ok: false, message: "Couldn't save time off." };
+    }
+
+    let categoryName: string | null = null;
+    if (leaveTypeId) {
+      const { data: lt } = await db
+        .from("leave_types")
+        .select("name")
+        .eq("id", leaveTypeId)
+        .maybeSingle();
+      categoryName = lt?.name ?? null;
+    }
+
+    const push = await pushLeaveToGoogleCalendar({
+      userId: profile.id,
+      startDate: start,
+      endDate: end,
+      categoryName,
+      note: noteV.value || null,
+    });
+
+    if (push.pushed) {
+      await db
+        .from("leave_requests")
+        .update({ google_event_id: push.eventId })
+        .eq("id", requestId);
+    }
+
+    await writeAudit({
+      actorId: profile.id,
+      orgId,
+      action: "leave_approved",
+      entity: "leave_requests",
+      payload: { request_id: requestId, leave_type_id: leaveTypeId, days },
+    });
+
+    void dispatchWebhookEvent(orgId, {
+      type: "leave.approved",
+      data: {
+        request_id: requestId,
+        employee_id: profile.id,
+        org_id: orgId,
+        start_date: start,
+        end_date: end,
+        reviewed_by: profile.id,
+      },
+    });
+
+    revalidatePath("/app/leave");
+    return {
+      ok: true,
+      message: `Time off added.${gcalWarningSuffix(push)}`,
+    };
+  }
 
   const { data: inserted, error } = await db
     .from("leave_requests")

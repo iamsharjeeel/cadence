@@ -200,3 +200,18 @@ export function navForContext(ctx: NavContext): NavItem[] {
     })
     .filter((i): i is NavItem => Boolean(i));
 }
+
+/** True when pathname is exactly href or a nested route under href. */
+export function matchNavHref(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Longest-prefix match among nav items (avoids double-highlighting). */
+export function findActiveNavItem(
+  pathname: string,
+  items: NavItem[],
+): NavItem | undefined {
+  return items
+    .filter((i) => matchNavHref(pathname, i.href))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+}

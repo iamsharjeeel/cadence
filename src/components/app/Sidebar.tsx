@@ -59,6 +59,7 @@ export function Sidebar({
           <NavLink
             key={item.href}
             href={item.href}
+            allNavHrefs={items.map((i) => i.href)}
             onClick={onMobileClose}
             className={linkClass}
             activeClassName={activeClass}
