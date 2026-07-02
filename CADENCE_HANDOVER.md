@@ -2321,3 +2321,69 @@ Layout-matched skeletons using `CardSkeleton`, `TableRowsSkeleton`, and local co
 - `npm run build` — pass
 
 **DB migrations:** None.
+
+### Session — Phase 4 polish: semantic tokens, shared primitives, dead code removal, perf, copy ✅ (2026-07-02)
+
+**Pushed directly to `main`** — no DB migrations.
+
+#### 1 — Semantic danger/success tokens
+
+- Added `--success` / `--success-soft` (light + `.dark`); refined `--danger` / `--danger-soft` to red-600/red-50 scale
+- Mapped in `tailwind.config.ts` as `success` and `success-soft`
+- Refactored `Badge.tsx` danger/success/error tones to use tokens
+- Replaced hardcoded colors in: `TimeTrackingView.tsx`, `DeleteTimesheetControl.tsx`, `AsanaImportModal.tsx`, `login/page.tsx`, `GeneralSettingsTab.tsx`
+- Removed unused `delta` prop from `StatCard.tsx`
+
+#### 2 — Shared primitives
+
+- `employees/controls.tsx`: `RoleSelect` + `StatusSelect` → shared `Select` (auto-submit preserved)
+- `trends/TrendsClient.tsx`: superadmin org picker → shared `Select`
+- `projects/ProjectsManager.tsx`: native `confirm()` → `MotionModal` archive confirm (toast unchanged)
+
+#### 3 — Dead code removal
+
+Deleted (verified unreferenced):
+- `src/app/app/leave/LeaveOrgSelect.tsx`
+- `src/app/app/settings/SettingsForm.tsx`
+- `src/components/documents/AssignUserDocumentModal.tsx`
+
+Removed from existing files:
+- `DocumentStatusSelect` + `ResendEmailButton` exports in `documents/controls.tsx`
+- `updateLeaveBalance` in `leave/actions.ts`
+- `idleStopAndSave` stub from `TimerContext.tsx` (type + value)
+
+#### 4 — Perf
+
+- Removed `console.log` in `dashboard/queries.ts`
+- `timesheets/log/page.tsx`: calendar events + tracking data → `Promise.all`
+- `lib/time/trends.ts` `getTrendsBundle`: three queries → `Promise.all`
+- `ReportsClient.tsx` `reload()`: personal + org fetches → `Promise.all`
+
+#### 5 — Copy consistency
+
+- organisation → organization: `TrendsClient.tsx`, `TrendsCharts.tsx`, `GeneralSettingsTab.tsx`, `AsanaImportModal.tsx`
+- admin → Manager: `LandingPage.tsx`, `AuditLogViewer.tsx` (`roleLabel()`)
+- `PlatformMembersAudit.tsx`: PageHeader title "Members", removed duplicate description paragraph
+- Removed placeholder Plan card from `OrgApprovalSettingsTab.tsx`
+
+#### 6 — Functional polish
+
+- `ApprovalControls.tsx`: approve success toast (matches list view)
+- `FloatingTimer.tsx`: billable toggle in expanded panel; `TimerContext` exposes `updateBillable`
+- `TrendsClient.tsx`: employee table keys by `e.id` (fallback `${e.name}-${index}`)
+- `DashboardCharts.tsx`: tooltip `borderRadius` 12 → 8
+- `trends.ts`: `employeeRows` now includes stable `id`
+
+#### Files touched
+
+Modified: `globals.css`, `tailwind.config.ts`, `Badge.tsx`, `TimeTrackingView.tsx`, `DeleteTimesheetControl.tsx`, `AsanaImportModal.tsx`, `login/page.tsx`, `StatCard.tsx`, `GeneralSettingsTab.tsx`, `employees/controls.tsx`, `TrendsClient.tsx`, `TrendsCharts.tsx`, `ProjectsManager.tsx`, `documents/controls.tsx`, `leave/actions.ts`, `TimerContext.tsx`, `FloatingTimer.tsx`, `dashboard/queries.ts`, `timesheets/log/page.tsx`, `lib/time/trends.ts`, `ReportsClient.tsx`, `LandingPage.tsx`, `AuditLogViewer.tsx`, `PlatformMembersAudit.tsx`, `OrgApprovalSettingsTab.tsx`, `ApprovalControls.tsx`, `DashboardCharts.tsx`, `README.md`, `CADENCE_HANDOVER.md`
+
+Deleted: `LeaveOrgSelect.tsx`, `SettingsForm.tsx`, `AssignUserDocumentModal.tsx`
+
+#### Verification
+
+- `npm run typecheck` — pass
+- `npm run lint` — pass (pre-existing `<img>` warnings only)
+- `npm run build` — pass
+
+**DB migrations:** None.
