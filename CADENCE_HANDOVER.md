@@ -19,6 +19,7 @@ A complete brief to continue this project in a fresh chat or Cursor session. Pas
 - **Supabase project URL:** `https://irybkcryeywmwpcmhlaa.supabase.co` (region: Singapore)
 - **Vercel URL:** `https://cadence-eta-five.vercel.app` (no custom domain yet)
 - **GitHub repo:** `cadence` (private, `iamsharjeeel/cadence`)
+- **Local clone:** `~/Desktop/cadence` — keep in sync with cloud via `scripts/sync-from-cloud.sh` (pull) and `scripts/sync-to-cloud.sh` (push). See README **Local ↔ cloud sync**.
 - **Google OAuth:** configured — redirect URI `https://irybkcryeywmwpcmhlaa.supabase.co/auth/v1/callback`, JS origin `https://cadence-eta-five.vercel.app`
 - **Supabase Auth URL config:** Site URL = Vercel URL; Redirect URLs include `https://cadence-eta-five.vercel.app/**`
 - **Env vars (set in Vercel):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `SUPERADMIN_EMAIL` (server-only), `DOCUMENT_ENCRYPTION_KEY` (server-only), `RESEND_API_KEY` (server-only), `RESEND_FROM_EMAIL` (server-only), `ASANA_CLIENT_ID` (server-only), `ASANA_CLIENT_SECRET` (server-only), `ASANA_REDIRECT_URI` (server-only — `https://cadence-eta-five.vercel.app/api/asana/callback`), `GOOGLE_CLIENT_ID` (server-only), `GOOGLE_CLIENT_SECRET` (server-only), `GOOGLE_CALENDAR_REDIRECT_URI` (server-only — `https://cadence-eta-five.vercel.app/api/google-calendar/callback`)
