@@ -25,7 +25,7 @@
 > - **Track C ✅** — `set_active_workspace(non_member_org)` → **42501 not a member**; `memberships` INSERT → **42501 permission denied**; `active_workspace` direct write → **42501 permission denied**.
 > - **F4 ✅** — RLS enabled on `api_keys`, `webhook_endpoints`. Policies: `api_keys_*_own` (user_id = auth.uid()); `webhook_endpoints_owner_admin` (memberships owner/admin). Cross-user `api_keys` INSERT → **42501 RLS**; non-manager `webhook_endpoints` INSERT → **42501 RLS**.
 > - **W1 (fixed live 2026-07-06):** `webhook_deliveries.timesheet_id` was NOT NULL but `dispatchWebhookEvent` omits it for leave/member events — applied `webhook_deliveries_timesheet_id_nullable` migration live + repo backfill.
-> - **L1/L2:** Still OPEN. Supabase advisor: 35 WARN lints (anon/authenticated EXECUTE on SECURITY DEFINER RPCs, org-logos public listing, mutable search_path on 2 functions) — defense-in-depth, not critical isolation breaks.
+> - **L1/L2 (fixed 2026-07-06, migration `menu_abc_features`):** **L1 ✅** — `REVOKE INSERT, UPDATE, DELETE ON ALL public tables FROM anon` (DO loop). **L2 ✅** — service-role aggregators re-assert org via `trustOrgScope()` / `trustRequiredOrgScope()` in `dashboard/queries`, `audit/queries`, `leave/queries`, `time/trends.ts`. Formal exploit re-run not repeated; code + migration applied live.
 > - **F4 prod QA (2026-07-06):** `scripts/qa-prod-api-webhook.mjs` against `https://cadence-eta-five.vercel.app` — **9/9 pass**: invalid key → 401; personal GET/POST time-entries + projects; org GET members; personal members → 403; webhook.site delivery HTTP 200 + `X-Cadence-Signature` HMAC verified + payload intact; delivery logged in `webhook_deliveries`.
 
 ## Target confirmation (STEP 0)
@@ -229,5 +229,5 @@ RLS-bypassing call sites enumerated via `rg -n "createAdminClient" src`. **Every
 2. ✅ **DONE (2026-06-14)** **C2/H1** — drop legacy `ts_read`/`ts_upload` storage policies so only the org/path-scoped `timesheets_storage_*` remain. *Dropped; cross-tenant read/write re-verified blocked live.*
 3. ✅ **DONE (2026-06-15, Track C2)** **M1** — dropped the `authenticated` INSERT policy on `audit_log` (writes are service-role only).
 4. ✅ **DONE (2026-06-15, Track C2)** **M2** — `timesheet_rows` policies re-scoped by the parent timesheet's owner (personal: parent owned by you; org: parent in your active org).
-5. **L1** — narrow `anon` table grants (defense-in-depth).
-6. **L2** — have service-role lib aggregators re-assert org scope rather than trust caller `orgId` (defense-in-depth).
+5. ✅ **DONE (2026-07-06)** **L1** — narrow `anon` table grants (defense-in-depth). *Applied in `menu_abc_features` migration live.*
+6. ✅ **DONE (2026-07-06)** **L2** — service-role lib aggregators re-assert org scope via `trustOrgScope`. *Applied in app layer + migration session.*

@@ -6,7 +6,8 @@
 - Expenses MVP (`/app/expenses`, org-scoped RLS, approval settings)
 - Webhook retries (inline + cron + manual), API v1 rate limits + read-only keys
 - L1 anon grant hardening, L2 org-scope trust in aggregators, GitHub Actions CI
-- Migration: `20260706000001_menu_abc_features.sql`
+- Migration `menu_abc_features` applied live via MCP
+- Post-deploy: re-run `npm run qa:prod`
 
 ## 2026-07-06
 

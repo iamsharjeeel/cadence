@@ -17,35 +17,37 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ## Current state (2026-07-06)
 
-- **Git:** `main` @ `31521d0` (synced to origin)
+- **Git:** `main` @ `5a5bd40` (Menu A+B+C; pushing this step)
+- **Env:** `CRON_SECRET` set in Vercel Production; add to Preview if you use preview cron
 - **Local path:** `c:\Users\Zima\Desktop\apps\cadence\cadence`
 - **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa` (MCP connected)
 - **Model:** Personal-by-default + multi-workspace (Track C live since 2026-06-15). Invite-only org join; self-serve `create_organization`.
 - **Build:** `npm run typecheck`, `lint`, `build` — all pass (pre-existing `<img>` lint warnings only)
-- **Env:** `.env.local` via `vercel link` + `vercel env pull`; `ASANA_REDIRECT_URI` in `.env.local.example`
-- **QA (prod):** `npm run qa:prod` — 9/9 pass (API v1 + webhook HMAC); `npm run qa:db` — anon RLS probe
+- **Env:** `.env.local` via `vercel link` + `vercel env pull`; `CRON_SECRET` documented in `.env.local.example` — **must be set in Vercel** for webhook retry cron
+- **QA (prod):** `npm run qa:prod` — 9/9 pass (pre-deploy baseline); re-run after push + deploy
 - **Verification:** `npm run typecheck && npm run lint && npm run build`
 
 ### Quick reference
 
 - **Product/features:** [README.md](README.md)
-- **Security findings:** [SECURITY_AUDIT.md](SECURITY_AUDIT.md)
+- **Security findings:** [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — L1/L2 fixed in code+live migration; audit doc not yet re-verified
 - **Local sync:** `scripts/sync-from-cloud.sh` / `sync-to-cloud.sh` (bash; on Windows use Git Bash or manual git)
 - **Verify live deploy:** `curl -s https://cadence-eta-five.vercel.app | grep data-build` vs `git rev-parse origin/main`
 
 ### Security status (summary)
 
 - **C1/C2/H1/M1/M2/Track C/F4:** FIXED — live MCP exploit battery passed (2026-07-06)
-- **L1/L2:** OPEN (defense-in-depth)
+- **L1/L2:** FIXED in `menu_abc_features` migration + `trustOrgScope` (2026-07-06); formal re-verification in SECURITY_AUDIT.md still pending
 - **W1:** `webhook_deliveries.timesheet_id` nullable — applied live + in repo migration
-- **Supabase MCP:** Connected to Cadence org `irybkcryeywmwpcmhlaa` (was briefly linked to wrong org `simplesolutions` / SimpleOps — fixed)
+- **Supabase MCP:** Connected to Cadence org `irybkcryeywmwpcmhlaa`
 
 ### Open items / pending
 
+- **Push + deploy:** in progress this step
+- ~~**Set `CRON_SECRET` in Vercel**~~ — done (Production)
 - Preview OAuth redirects to production URL (infra — needs owner sign-off)
-- Live migration: apply `20260706000001_menu_abc_features.sql` to Supabase prod
-- Set `CRON_SECRET` in Vercel for webhook retry cron
-- Live-only migrations naming drift (repo now 24 files after menu ABC migration)
+- ~~SECURITY_AUDIT.md — add L1/L2 closed block after live re-check~~ — done 2026-07-06
+- Live vs repo migration naming drift (functionally aligned; MCP names differ from repo filenames)
 
 ### Shipped this session (Menu A+B+C)
 
