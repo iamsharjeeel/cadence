@@ -17,14 +17,14 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ## Current state (2026-07-06)
 
-- **Git:** `main` @ `5a5bd40` (Menu A+B+C; pushing this step)
+- **Git:** `main` @ `b3467dc` (synced to origin; Menu A+B+C + docs)
 - **Env:** `CRON_SECRET` set in Vercel Production; add to Preview if you use preview cron
 - **Local path:** `c:\Users\Zima\Desktop\apps\cadence\cadence`
 - **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa` (MCP connected)
 - **Model:** Personal-by-default + multi-workspace (Track C live since 2026-06-15). Invite-only org join; self-serve `create_organization`.
 - **Build:** `npm run typecheck`, `lint`, `build` — all pass (pre-existing `<img>` lint warnings only)
-- **Env:** `.env.local` via `vercel link` + `vercel env pull`; `CRON_SECRET` documented in `.env.local.example` — **must be set in Vercel** for webhook retry cron
-- **QA (prod):** `npm run qa:prod` — 9/9 pass (pre-deploy baseline); re-run after push + deploy
+- **Env:** `.env.local` via `vercel link` + `vercel env pull`; `CRON_SECRET` in Vercel + `.env.local.example`
+- **QA (prod):** `npm run qa:prod` — **9/9 pass** post-deploy (2026-07-06)
 - **Verification:** `npm run typecheck && npm run lint && npm run build`
 
 ### Quick reference
@@ -37,7 +37,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 ### Security status (summary)
 
 - **C1/C2/H1/M1/M2/Track C/F4:** FIXED — live MCP exploit battery passed (2026-07-06)
-- **L1/L2:** FIXED in `menu_abc_features` migration + `trustOrgScope` (2026-07-06); formal re-verification in SECURITY_AUDIT.md still pending
+- **L1/L2:** FIXED — `menu_abc_features` migration + `trustOrgScope`; noted in SECURITY_AUDIT.md
 - **W1:** `webhook_deliveries.timesheet_id` nullable — applied live + in repo migration
 - **Supabase MCP:** Connected to Cadence org `irybkcryeywmwpcmhlaa`
 
