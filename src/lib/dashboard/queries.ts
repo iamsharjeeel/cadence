@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { trustOrgScope } from "@/lib/org-scope";
 import { durationHours } from "@/lib/time/validation";
 import type { Profile, Timesheet } from "@/types/db";
 import { currentMonthRange, isoWeekKey, lastNWeeks } from "./period";
@@ -157,6 +158,7 @@ export async function getEmployeeDashboard(
 export async function getAdminDashboard(
   orgId: string | null,
 ): Promise<AdminDashboardData> {
+  const scopedOrgId = await trustOrgScope(orgId);
   const db = createAdminClient();
   const { start } = monthRange();
 
@@ -164,7 +166,7 @@ export async function getAdminDashboard(
     .from("timesheets")
     .select("id", { count: "exact", head: true })
     .eq("status", "submitted");
-  if (orgId) pendingQuery = pendingQuery.eq("org_id", orgId);
+  if (scopedOrgId) pendingQuery = pendingQuery.eq("org_id", scopedOrgId);
   const { count: pendingCount } = await pendingQuery;
 
   let approvedQuery = db
@@ -172,7 +174,7 @@ export async function getAdminDashboard(
     .select("*")
     .eq("status", "approved")
     .gte("approved_at", start);
-  if (orgId) approvedQuery = approvedQuery.eq("org_id", orgId);
+  if (scopedOrgId) approvedQuery = approvedQuery.eq("org_id", scopedOrgId);
   const { data: approvedSheets } = await approvedQuery;
 
   const approved = (approvedSheets ?? []) as Timesheet[];
@@ -215,7 +217,7 @@ export async function getAdminDashboard(
 
   // Track C: org members come from `memberships`, not the (now-null) profiles.org_id.
   let memQuery = db.from("memberships").select("user_id, role");
-  if (orgId) memQuery = memQuery.eq("org_id", orgId);
+  if (scopedOrgId) memQuery = memQuery.eq("org_id", scopedOrgId);
   const { data: memRows } = await memQuery;
   const memberIds = [
     ...new Set((memRows ?? []).map((m: any) => m.user_id as string)),
@@ -272,7 +274,7 @@ export async function getAdminDashboard(
     .select("id, action, created_at, actor_id")
     .order("created_at", { ascending: false })
     .limit(10);
-  if (orgId) activityQuery = activityQuery.eq("org_id", orgId);
+  if (scopedOrgId) activityQuery = activityQuery.eq("org_id", scopedOrgId);
   const { data: activity } = await activityQuery;
 
   const actorIds = [

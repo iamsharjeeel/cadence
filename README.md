@@ -270,6 +270,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 15. `supabase/migrations/20260630000001_time_entries_approval_status.sql` — `time_entries.status` (`pending_approval` | `approved`)
 16. `supabase/migrations/20260631000001_profiles_avatar_url.sql` — profile avatars
 17. `supabase/migrations/20260701000001_f4_api_keys_webhook_endpoints.sql` — **F4 API keys + webhook endpoints**
+18. `supabase/migrations/20260706000001_menu_abc_features.sql` — **expenses, time entry rejection, API key permissions, webhook retry scheduling, L1 anon hardening**
 
 ### F1 — Org approval settings (shipped)
 - **`org_settings` table** per org: tier, timesheet/leave/expense approval toggles, `approver_scope` (`owner_only` | `owner_and_managers`)
@@ -304,6 +305,15 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - **Webhooks-out** (`webhook_endpoints`, extended `webhook_deliveries`): `dispatchWebhookEvent` POSTs signed payloads (`X-Cadence-Signature: sha256=…`), 10s timeout, single attempt recorded per delivery
 - **Event triggers** (fire-and-forget): `timesheet.submitted`, `timesheet.approved`, `leave.requested`, `leave.approved`, `leave.rejected`, `member.invited`, `member.joined`
 - **Developer settings UI**: Settings (`/app/user-settings`) → API keys (personal); Organization → Settings tab → API keys + webhook endpoints (owner/manager); approval settings remain owner-only
+
+- Delivery retry logic: inline 3 attempts + cron every 15m + manual retry in Settings UI
+
+### Menu A+B+C — Approvals, expenses, platform hardening
+- **Timer entry approval:** when `approvals_timesheets` is on, managers see a pending queue on `/app/time-tracked` with approve/reject/bulk; employees get in-app notifications
+- **Expenses:** `/app/expenses` in org workspace — submit amount/description/date; respects `approvals_expenses`; manager approve/reject queue
+- **Webhooks:** failed deliveries retry inline (3x), via Vercel cron (`CRON_SECRET`), or manual Retry in developer settings
+- **API v1:** 120 requests/min per key; keys can be `read_only` or `full` at generation time
+- **CI:** GitHub Actions runs typecheck, lint, build on push/PR
 
 #### Untested (manual QA recommended)
 - ~~Live `api_keys` / `webhook_endpoints` RLS against production Supabase (migrations assumed applied externally)~~ — verified 2026-07-06 (MCP + `scripts/live-db-audit.mjs`)

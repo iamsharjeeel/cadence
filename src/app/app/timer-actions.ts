@@ -88,9 +88,23 @@ export async function saveTimerEntries(
       };
     }
     ids.push(data.id);
+
+    if (status === "pending_approval" && orgId) {
+      const { notifyPendingTimeEntry } = await import(
+        "@/app/app/time-tracked/actions"
+      );
+      await notifyPendingTimeEntry({
+        orgId,
+        entryId: data.id,
+        employeeId: profile.id,
+        employeeName: profile.full_name?.trim() || profile.email,
+        entryDate: seg.entryDate,
+      });
+    }
   }
 
   revalidatePath("/app/timesheets");
+  revalidatePath("/app/time-tracked");
   revalidatePath("/app/timesheets/log");
   revalidatePath("/app/reports");
   revalidatePath("/app/dashboard");

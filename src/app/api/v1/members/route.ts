@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { validateApiKey } from "@/lib/api-auth";
+import { enforceApiRateLimit } from "@/lib/api/v1/guard";
 import { apiForbidden, apiJson, apiUnauthorized } from "@/lib/api/v1/response";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -20,6 +21,8 @@ function displayRole(role: string): ApiMember["role"] {
 export async function GET(request: NextRequest) {
   const ctx = await validateApiKey(request);
   if (!ctx) return apiUnauthorized();
+  const limited = enforceApiRateLimit(ctx);
+  if (limited) return limited;
   if (!ctx.orgId) return apiForbidden();
 
   const db = createAdminClient();

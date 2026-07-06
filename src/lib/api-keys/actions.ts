@@ -62,6 +62,7 @@ async function countActiveKeys(userId: string, orgId: string | null) {
 export async function generateApiKey(
   name: string,
   orgId?: string,
+  permission: "read_only" | "full" = "full",
 ): Promise<{ ok: true; key: GeneratedApiKey } | ActionResult> {
   const profile = await requireActiveProfile();
   const trimmed = name.trim();
@@ -96,6 +97,7 @@ export async function generateApiKey(
       name: trimmed,
       key_hash: hashApiKey(fullKey),
       key_prefix: keyDisplayPrefix(fullKey),
+      permission,
     })
     .select("id, created_at")
     .single();

@@ -7,6 +7,7 @@ import {
   apiUnauthorized,
   apiValidationError,
 } from "@/lib/api/v1/response";
+import { enforceApiRateLimit, requireWritePermission } from "@/lib/api/v1/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syntheticTimesForDecimalHours } from "@/lib/time/decimal-hours";
 import type { TimeEntry } from "@/types/db";
@@ -30,6 +31,8 @@ function parseOffset(raw: string | null): number {
 export async function GET(request: NextRequest) {
   const ctx = await validateApiKey(request);
   if (!ctx) return apiUnauthorized();
+  const limited = enforceApiRateLimit(ctx);
+  if (limited) return limited;
 
   const params = request.nextUrl.searchParams;
   const from = params.get("from") ?? "";
@@ -82,6 +85,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const ctx = await validateApiKey(request);
   if (!ctx) return apiUnauthorized();
+  const limited = enforceApiRateLimit(ctx);
+  if (limited) return limited;
+  const writeGate = requireWritePermission(ctx);
+  if (writeGate) return writeGate;
 
   let body: {
     date?: string;

@@ -7,6 +7,7 @@ export type ApiKeyContext = {
   userId: string;
   orgId: string | null;
   keyId: string;
+  permission: "read_only" | "full";
 };
 
 /**
@@ -27,7 +28,7 @@ export async function validateApiKey(
 
   const { data: row } = await db
     .from("api_keys")
-    .select("id, user_id, org_id, revoked_at, expires_at")
+    .select("id, user_id, org_id, revoked_at, expires_at, permission")
     .eq("key_hash", keyHash)
     .is("revoked_at", null)
     .maybeSingle();
@@ -47,5 +48,7 @@ export async function validateApiKey(
     userId: row.user_id,
     orgId: row.org_id,
     keyId: row.id,
+    permission:
+      row.permission === "read_only" ? "read_only" : "full",
   };
 }

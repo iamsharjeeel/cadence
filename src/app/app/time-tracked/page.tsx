@@ -14,11 +14,14 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { fetchProjectsForTimeEntry } from "@/app/app/projects/actions";
+import { canApproveInOrg } from "@/lib/approvals";
 import { resolveReportRange } from "@/lib/reports/queries";
+import { getPendingTimeEntries } from "@/lib/time/pending-time-entries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { durationHours } from "@/lib/time/validation";
 import { getWorkspaceContext } from "@/lib/workspace";
 import type { AsanaImportedProject, TimeEntry } from "@/types/db";
+import { PendingTimeEntriesView } from "./PendingTimeEntriesView";
 import { TimeTrackedFilters, type TimeWindowPreset } from "./TimeTrackedFilters";
 
 export const metadata: Metadata = { title: "Time tracked" };
@@ -100,6 +103,14 @@ export default async function TimeTrackedPage({
   const db = createAdminClient();
   const userId = ctx.realProfile.id;
   const activeOrgId = ctx.activeOrgId;
+  const isApprover =
+    activeOrgId != null &&
+    (await canApproveInOrg(activeOrgId, ctx.workspaceRole));
+
+  const pendingPromise =
+    isApprover && activeOrgId
+      ? getPendingTimeEntries(activeOrgId)
+      : Promise.resolve([]);
 
   let entryQuery = db
     .from("time_entries")
@@ -123,10 +134,8 @@ export default async function TimeTrackedPage({
     entryQuery = entryQuery.eq("project_id", projectFilter);
   }
 
-  const [{ data: entriesData }, cadenceProjects] = await Promise.all([
-    entryQuery,
-    fetchProjectsForTimeEntry(activeOrgId, userId),
-  ]);
+  const [{ data: entriesData }, cadenceProjects, pendingEntries] =
+    await Promise.all([entryQuery, fetchProjectsForTimeEntry(activeOrgId, userId), pendingPromise]);
 
   const entries = (entriesData ?? []) as EntryRow[];
   const projectIds = [
@@ -183,6 +192,10 @@ export default async function TimeTrackedPage({
           />
         </CardContent>
       </Card>
+
+      {isApprover ? (
+        <PendingTimeEntriesView pending={pendingEntries} />
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -291,6 +304,10 @@ export default async function TimeTrackedPage({
                         {entry.status === "pending_approval" ? (
                           <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-strong)]">
                             Pending
+                          </span>
+                        ) : entry.status === "rejected" ? (
+                          <span className="rounded-full bg-[var(--danger-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--danger)]">
+                            Rejected
                           </span>
                         ) : entry.status === "approved" ? (
                           <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-strong)]">

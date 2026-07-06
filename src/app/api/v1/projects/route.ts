@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { validateApiKey } from "@/lib/api-auth";
+import { enforceApiRateLimit } from "@/lib/api/v1/guard";
 import { apiJson, apiUnauthorized } from "@/lib/api/v1/response";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Project } from "@/types/db";
@@ -8,6 +9,8 @@ import type { Project } from "@/types/db";
 export async function GET(request: NextRequest) {
   const ctx = await validateApiKey(request);
   if (!ctx) return apiUnauthorized();
+  const limited = enforceApiRateLimit(ctx);
+  if (limited) return limited;
 
   const db = createAdminClient();
   let query = db

@@ -28,11 +28,17 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
   timesheet_submitted: FileText,
   timesheet_approved: CheckCircle2,
   timesheet_rejected: XCircle,
+  time_entry_pending: Clock,
+  time_entry_approved: CheckCircle2,
+  time_entry_rejected: XCircle,
   time_log_reminder: Clock,
   asana_reconnect_required: Link2,
   leave_requested: Calendar,
   leave_approved: CheckCircle2,
   leave_rejected: XCircle,
+  expense_submitted: FileText,
+  expense_approved: CheckCircle2,
+  expense_rejected: XCircle,
   official_document_assigned: FileText,
   official_document_signed: CheckCircle2,
   org_document_ack_reminder: FileText,
@@ -61,6 +67,9 @@ function relativeTime(iso: string): string {
 
 function entityHref(n: NotificationRow): string | null {
   if (n.type === "time_log_reminder") return "/app/timesheets/log";
+  if (n.type === "time_entry_pending") return "/app/time-tracked";
+  if (n.entity === "time_entries") return "/app/time-tracked";
+  if (n.entity === "expenses") return "/app/expenses";
   if (!n.entity || !n.entity_id) return null;
   if (n.entity === "timesheets") return `/app/timesheets/${n.entity_id}`;
   if (n.entity === "leave_requests") return "/app/leave";

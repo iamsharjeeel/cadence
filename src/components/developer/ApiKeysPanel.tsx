@@ -44,6 +44,7 @@ export function ApiKeysPanel({
   const [createOpen, setCreateOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyRow | null>(null);
   const [name, setName] = useState("");
+  const [permission, setPermission] = useState<"read_only" | "full">("full");
   const [pending, setPending] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
 
@@ -52,7 +53,7 @@ export function ApiKeysPanel({
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);
-    const result = await generateApiKey(name, orgId ?? undefined);
+    const result = await generateApiKey(name, orgId ?? undefined, permission);
     setPending(false);
     if (!result.ok || !("key" in result)) {
       toast("message" in result ? result.message : "Couldn't generate API key.", "error");
@@ -86,6 +87,7 @@ export function ApiKeysPanel({
     setCreateOpen(false);
     setCreatedKey(null);
     setName("");
+    setPermission("full");
   }
 
   return (
@@ -118,6 +120,11 @@ export function ApiKeysPanel({
                   <p className="font-mono text-sm text-ink">
                     {key.key_prefix}…
                     <span className="ml-2 font-sans text-muted">{key.name}</span>
+                    {key.permission === "read_only" ? (
+                      <span className="ml-2 rounded bg-[var(--line)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                        Read only
+                      </span>
+                    ) : null}
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     Created {formatDate(key.created_at)}
@@ -190,6 +197,19 @@ export function ApiKeysPanel({
                 required
                 maxLength={100}
               />
+              <label className="block text-sm">
+                <span className="mb-1.5 block font-medium text-ink">Permission</span>
+                <select
+                  value={permission}
+                  onChange={(e) =>
+                    setPermission(e.target.value as "read_only" | "full")
+                  }
+                  className="h-10 w-full rounded-[var(--radius-input)] border border-[var(--line)] bg-surface px-3 text-sm"
+                >
+                  <option value="full">Full access (read + write)</option>
+                  <option value="read_only">Read only</option>
+                </select>
+              </label>
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"

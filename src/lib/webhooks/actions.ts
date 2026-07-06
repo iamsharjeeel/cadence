@@ -186,3 +186,24 @@ export async function deleteWebhookEndpoint(id: string): Promise<ActionResult> {
   revalidatePath("/app/employees");
   return { ok: true, message: "Endpoint deleted." };
 }
+
+export async function retryWebhookDeliveryAction(
+  deliveryId: string,
+): Promise<ActionResult> {
+  const db = createAdminClient();
+  const { data: delivery } = await db
+    .from("webhook_deliveries")
+    .select("org_id, webhook_endpoint_id")
+    .eq("id", deliveryId)
+    .maybeSingle();
+
+  if (!delivery?.webhook_endpoint_id) {
+    return { ok: false, message: "Delivery not found." };
+  }
+
+  const gate = await requireOrgManager(delivery.org_id);
+  if (!gate.ok) return gate;
+
+  const { retryWebhookDelivery } = await import("@/lib/webhook-dispatcher");
+  return retryWebhookDelivery(deliveryId);
+}

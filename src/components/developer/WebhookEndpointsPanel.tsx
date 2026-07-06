@@ -20,6 +20,7 @@ import {
   createWebhookEndpoint,
   deleteWebhookEndpoint,
   listWebhookDeliveries,
+  retryWebhookDeliveryAction,
   toggleWebhookEndpoint,
 } from "@/lib/webhooks/actions";
 import { generateWebhookSecret } from "@/lib/webhooks/secret";
@@ -45,9 +46,11 @@ function formatTimestamp(iso: string): string {
 }
 
 function DeliveriesExpander({ endpointId }: { endpointId: string }) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [deliveries, setDeliveries] = useState<WebhookDeliveryRow[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   async function toggle() {
     if (!open && deliveries === null) {
@@ -57,6 +60,15 @@ function DeliveriesExpander({ endpointId }: { endpointId: string }) {
       setLoading(false);
     }
     setOpen((v) => !v);
+  }
+
+  async function retry(id: string) {
+    setRetryingId(id);
+    const result = await retryWebhookDeliveryAction(id);
+    toast(result.message, result.ok ? "success" : "error");
+    const rows = await listWebhookDeliveries(endpointId);
+    setDeliveries(rows);
+    setRetryingId(null);
   }
 
   return (
@@ -92,6 +104,17 @@ function DeliveriesExpander({ endpointId }: { endpointId: string }) {
                 {d.response_status != null && (
                   <span className="text-muted">HTTP {d.response_status}</span>
                 )}
+                {d.status === "failed" ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => retry(d.id)}
+                    disabled={retryingId === d.id}
+                  >
+                    {retryingId === d.id ? "Retrying…" : "Retry"}
+                  </Button>
+                ) : null}
               </li>
             ))
           )}

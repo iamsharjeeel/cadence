@@ -33,6 +33,12 @@ const PATHS: Record<NavItem["icon"], React.ReactNode> = {
       <path d="M8 3v4M16 3v4M3 10h18" />
     </>
   ),
+  expenses: (
+    <>
+      <rect x="2" y="6" width="20" height="14" rx="2" />
+      <path d="M2 10h20M6 14h4" />
+    </>
+  ),
   employees: (
     <>
       <circle cx="9" cy="8" r="3" />

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { trustRequiredOrgScope } from "@/lib/org-scope";
 import type { LeaveUnit } from "@/lib/leave/types";
 import type { LeaveRequest, LeaveType } from "@/types/db";
 
@@ -73,11 +74,12 @@ export async function getLeaveRequestsForWorkspace(
 }
 
 export async function getOrgLeaveTypes(orgId: string): Promise<LeaveType[]> {
+  const scopedOrgId = await trustRequiredOrgScope(orgId);
   const db = createAdminClient();
   const { data } = await db
     .from("leave_types")
     .select("*")
-    .eq("org_id", orgId)
+    .eq("org_id", scopedOrgId)
     .eq("is_active", true)
     .order("name");
   return (data ?? []) as LeaveType[];
@@ -86,11 +88,12 @@ export async function getOrgLeaveTypes(orgId: string): Promise<LeaveType[]> {
 export async function getPendingLeaveRequests(
   orgId: string,
 ): Promise<RequestWithMeta[]> {
+  const scopedOrgId = await trustRequiredOrgScope(orgId);
   const db = createAdminClient();
   const { data } = await db
     .from("leave_requests")
     .select("*")
-    .eq("org_id", orgId)
+    .eq("org_id", scopedOrgId)
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
@@ -121,6 +124,13 @@ export async function getApprovedLeaveInPeriod(
   orgId?: string | null,
 ): Promise<number> {
   const db = createAdminClient();
+  let scopedOrgId: string | null = null;
+  if (orgId) {
+    scopedOrgId = await trustRequiredOrgScope(orgId);
+  } else if (orgId === null) {
+    scopedOrgId = null;
+  }
+
   let query = db
     .from("leave_requests")
     .select("days_requested")
@@ -131,8 +141,8 @@ export async function getApprovedLeaveInPeriod(
 
   if (orgId === null) {
     query = query.is("org_id", null);
-  } else if (orgId) {
-    query = query.eq("org_id", orgId);
+  } else if (scopedOrgId) {
+    query = query.eq("org_id", scopedOrgId);
   }
 
   const { data } = await query;

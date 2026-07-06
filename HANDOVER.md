@@ -43,10 +43,18 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 ### Open items / pending
 
 - Preview OAuth redirects to production URL (infra — needs owner sign-off)
-- L1/L2 defense-in-depth (anon grants, caller-supplied `orgId` in service-role aggregators)
-- GitHub Actions CI (not started)
-- Webhook retries / API rate limiting (deferred product work)
-- Live-only migrations not in repo (naming drift — 24 live vs 23 repo files)
+- Live migration: apply `20260706000001_menu_abc_features.sql` to Supabase prod
+- Set `CRON_SECRET` in Vercel for webhook retry cron
+- Live-only migrations naming drift (repo now 24 files after menu ABC migration)
+
+### Shipped this session (Menu A+B+C)
+
+- **Timer entry approval:** manager queue on `/app/time-tracked`, approve/reject/bulk, notifications, `approver_scope` enforced
+- **Expenses MVP:** `/app/expenses`, submit + admin approve/reject, `approvals_expenses` toggle wired
+- **Webhooks:** inline retries (3x), manual retry in UI, cron `/api/cron/webhook-retries` every 15m
+- **API v1:** 120 req/min rate limit, `read_only` vs `full` key permission
+- **L1/L2:** anon INSERT/UPDATE/DELETE revoked; service-role aggregators use `trustOrgScope`
+- **CI:** `.github/workflows/ci.yml` (typecheck, lint, build)
 
 ### Next chat — read first
 

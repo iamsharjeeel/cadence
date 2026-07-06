@@ -108,6 +108,7 @@ export type Database = {
           expires_at: string | null
           revoked_at: string | null
           created_at: string
+          permission: string
         }
         Insert: {
           id?: string
@@ -120,6 +121,7 @@ export type Database = {
           expires_at?: string | null
           revoked_at?: string | null
           created_at?: string
+          permission?: string
         }
         Update: {
           id?: string
@@ -132,6 +134,7 @@ export type Database = {
           expires_at?: string | null
           revoked_at?: string | null
           created_at?: string
+          permission?: string
         }
         Relationships: []
       }
@@ -804,6 +807,54 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          id: string
+          org_id: string
+          employee_id: string
+          amount: number
+          currency: string
+          description: string
+          expense_date: string
+          status: string
+          rejection_note: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          employee_id: string
+          amount: number
+          currency?: string
+          description: string
+          expense_date: string
+          status?: string
+          rejection_note?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          employee_id?: string
+          amount?: number
+          currency?: string
+          description?: string
+          expense_date?: string
+          status?: string
+          rejection_note?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_documents: {
         Row: {
           id: string
@@ -910,6 +961,7 @@ export type Database = {
           event_type: string | null
           id: string
           last_attempted_at: string | null
+          next_retry_at: string | null
           org_id: string
           payload: Json
           response_body: string | null
@@ -926,6 +978,7 @@ export type Database = {
           event_type?: string | null
           id?: string
           last_attempted_at?: string | null
+          next_retry_at?: string | null
           org_id: string
           payload?: Json
           response_body?: string | null
@@ -942,6 +995,7 @@ export type Database = {
           event_type?: string | null
           id?: string
           last_attempted_at?: string | null
+          next_retry_at?: string | null
           org_id?: string
           payload?: Json
           response_body?: string | null

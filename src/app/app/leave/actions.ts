@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { canApproveInOrg } from "@/lib/approvals";
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { requireActiveProfile } from "@/lib/auth";
@@ -29,7 +30,8 @@ async function requireOrgWorkspace() {
   if (!ctx.activeOrgId) {
     return { ok: false as const, message: "Switch to an organization workspace." };
   }
-  return { ok: true as const, ctx, orgId: ctx.activeOrgId };
+  const orgId = ctx.activeOrgId;
+  return { ok: true as const, ctx, orgId };
 }
 
 async function requireOrgManager() {
@@ -416,6 +418,11 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
   const gate = await requireOrgManager();
   if (!gate.ok) return gate;
 
+  const allowed = await canApproveInOrg(gate.orgId, gate.ctx.workspaceRole);
+  if (!allowed) {
+    return { ok: false, message: "Forbidden." };
+  }
+
   const { ctx, orgId, profile: actor } = gate;
   const db = createAdminClient();
 
@@ -515,6 +522,11 @@ export async function rejectLeaveRequest(
 ): Promise<ActionResult> {
   const gate = await requireOrgManager();
   if (!gate.ok) return gate;
+
+  const allowed = await canApproveInOrg(gate.orgId, gate.ctx.workspaceRole);
+  if (!allowed) {
+    return { ok: false, message: "Forbidden." };
+  }
 
   if (!note.trim()) return { ok: false, message: "Rejection note required." };
 

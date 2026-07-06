@@ -10,6 +10,7 @@ export type ApiKeyRow = {
   expires_at: string | null;
   revoked_at: string | null;
   created_at: string;
+  permission: "read_only" | "full";
 };
 
 export type WebhookEndpointRow = {
@@ -37,6 +38,7 @@ export type WebhookDeliveryRow = {
   error_message: string | null;
   attempts: number;
   last_attempted_at: string | null;
+  next_retry_at: string | null;
   delivered_at: string | null;
   created_at: string;
 };

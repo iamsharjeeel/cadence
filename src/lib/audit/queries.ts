@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { trustOrgScope } from "@/lib/org-scope";
 import type { Json } from "@/types/db";
 
 export type AuditLogEntry = {
@@ -28,6 +29,9 @@ export async function fetchAuditLog(params: {
   page?: number;
   pageSize?: number;
 }): Promise<{ entries: AuditLogEntry[]; hasMore: boolean }> {
+  const scopedOrgId = params.orgId
+    ? await trustOrgScope(params.orgId)
+    : null;
   const db = createAdminClient();
   const page = params.page ?? 0;
   const pageSize = params.pageSize ?? 50;
@@ -40,7 +44,7 @@ export async function fetchAuditLog(params: {
     .order("created_at", { ascending: false })
     .range(from, to);
 
-  if (params.orgId) query = query.eq("org_id", params.orgId);
+  if (scopedOrgId) query = query.eq("org_id", scopedOrgId);
   if (params.actorId?.trim()) query = query.eq("actor_id", params.actorId.trim());
   if (params.action?.trim()) query = query.eq("action", params.action.trim());
   if (params.entity?.trim()) query = query.eq("entity", params.entity.trim());
@@ -85,12 +89,13 @@ export async function fetchAuditLog(params: {
 }
 
 export async function fetchAuditActors(orgId?: string | null) {
+  const scopedOrgId = orgId ? await trustOrgScope(orgId) : null;
   const db = createAdminClient();
-  if (orgId) {
+  if (scopedOrgId) {
     const { data: members } = await db
       .from("memberships")
       .select("user_id")
-      .eq("org_id", orgId);
+      .eq("org_id", scopedOrgId);
     const userIds = (members ?? []).map((m) => m.user_id);
     if (userIds.length === 0) return [];
     const { data } = await db
@@ -108,9 +113,10 @@ export async function fetchAuditActors(orgId?: string | null) {
 }
 
 export async function fetchAuditActions(orgId?: string | null) {
+  const scopedOrgId = orgId ? await trustOrgScope(orgId) : null;
   const db = createAdminClient();
   let query = db.from("audit_log").select("action").order("action");
-  if (orgId) query = query.eq("org_id", orgId);
+  if (scopedOrgId) query = query.eq("org_id", scopedOrgId);
   const { data } = await query;
   const unique = [...new Set((data ?? []).map((r) => r.action))];
   return unique.sort();

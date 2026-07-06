@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { trustOrgScope } from "@/lib/org-scope";
 import type { PeriodCadence, Profile } from "@/types/db";
 import { periodForDate, shiftPeriod, toIsoDate } from "@/lib/time/periods";
 import { durationHours } from "@/lib/time/validation";
@@ -233,7 +234,10 @@ export async function getTrendsBundle(
 ): Promise<TrendsBundle> {
   const isManager = profile.role === "admin" || profile.role === "superadmin";
   const isSuperadmin = profile.role === "superadmin";
-  const selectedOrg = isSuperadmin ? orgIdParam?.trim() || undefined : undefined;
+  const trustedOrgParam = orgIdParam
+    ? await trustOrgScope(orgIdParam.trim())
+    : undefined;
+  const selectedOrg = isSuperadmin ? trustedOrgParam || undefined : undefined;
   const effectiveOrg = selectedOrg ?? profile.org_id ?? undefined;
 
   const [personalTrends, orgAggregateData, adminData] = await Promise.all([

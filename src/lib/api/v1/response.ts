@@ -4,10 +4,14 @@ export const API_VERSION_HEADERS = {
   "X-Cadence-API-Version": "1",
 } as const;
 
-export function apiJson<T>(body: T, status = 200): NextResponse {
+export function apiJson<T>(
+  body: T,
+  status = 200,
+  extraHeaders?: Record<string, string>,
+): NextResponse {
   return NextResponse.json(body, {
     status,
-    headers: API_VERSION_HEADERS,
+    headers: { ...API_VERSION_HEADERS, ...extraHeaders },
   });
 }
 
