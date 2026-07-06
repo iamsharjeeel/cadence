@@ -187,10 +187,12 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
 After creating the GitLab project (empty, no README):
 
 ```bash
-export CADENCE_GITLAB_URL=https://gitlab.com/<namespace>/cadence.git
+export CADENCE_GITLAB_URL=https://gitlab.com/s1mplesolutions-cc-group/s1mplesolutions.cc-project.git
 ./scripts/setup-gitlab-remote.sh
 git push -u gitlab main
 ```
+
+**Auth (personal access token):** do **not** put the token in the repo or `.env`. On first `git push gitlab main`, Git Credential Manager stores it in Windows Credential Manager. Use username `oauth2` (or your GitLab username) and paste the token as the password. Required PAT scopes: `write_repository` (or `api`).
 
 Or on Windows (Git Bash): same commands from the repo root.
 
