@@ -17,12 +17,14 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ## Current state (2026-07-06)
 
-- **Git:** `main` @ `9405ec9` — init audit committed; Supabase MCP live re-verification complete
-- **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa` (MCP connected ✅)
-- **Model:** Personal-by-default + multi-workspace (Track C live in production since 2026-06-15). Invite-only org join; self-serve `create_organization`.
+- **Git:** `main` @ `c94347c` (synced to origin)
+- **Local path:** `c:\Users\Zima\Desktop\apps\cadence\cadence`
+- **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa` (MCP connected)
+- **Model:** Personal-by-default + multi-workspace (Track C live since 2026-06-15). Invite-only org join; self-serve `create_organization`.
 - **Build:** `npm run typecheck`, `lint`, `build` — all pass (pre-existing `<img>` lint warnings only)
-- **Env:** `.env.local` pulled from Vercel (`vercel link` + `vercel env pull`); `ASANA_REDIRECT_URI` added to `.env.local.example`
-- **Tests:** No automated suite — manual QA for API v1, webhooks, live RLS
+- **Env:** `.env.local` via `vercel link` + `vercel env pull`; `ASANA_REDIRECT_URI` in `.env.local.example`
+- **QA (prod):** `npm run qa:prod` — 9/9 pass (API v1 + webhook HMAC); `npm run qa:db` — anon RLS probe
+- **Verification:** `npm run typecheck && npm run lint && npm run build`
 
 ### Quick reference
 
@@ -30,19 +32,27 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 - **Security findings:** [SECURITY_AUDIT.md](SECURITY_AUDIT.md)
 - **Local sync:** `scripts/sync-from-cloud.sh` / `sync-to-cloud.sh` (bash; on Windows use Git Bash or manual git)
 - **Verify live deploy:** `curl -s https://cadence-eta-five.vercel.app | grep data-build` vs `git rev-parse origin/main`
-- **Verification commands:** `npm run typecheck && npm run lint && npm run build`
 
 ### Security status (summary)
 
 - **C1/C2/H1/M1/M2/Track C/F4:** FIXED — live MCP exploit battery passed (2026-07-06)
 - **L1/L2:** OPEN (defense-in-depth)
-- **W1:** `webhook_deliveries.timesheet_id` nullable fix applied live + in repo migration
-- **Supabase MCP:** Connected to Cadence org `irybkcryeywmwpcmhlaa` ✅
+- **W1:** `webhook_deliveries.timesheet_id` nullable — applied live + in repo migration
+- **Supabase MCP:** Connected to Cadence org `irybkcryeywmwpcmhlaa` (was briefly linked to wrong org `simplesolutions` / SimpleOps — fixed)
 
 ### Open items / pending
 
-- Manual QA: ~~API v1 with real keys, webhook delivery to external URL~~ **Done 2026-07-06** — `node scripts/qa-prod-api-webhook.mjs` (9/9 pass on prod)
-- Preview OAuth redirects to production URL (known infra limitation)
+- Preview OAuth redirects to production URL (infra — needs owner sign-off)
+- L1/L2 defense-in-depth (anon grants, caller-supplied `orgId` in service-role aggregators)
+- GitHub Actions CI (not started)
+- Webhook retries / API rate limiting (deferred product work)
+- Live-only migrations not in repo (naming drift — 24 live vs 23 repo files)
+
+### Next chat — read first
+
+1. This **Current state** section
+2. [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — 2026-07-06 re-verification block
+3. [CHANGELOG.md](CHANGELOG.md) — 2026-07-06 entry
 
 ---
 
@@ -2448,4 +2458,12 @@ Deleted: `LeaveOrgSelect.tsx`, `SettingsForm.tsx`, `AssignUserDocumentModal.tsx`
 - **Build:** typecheck, lint, build — all pass
 - **Handover:** Merged `CADENCE_HANDOVER.md` + `HANDOVER.md` into single `HANDOVER.md`; deleted `CADENCE_HANDOVER.md`
 - **Security:** Code/migration cross-check; Supabase MCP live queries blocked (permission denied)
+
+### Session — Full init + security + prod QA ✅ (2026-07-06)
+
+- Handover merge, env init, F4 migration backfill
+- MCP: wrong org → reconnected to Cadence `irybkcryeywmwpcmhlaa`
+- Live exploit battery passed; W1 `timesheet_id` nullable applied live
+- Prod QA 9/9: `scripts/qa-prod-api-webhook.mjs`
+- Pushed `main` @ `c94347c`
 

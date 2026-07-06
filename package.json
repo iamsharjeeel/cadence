@@ -9,7 +9,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "sync:pull": "bash scripts/sync-from-cloud.sh",
-    "sync:push": "bash scripts/sync-to-cloud.sh"
+    "sync:push": "bash scripts/sync-to-cloud.sh",
+    "qa:prod": "node scripts/qa-prod-api-webhook.mjs",
+    "qa:db": "node scripts/live-db-audit.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
