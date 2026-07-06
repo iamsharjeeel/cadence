@@ -176,6 +176,50 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
   - Direct personal-context hits to `/app/trends` redirect to `/app/dashboard`.
 - **Onboarding:** the "No organization." error toast is suppressed on `/app/onboarding` (personal-workspace users completing setup).
 
+## Local ↔ cloud sync (required)
+
+**GitHub (`iamsharjeeel/cadence`) is the single source of truth.** Cloud agents (Cursor) and Vercel deploy from `main`. Your desktop clone must stay aligned.
+
+**Default local path:** `~/Desktop/cadence` (override with `CADENCE_LOCAL_PATH`).
+
+### Pull cloud → desktop (overwrite local to latest)
+
+Discards uncommitted local changes and matches `origin/main`:
+
+```bash
+./scripts/sync-from-cloud.sh
+```
+
+First-time clone (no folder yet) uses the same script — it clones into `~/Desktop/cadence`.
+
+Manual equivalent:
+
+```bash
+cd ~/Desktop/cadence
+git fetch origin
+git reset --hard origin/main
+git clean -fd
+npm install
+```
+
+### Push desktop → cloud
+
+After local edits, always push so agents and Vercel see your work:
+
+```bash
+./scripts/sync-to-cloud.sh
+# optional: ./scripts/sync-to-cloud.sh ~/Desktop/cadence "feat: your message"
+```
+
+### Daily workflow
+
+1. **Start local session:** `./scripts/sync-from-cloud.sh`
+2. **Work locally:** `npm run dev`, commit as usual
+3. **End local session:** `./scripts/sync-to-cloud.sh`
+4. **After a cloud agent session:** `./scripts/sync-from-cloud.sh` again before editing locally
+
+Never edit the same files on desktop and in a cloud agent without syncing in between.
+
 ## Getting started
 
 ```bash

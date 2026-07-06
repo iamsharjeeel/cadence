@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sync:pull": "bash scripts/sync-from-cloud.sh",
+    "sync:push": "bash scripts/sync-to-cloud.sh"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
