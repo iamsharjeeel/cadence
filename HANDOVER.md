@@ -43,11 +43,9 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ### Open items / pending
 
-- **Push + deploy:** in progress this step
-- ~~**Set `CRON_SECRET` in Vercel**~~ — done (Production)
 - Preview OAuth redirects to production URL (infra — needs owner sign-off)
-- ~~SECURITY_AUDIT.md — add L1/L2 closed block after live re-check~~ — done 2026-07-06
 - Live vs repo migration naming drift (functionally aligned; MCP names differ from repo filenames)
+- Optional: add `CRON_SECRET` to Preview env if preview cron matters
 
 ### Shipped this session (Menu A+B+C)
 
