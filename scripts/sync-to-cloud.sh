@@ -25,5 +25,10 @@ fi
 
 git push -u "$REMOTE" "$BRANCH"
 
+if git remote get-url gitlab &>/dev/null; then
+  git push -u gitlab "$BRANCH"
+  echo "Also pushed $BRANCH to gitlab."
+fi
+
 SHA="$(git rev-parse --short HEAD)"
 echo "Pushed $BRANCH ($SHA) to $REMOTE — cloud agents and Vercel use this branch."

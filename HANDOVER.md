@@ -9,7 +9,7 @@ A complete brief to continue this project in a fresh chat or Cursor session.
 | Role | Model | Responsibility |
 |------|-------|----------------|
 | **Planner / overseer** | Fable | Scope, architecture, audit interpretation, doc structure, review Composer output |
-| **Executor** | Composer 2.5 | npm install, env setup, typecheck/lint/build, file edits, Supabase queries, debugging |
+| **Executor** | Composer 2.5 | npm install, env setup, typecheck/lint/build, file edits, Supabase queries, debugging, **push to `origin` + `gitlab` when configured** |
 
 Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy execution.
 
@@ -17,7 +17,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ## Current state (2026-07-06)
 
-- **Git:** `main` @ `b3467dc` (synced to origin; Menu A+B+C + docs)
+- **Git:** `main` @ `98a8f19` (synced to GitHub `origin`; **GitLab mirror** — add `gitlab` remote once, then `sync-to-cloud.sh` pushes both)
 - **Env:** `CRON_SECRET` set in Vercel Production; add to Preview if you use preview cron
 - **Local path:** `c:\Users\Zima\Desktop\apps\cadence\cadence`
 - **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa` (MCP connected)
@@ -43,6 +43,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ### Open items / pending
 
+- **GitLab:** run `./scripts/setup-gitlab-remote.sh` with `CADENCE_GITLAB_URL`, then initial `git push -u gitlab main` (agent pushes both on every `sync-to-cloud.sh` after that)
 - Preview OAuth redirects to production URL (infra — needs owner sign-off)
 - Live vs repo migration naming drift (functionally aligned; MCP names differ from repo filenames)
 - Optional: add `CRON_SECRET` to Preview env if preview cron matters
@@ -80,7 +81,9 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 ## Live infra
 - **Supabase project URL:** `https://irybkcryeywmwpcmhlaa.supabase.co` (region: Singapore)
 - **Vercel URL:** `https://cadence-eta-five.vercel.app` (no custom domain yet)
-- **GitHub repo:** `cadence` (private, `iamsharjeeel/cadence`)
+- **GitHub repo:** `cadence` (private, `iamsharjeeel/cadence`) — **primary**; Vercel deploys from here
+- **GitLab repo:** mirror of `main` (add `gitlab` remote via `scripts/setup-gitlab-remote.sh` + `CADENCE_GITLAB_URL`)
+- **CI:** GitHub Actions (`.github/workflows/ci.yml`) + GitLab CI (`.gitlab-ci.yml`) — same verify steps
 - **Local clone:** `~/Desktop/cadence` — keep in sync with cloud via `scripts/sync-from-cloud.sh` (pull) and `scripts/sync-to-cloud.sh` (push). See README **Local ↔ cloud sync**.
 - **Google OAuth:** configured — redirect URI `https://irybkcryeywmwpcmhlaa.supabase.co/auth/v1/callback`, JS origin `https://cadence-eta-five.vercel.app`
 - **Supabase Auth URL config:** Site URL = Vercel URL; Redirect URLs include `https://cadence-eta-five.vercel.app/**`

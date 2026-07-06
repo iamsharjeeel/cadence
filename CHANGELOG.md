@@ -1,11 +1,16 @@
 # Changelog
 
+## 2026-07-06 (GitLab mirror)
+
+- `.gitlab-ci.yml` verify pipeline (typecheck, lint, build)
+- `scripts/setup-gitlab-remote.sh`; `sync-to-cloud.sh` pushes `origin` + `gitlab`
+
 ## 2026-07-06 (Menu A+B+C)
 
 - Timer entry approval workflow (manager queue, notifications, bulk approve)
 - Expenses MVP (`/app/expenses`, org-scoped RLS, approval settings)
 - Webhook retries (inline + cron + manual), API v1 rate limits + read-only keys
-- L1 anon grant hardening, L2 org-scope trust in aggregators, GitHub Actions CI
+- L1 anon grant hardening, L2 org-scope trust in aggregators, GitHub + GitLab CI, dual-remote sync
 - Migration `menu_abc_features` applied live via MCP
 - Post-deploy: re-run `npm run qa:prod`
 

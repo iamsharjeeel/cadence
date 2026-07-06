@@ -178,9 +178,23 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
 
 ## Local ↔ cloud sync (required)
 
-**GitHub (`iamsharjeeel/cadence`) is the single source of truth.** Cloud agents (Cursor) and Vercel deploy from `main`. Your desktop clone must stay aligned.
+**GitHub (`iamsharjeeel/cadence`) is the deploy source of truth** — Vercel and Cursor cloud agents pull from `origin` (`main`). **GitLab is kept in sync** as a mirror (same branch, same commits).
 
 **Default local path:** `~/Desktop/cadence` (override with `CADENCE_LOCAL_PATH`).
+
+### One-time GitLab remote
+
+After creating the GitLab project (empty, no README):
+
+```bash
+export CADENCE_GITLAB_URL=https://gitlab.com/<namespace>/cadence.git
+./scripts/setup-gitlab-remote.sh
+git push -u gitlab main
+```
+
+Or on Windows (Git Bash): same commands from the repo root.
+
+`scripts/sync-to-cloud.sh` pushes **both** `origin` and `gitlab` when the `gitlab` remote exists.
 
 ### Pull cloud → desktop (overwrite local to latest)
 
