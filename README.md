@@ -268,6 +268,8 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 13. `supabase/migrations/20260624000000_google_calendar.sql` — **required for Google Calendar integration**
 14. `supabase/migrations/20260616000001_org_settings.sql` — org approval settings + `get_or_create_org_settings` RPC
 15. `supabase/migrations/20260630000001_time_entries_approval_status.sql` — `time_entries.status` (`pending_approval` | `approved`)
+16. `supabase/migrations/20260631000001_profiles_avatar_url.sql` — profile avatars
+17. `supabase/migrations/20260701000001_f4_api_keys_webhook_endpoints.sql` — **F4 API keys + webhook endpoints**
 
 ### F1 — Org approval settings (shipped)
 - **`org_settings` table** per org: tier, timesheet/leave/expense approval toggles, `approver_scope` (`owner_only` | `owner_and_managers`)
