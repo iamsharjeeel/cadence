@@ -187,7 +187,7 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
 After creating the GitLab project (empty, no README):
 
 ```bash
-export CADENCE_GITLAB_URL=https://gitlab.com/s1mplesolutions-cc-group/s1mplesolutions.cc-project.git
+export CADENCE_GITLAB_URL=https://gitlab.com/s1mplesolutions-cc-group/cadence.git
 ./scripts/setup-gitlab-remote.sh
 git push -u gitlab main
 ```

@@ -82,7 +82,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 - **Supabase project URL:** `https://irybkcryeywmwpcmhlaa.supabase.co` (region: Singapore)
 - **Vercel URL:** `https://cadence-eta-five.vercel.app` (no custom domain yet)
 - **GitHub repo:** `cadence` (private, `iamsharjeeel/cadence`) — **primary**; Vercel deploys from here
-- **GitLab repo:** [s1mplesolutions.cc-project](https://gitlab.com/s1mplesolutions-cc-group/s1mplesolutions.cc-project) — mirror of `main`; remote name `gitlab`
+- **GitLab repo:** [cadence](https://gitlab.com/s1mplesolutions-cc-group/cadence) — mirror of `main`; remote name `gitlab`
 - **CI:** GitHub Actions (`.github/workflows/ci.yml`) + GitLab CI (`.gitlab-ci.yml`) — same verify steps
 - **Local clone:** `~/Desktop/cadence` — keep in sync with cloud via `scripts/sync-from-cloud.sh` (pull) and `scripts/sync-to-cloud.sh` (push). See README **Local ↔ cloud sync**.
 - **Google OAuth:** configured — redirect URI `https://irybkcryeywmwpcmhlaa.supabase.co/auth/v1/callback`, JS origin `https://cadence-eta-five.vercel.app`
