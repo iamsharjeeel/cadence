@@ -26,7 +26,7 @@
 > - **F4 ✅** — RLS enabled on `api_keys`, `webhook_endpoints`. Policies: `api_keys_*_own` (user_id = auth.uid()); `webhook_endpoints_owner_admin` (memberships owner/admin). Cross-user `api_keys` INSERT → **42501 RLS**; non-manager `webhook_endpoints` INSERT → **42501 RLS**.
 > - **W1 (fixed live 2026-07-06):** `webhook_deliveries.timesheet_id` was NOT NULL but `dispatchWebhookEvent` omits it for leave/member events — applied `webhook_deliveries_timesheet_id_nullable` migration live + repo backfill.
 > - **L1/L2:** Still OPEN. Supabase advisor: 35 WARN lints (anon/authenticated EXECUTE on SECURITY DEFINER RPCs, org-logos public listing, mutable search_path on 2 functions) — defense-in-depth, not critical isolation breaks.
-> - **Build health:** typecheck, lint, build — pass.
+> - **F4 prod QA (2026-07-06):** `scripts/qa-prod-api-webhook.mjs` against `https://cadence-eta-five.vercel.app` — **9/9 pass**: invalid key → 401; personal GET/POST time-entries + projects; org GET members; personal members → 403; webhook.site delivery HTTP 200 + `X-Cadence-Signature` HMAC verified + payload intact; delivery logged in `webhook_deliveries`.
 
 ## Target confirmation (STEP 0)
   - Note: live region reports `ap-southeast-2` (Sydney); the handover labelled it "Singapore". The **ref** is the authoritative match, so the audit proceeded. Region label is a doc nuance, not a target mismatch.

@@ -306,9 +306,9 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - **Developer settings UI**: Settings (`/app/user-settings`) → API keys (personal); Organization → Settings tab → API keys + webhook endpoints (owner/manager); approval settings remain owner-only
 
 #### Untested (manual QA recommended)
-- Live `api_keys` / `webhook_endpoints` RLS against production Supabase (migrations assumed applied externally)
-- End-to-end API key auth against deployed `/api/v1/*` routes
-- Webhook delivery to external HTTPS endpoint (signature verification on receiver)
+- ~~Live `api_keys` / `webhook_endpoints` RLS against production Supabase (migrations assumed applied externally)~~ — verified 2026-07-06 (MCP + `scripts/live-db-audit.mjs`)
+- ~~End-to-end API key auth against deployed `/api/v1/*` routes~~ — verified 2026-07-06 (`scripts/qa-prod-api-webhook.mjs`, 9/9 pass)
+- ~~Webhook delivery to external HTTPS endpoint (signature verification on receiver)~~ — verified 2026-07-06 via webhook.site + HMAC check
 - Delivery retry logic deferred (single attempt only)
 
 ## Design system v2

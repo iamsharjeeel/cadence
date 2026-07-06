@@ -41,7 +41,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ### Open items / pending
 
-- Manual QA: API v1 with real keys, webhook delivery to external URL
+- Manual QA: ~~API v1 with real keys, webhook delivery to external URL~~ **Done 2026-07-06** — `node scripts/qa-prod-api-webhook.mjs` (9/9 pass on prod)
 - Preview OAuth redirects to production URL (known infra limitation)
 
 ---
