@@ -17,20 +17,18 @@
 > - **MERGED + DEPLOYED TO PRODUCTION (2026-06-15):** `track-c-multiworkspace` was fast-forwarded into `main` (production's prior commit `8dfa2f2` → **`d40fab4`**) and auto-promoted to production — live `<body data-build>` on `https://cadence-eta-five.vercel.app` = `d40fab4` (verified via authenticated fetch). **Post-deploy isolation re-verification on the LIVE production DB passed 30/30** as real `authenticated` sessions (a–e cross-tenant incl. storage; f superadmin oversight; g profiles guard; h cutover-integrity with no data loss; C4 bogus `accept_invite` blocked; and the **membership-write safety** — authenticated self-grant insert / own-role-change / delete-other / fresh self-grant all DENIED, since `memberships` has no client write path). Before the deploy, the old prod code's domain auto-attach had re-attached only the superadmin (1 profile + 1 timesheet) to Voxility; this drift was re-severed (now 0 org-attached profiles/timesheets, all 11 personal, superadmin `org_id` null). The new code removes the auto-attach mechanism so it cannot recur.
 > - **Finalization follow-ups (2026-06-15):** employees role-change + remove rewritten to write `memberships` (membership-write safety re-verified above); `src/types/db.ts` regenerated (memberships/active_workspace/RPCs typed, all `as any` removed); leave-approval RPCs carry a dormant note to move to `auth_workspace_role()` when org leave is wired. Known infra limitation (out of scope, not fixed): preview deploys' Google OAuth redirects to the production URL (redirect-config), so the multi-workspace UI could only be exercised on production.
 
-> **Re-verification update — 2026-07-06 (live):** Code + migration cross-check on `main` @ `3b4c051`, plus **live DB probes via service role + anon key** (`.env.local` / `scripts/live-db-audit.mjs`). Supabase MCP still blocked — authenticated MCP session is org **simplesolutions** (project `SimpleOps` / `djgxhlmnvnggwmznkfdy` only); Cadence `irybkcryeywmwpcmhlaa` is not in that org.
-> - **Repo migrations:** 23 files after F4 backfill `20260701000001_f4_api_keys_webhook_endpoints.sql`.
-> - **Live F4 tables (2026-07-06):** `api_keys`, `webhook_endpoints`, `webhook_deliveries` — all exist on production. Row counts 0 (no keys/endpoints configured yet).
-> - **Live F4 RLS (anon):** INSERT `api_keys` → **blocked** (`42501` RLS policy). SELECT returns empty. `webhook_endpoints` SELECT/INSERT → **blocked** (memberships/RLS chain). ✅ No anon write path observed.
-> - **C1:** `20260625000000_c1_profiles_block_self_role_status_org_escalation.sql` — column grants + `guard_profiles_privileged_columns` trigger present in repo. ✅
-> - **C2/H1:** `20260626000000_c2_h1_drop_legacy_timesheets_storage_policies.sql` — drops `ts_read`/`ts_upload`. ✅
-> - **M1/M2:** `20260628000000_track_c2_atomic_cutover_rls_rewrite.sql` — drops `authenticated insert audit` on `audit_log`; re-scopes `timesheet_rows`. ✅
-> - **Track C:** `auth_org()` membership validation in C2 migration; invite-only in `src/lib/onboarding.ts`. ✅
-> - **F4 API (code + live):** `validateApiKey` service-role hash lookup; key generation gated via `memberships`; REST under `src/app/api/v1/*`. Repo migration backfilled. Live anon RLS blocked. **Authenticated-role exploit battery not re-run** (needs MCP or signed-in test user).
-> - **L1/L2:** Still OPEN — unchanged.
-> - **Server-only surface:** unchanged. ✅
+> **Re-verification update — 2026-07-06 (live via Supabase MCP):** Full live battery on project `irybkcryeywmwpcmhlaa` after MCP reconnected to correct org. Git `main` @ `9405ec9`.
+> - **Live migrations:** 24 applied (MCP-managed names differ from repo phase files; functionally includes C1, C2/H1, Track C, F4 `api_keys`/`webhook_endpoints`, org settings, avatars, etc.). Repo has 23 consolidated files — **naming drift only**, not missing critical fixes.
+> - **C1 ✅** — `guard_profiles_privileged_columns` trigger live; `authenticated` has no table-level `UPDATE` on `profiles`. Exploit: self `UPDATE role=superadmin` → **42501 permission denied**.
+> - **C2/H1 ✅** — legacy `ts_read`/`ts_upload` **absent**; only `timesheets_storage_select` / `timesheets_storage_insert` remain.
+> - **M1 ✅** — only `audit_log_select` policy; no INSERT for `authenticated`. Exploit: forge insert → **42501 RLS violation**.
+> - **Track C ✅** — `set_active_workspace(non_member_org)` → **42501 not a member**; `memberships` INSERT → **42501 permission denied**; `active_workspace` direct write → **42501 permission denied**.
+> - **F4 ✅** — RLS enabled on `api_keys`, `webhook_endpoints`. Policies: `api_keys_*_own` (user_id = auth.uid()); `webhook_endpoints_owner_admin` (memberships owner/admin). Cross-user `api_keys` INSERT → **42501 RLS**; non-manager `webhook_endpoints` INSERT → **42501 RLS**.
+> - **W1 (fixed live 2026-07-06):** `webhook_deliveries.timesheet_id` was NOT NULL but `dispatchWebhookEvent` omits it for leave/member events — applied `webhook_deliveries_timesheet_id_nullable` migration live + repo backfill.
+> - **L1/L2:** Still OPEN. Supabase advisor: 35 WARN lints (anon/authenticated EXECUTE on SECURITY DEFINER RPCs, org-logos public listing, mutable search_path on 2 functions) — defense-in-depth, not critical isolation breaks.
 > - **Build health:** typecheck, lint, build — pass.
 
-- **Supabase project ref:** `irybkcryeywmwpcmhlaa` (name `cadence`, status `ACTIVE_HEALTHY`). ✅ matches.
+## Target confirmation (STEP 0)
   - Note: live region reports `ap-southeast-2` (Sydney); the handover labelled it "Singapore". The **ref** is the authoritative match, so the audit proceeded. Region label is a doc nuance, not a target mismatch.
 - **Git:** `main` @ `acef7f3` (`acef7f30f5745487cc04b9acfb1bcc4bad18bb8f`). ✅ matches.
 - **Method:** Live DB policies/grants/triggers read directly via Supabase MCP `execute_sql` (migration files NOT trusted). Code read on `main@acef7f3`.

@@ -1,29 +1,36 @@
 -- F4: Public API keys + webhook endpoints + webhook_deliveries extensions
--- Idempotent backfill for repo parity (may already be applied on live Supabase).
+-- Idempotent backfill aligned to live Supabase (migrations api_keys / webhook_endpoints).
 
 create table if not exists public.api_keys (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   org_id uuid references public.organizations(id) on delete cascade,
-  name text not null check (char_length(trim(name)) between 1 and 100),
+  name text not null,
   key_hash text not null unique,
   key_prefix text not null,
   last_used_at timestamptz,
   expires_at timestamptz,
   revoked_at timestamptz,
-  created_at timestamptz not null default now()
+  created_at timestamptz default now()
 );
-
-create index if not exists api_keys_user_id_idx on public.api_keys (user_id);
-create index if not exists api_keys_org_scope_idx on public.api_keys (user_id, org_id);
-create index if not exists api_keys_key_hash_idx on public.api_keys (key_hash);
 
 alter table public.api_keys enable row level security;
 
-drop policy if exists api_keys_select on public.api_keys;
-drop policy if exists api_keys_insert on public.api_keys;
-drop policy if exists api_keys_update on public.api_keys;
-drop policy if exists api_keys_delete on public.api_keys;
+drop policy if exists api_keys_select_own on public.api_keys;
+create policy api_keys_select_own on public.api_keys
+  for select using (user_id = auth.uid());
+
+drop policy if exists api_keys_insert_own on public.api_keys;
+create policy api_keys_insert_own on public.api_keys
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists api_keys_update_own on public.api_keys;
+create policy api_keys_update_own on public.api_keys
+  for update using (user_id = auth.uid());
+
+drop policy if exists api_keys_delete_own on public.api_keys;
+create policy api_keys_delete_own on public.api_keys
+  for delete using (user_id = auth.uid());
 
 create table if not exists public.webhook_endpoints (
   id uuid primary key default gen_random_uuid(),
@@ -33,18 +40,23 @@ create table if not exists public.webhook_endpoints (
   description text,
   events text[] not null default '{}',
   enabled boolean not null default true,
-  created_by uuid not null references public.profiles(id) on delete cascade,
-  created_at timestamptz not null default now()
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
-
-create index if not exists webhook_endpoints_org_id_idx on public.webhook_endpoints (org_id);
 
 alter table public.webhook_endpoints enable row level security;
 
-drop policy if exists webhook_endpoints_select on public.webhook_endpoints;
-drop policy if exists webhook_endpoints_insert on public.webhook_endpoints;
-drop policy if exists webhook_endpoints_update on public.webhook_endpoints;
-drop policy if exists webhook_endpoints_delete on public.webhook_endpoints;
+drop policy if exists webhook_endpoints_owner_admin on public.webhook_endpoints;
+create policy webhook_endpoints_owner_admin on public.webhook_endpoints
+  for all using (
+    exists (
+      select 1 from public.memberships m
+      where m.org_id = webhook_endpoints.org_id
+        and m.user_id = auth.uid()
+        and m.role = any (array['owner'::public.user_role, 'admin'::public.user_role])
+    )
+  );
 
 alter table public.webhook_deliveries
   add column if not exists webhook_endpoint_id uuid references public.webhook_endpoints(id) on delete set null,
@@ -55,7 +67,3 @@ alter table public.webhook_deliveries
 
 alter table public.webhook_deliveries
   alter column timesheet_id drop not null;
-
-create index if not exists webhook_deliveries_endpoint_id_idx
-  on public.webhook_deliveries (webhook_endpoint_id)
-  where webhook_endpoint_id is not null;

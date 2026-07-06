@@ -17,8 +17,8 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ## Current state (2026-07-06)
 
-- **Git:** `main` @ `3b4c051` — sync scripts merged; local path `c:\Users\Zima\Desktop\apps\cadence\cadence`
-- **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa`
+- **Git:** `main` @ `9405ec9` — init audit committed; Supabase MCP live re-verification complete
+- **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa` (MCP connected ✅)
 - **Model:** Personal-by-default + multi-workspace (Track C live in production since 2026-06-15). Invite-only org join; self-serve `create_organization`.
 - **Build:** `npm run typecheck`, `lint`, `build` — all pass (pre-existing `<img>` lint warnings only)
 - **Env:** `.env.local` pulled from Vercel (`vercel link` + `vercel env pull`); `ASANA_REDIRECT_URI` added to `.env.local.example`
@@ -34,23 +34,14 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ### Security status (summary)
 
-- **C1/C2/H1/M1/M2:** FIXED (migrations in `supabase/migrations/`)
-- **L1/L2:** OPEN (defense-in-depth — anon grants, caller-supplied `orgId` in service-role aggregators)
-- **F4 API:** Migration backfilled (`20260701000001_f4_api_keys_webhook_endpoints.sql`); live tables exist; anon RLS blocked (see `scripts/live-db-audit.mjs`)
-- **Supabase MCP:** Works but linked to wrong org — see below
-
-### Supabase MCP — why permission denied?
-
-MCP **is authenticated** but to org **simplesolutions** (only project: `SimpleOps` / `djgxhlmnvnggwmznkfdy`). Cadence lives at **`irybkcryeywmwpcmhlaa`** under a different org/account. Queries to Cadence return `permission denied`.
-
-**Fix:** Cursor → Settings → MCP → Supabase → reconnect with the Supabase account that owns Cadence, or add your MCP account to the Cadence org in Supabase dashboard.
-
-**Workaround used:** `vercel env pull` + `scripts/live-db-audit.mjs` (service role + anon probes).
+- **C1/C2/H1/M1/M2/Track C/F4:** FIXED — live MCP exploit battery passed (2026-07-06)
+- **L1/L2:** OPEN (defense-in-depth)
+- **W1:** `webhook_deliveries.timesheet_id` nullable fix applied live + in repo migration
+- **Supabase MCP:** Connected to Cadence org `irybkcryeywmwpcmhlaa` ✅
 
 ### Open items / pending
 
 - Manual QA: API v1 with real keys, webhook delivery to external URL
-- Authenticated-role security battery (C1/C2/Track C) — re-run when MCP fixed or via SQL editor
 - Preview OAuth redirects to production URL (known infra limitation)
 
 ---
