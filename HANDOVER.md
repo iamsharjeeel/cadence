@@ -17,7 +17,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ## Current state (2026-07-06)
 
-- **Git:** `main` @ `e180ec3` (synced to origin; handoff snapshot)
+- **Git:** `main` @ `31521d0` (synced to origin)
 - **Local path:** `c:\Users\Zima\Desktop\apps\cadence\cadence`
 - **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa` (MCP connected)
 - **Model:** Personal-by-default + multi-workspace (Track C live since 2026-06-15). Invite-only org join; self-serve `create_organization`.
