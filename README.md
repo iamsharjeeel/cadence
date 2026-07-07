@@ -184,10 +184,12 @@ Light mode polish pass + dark mode implementation: sharp corners, hairline borde
 
 ### One-time GitLab remote
 
-After creating the GitLab project (empty, no README):
+GitLab mirror: **display name** `Cadence`, **path** `s1mplesolutions.cc-project` (path stays fixed; do not rename to `cadence` — name conflict in group).
+
+In GitLab: **Settings → General → Project name** → `Cadence` → Save.
 
 ```bash
-export CADENCE_GITLAB_URL=https://gitlab.com/s1mplesolutions-cc-group/cadence.git
+export CADENCE_GITLAB_URL=https://gitlab.com/s1mplesolutions-cc-group/s1mplesolutions.cc-project.git
 ./scripts/setup-gitlab-remote.sh
 git push -u gitlab main
 ```

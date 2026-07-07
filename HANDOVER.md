@@ -17,7 +17,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ## Current state (2026-07-06)
 
-- **Git:** `main` @ `98a8f19` (synced to GitHub `origin`; **GitLab mirror** — add `gitlab` remote once, then `sync-to-cloud.sh` pushes both)
+- **Git:** `main` @ `4d38feb` (synced to GitHub `origin` + GitLab `gitlab`)
 - **Env:** `CRON_SECRET` set in Vercel Production; add to Preview if you use preview cron
 - **Local path:** `c:\Users\Zima\Desktop\apps\cadence\cadence`
 - **Live:** [cadence-eta-five.vercel.app](https://cadence-eta-five.vercel.app) · Supabase `irybkcryeywmwpcmhlaa` (MCP connected)
@@ -43,7 +43,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ### Open items / pending
 
-- ~~**GitLab:** run `./scripts/setup-gitlab-remote.sh` with `CADENCE_GITLAB_URL`, then initial `git push -u gitlab main`~~ — remote configured; **initial push needs PAT in Credential Manager** (see README)
+- **GitLab display name:** set **Project name** to `Cadence` in GitLab UI (**Settings → General**); git URL stays `…/s1mplesolutions.cc-project.git`
 - Preview OAuth redirects to production URL (infra — needs owner sign-off)
 - Live vs repo migration naming drift (functionally aligned; MCP names differ from repo filenames)
 - Optional: add `CRON_SECRET` to Preview env if preview cron matters
@@ -82,7 +82,7 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 - **Supabase project URL:** `https://irybkcryeywmwpcmhlaa.supabase.co` (region: Singapore)
 - **Vercel URL:** `https://cadence-eta-five.vercel.app` (no custom domain yet)
 - **GitHub repo:** `cadence` (private, `iamsharjeeel/cadence`) — **primary**; Vercel deploys from here
-- **GitLab repo:** [cadence](https://gitlab.com/s1mplesolutions-cc-group/cadence) — mirror of `main`; remote name `gitlab`
+- **GitLab repo:** [Cadence](https://gitlab.com/s1mplesolutions-cc-group/s1mplesolutions.cc-project) — mirror of `main`; path `s1mplesolutions.cc-project`, display name `Cadence`; remote `gitlab`
 - **CI:** GitHub Actions (`.github/workflows/ci.yml`) + GitLab CI (`.gitlab-ci.yml`) — same verify steps
 - **Local clone:** `~/Desktop/cadence` — keep in sync with cloud via `scripts/sync-from-cloud.sh` (pull) and `scripts/sync-to-cloud.sh` (push). See README **Local ↔ cloud sync**.
 - **Google OAuth:** configured — redirect URI `https://irybkcryeywmwpcmhlaa.supabase.co/auth/v1/callback`, JS origin `https://cadence-eta-five.vercel.app`

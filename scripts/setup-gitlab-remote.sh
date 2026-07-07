@@ -6,7 +6,7 @@ URL="${CADENCE_GITLAB_URL:-}"
 
 if [[ -z "$URL" ]]; then
   echo "Set CADENCE_GITLAB_URL to your GitLab clone URL, e.g.:" >&2
-  echo "  export CADENCE_GITLAB_URL=https://gitlab.com/<namespace>/cadence.git" >&2
+  echo "  export CADENCE_GITLAB_URL=https://gitlab.com/<namespace>/s1mplesolutions.cc-project.git" >&2
   exit 1
 fi
 

@@ -4,6 +4,7 @@
 
 - `.gitlab-ci.yml` verify pipeline (typecheck, lint, build)
 - `scripts/setup-gitlab-remote.sh`; `sync-to-cloud.sh` pushes `origin` + `gitlab`
+- GitLab mirror: display name Cadence, path `s1mplesolutions.cc-project` (permanent; no path rename)
 
 ## 2026-07-06 (Menu A+B+C)
 
