@@ -421,6 +421,259 @@ export type Database = {
           },
         ]
       }
+      gmail_connections: {
+        Row: {
+          id: string
+          user_id: string
+          access_token_enc: string
+          refresh_token_enc: string | null
+          expires_at: string
+          gmail_email: string | null
+          history_id: string | null
+          last_full_sync_at: string | null
+          last_sync_at: string | null
+          sync_status: string
+          sync_cursor_page_token: string | null
+          threads_synced_count: number
+          sync_error: string | null
+          connected_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          access_token_enc: string
+          refresh_token_enc?: string | null
+          expires_at: string
+          gmail_email?: string | null
+          history_id?: string | null
+          last_full_sync_at?: string | null
+          last_sync_at?: string | null
+          sync_status?: string
+          sync_cursor_page_token?: string | null
+          threads_synced_count?: number
+          sync_error?: string | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          access_token_enc?: string
+          refresh_token_enc?: string | null
+          expires_at?: string
+          gmail_email?: string | null
+          history_id?: string | null
+          last_full_sync_at?: string | null
+          last_sync_at?: string | null
+          sync_status?: string
+          sync_cursor_page_token?: string | null
+          threads_synced_count?: number
+          sync_error?: string | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmail_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gmail_sync_runs: {
+        Row: {
+          id: string
+          user_id: string
+          started_at: string
+          finished_at: string | null
+          messages_processed: number
+          threads_processed: number
+          error: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          started_at?: string
+          finished_at?: string | null
+          messages_processed?: number
+          threads_processed?: number
+          error?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          started_at?: string
+          finished_at?: string | null
+          messages_processed?: number
+          threads_processed?: number
+          error?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmail_sync_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gmail_threads: {
+        Row: {
+          id: string
+          user_id: string
+          gmail_thread_id: string
+          subject: string | null
+          snippet: string | null
+          participants: Json
+          last_message_at: string
+          is_unread: boolean
+          label_ids: Json
+          gmail_permalink: string | null
+          synced_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          gmail_thread_id: string
+          subject?: string | null
+          snippet?: string | null
+          participants?: Json
+          last_message_at: string
+          is_unread?: boolean
+          label_ids?: Json
+          gmail_permalink?: string | null
+          synced_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          gmail_thread_id?: string
+          subject?: string | null
+          snippet?: string | null
+          participants?: Json
+          last_message_at?: string
+          is_unread?: boolean
+          label_ids?: Json
+          gmail_permalink?: string | null
+          synced_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmail_threads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gmail_messages: {
+        Row: {
+          id: string
+          user_id: string
+          thread_uuid: string
+          gmail_message_id: string
+          from_email: string | null
+          from_name: string | null
+          subject: string | null
+          snippet: string | null
+          received_at: string
+          body_text: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          thread_uuid: string
+          gmail_message_id: string
+          from_email?: string | null
+          from_name?: string | null
+          subject?: string | null
+          snippet?: string | null
+          received_at: string
+          body_text?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          thread_uuid?: string
+          gmail_message_id?: string
+          from_email?: string | null
+          from_name?: string | null
+          subject?: string | null
+          snippet?: string | null
+          received_at?: string
+          body_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmail_messages_thread_uuid_fkey"
+            columns: ["thread_uuid"]
+            isOneToOne: false
+            referencedRelation: "gmail_threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gmail_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_entry_email_threads: {
+        Row: {
+          id: string
+          time_entry_id: string
+          gmail_thread_id: string
+          linked_by: string
+          linked_at: string
+        }
+        Insert: {
+          id?: string
+          time_entry_id: string
+          gmail_thread_id: string
+          linked_by: string
+          linked_at?: string
+        }
+        Update: {
+          id?: string
+          time_entry_id?: string
+          gmail_thread_id?: string
+          linked_by?: string
+          linked_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entry_email_threads_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entry_email_threads_gmail_thread_id_fkey"
+            columns: ["gmail_thread_id"]
+            isOneToOne: false
+            referencedRelation: "gmail_threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entry_email_threads_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_settings: {
         Row: {
           id: string
@@ -1635,6 +1888,10 @@ export type AsanaImportedProject = Tables<"asana_imported_projects">
 export type GoogleCalendarConnection = Tables<"google_calendar_connections">
 export type GoogleSelectedCalendar = Tables<"google_selected_calendars">
 export type GoogleCalendarEventRow = Tables<"google_calendar_events">
+export type GmailConnection = Tables<"gmail_connections">
+export type GmailThread = Tables<"gmail_threads">
+export type GmailMessage = Tables<"gmail_messages">
+export type TimeEntryEmailThread = Tables<"time_entry_email_threads">
 export type Profile = Tables<"profiles">
 export type AuditLog = Tables<"audit_log">
 export type Document = Tables<"documents">

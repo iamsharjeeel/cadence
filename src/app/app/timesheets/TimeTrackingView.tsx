@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/Button";
@@ -58,7 +52,7 @@ import {
 import type { TimesheetStatus } from "@/types/db";
 import type { AsanaImportedProject } from "@/types/db";
 import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
-import type { TimeTrackingData } from "@/types/time-tracking";
+import type { LinkedEmailThreadMeta, TimeTrackingData } from "@/types/time-tracking";
 import {
   copyEntriesFromPreviousPeriod,
   getTimeTrackingData,
@@ -148,6 +142,8 @@ function applyTrackingData(
     setSubmittedAt: (v: string | null) => void;
     setProjects: (v: Project[]) => void;
     setAsanaConnected: (v: boolean) => void;
+    setGmailConnected: (v: boolean) => void;
+    setEmailLinksByEntryId: (v: Record<string, LinkedEmailThreadMeta[]>) => void;
     setAsanaImportedProjects: (v: AsanaImportedProject[]) => void;
     setAsanaProjectNamesSyncedAt: (v: string | null) => void;
     setWeek: (v: PayPeriod) => void;
@@ -164,6 +160,14 @@ function applyTrackingData(
   setters.setSubmittedAt(data.submittedAt ?? null);
   setters.setProjects(data.projects);
   setters.setAsanaConnected(data.asanaConnected);
+  setters.setGmailConnected(data.gmailConnected);
+  const linksMap: Record<string, LinkedEmailThreadMeta[]> = {};
+  for (const e of data.entries) {
+    if (e.linked_email_threads?.length) {
+      linksMap[e.id] = e.linked_email_threads;
+    }
+  }
+  setters.setEmailLinksByEntryId(linksMap);
   setters.setAsanaImportedProjects(data.asanaImportedProjects);
   setters.setAsanaProjectNamesSyncedAt(data.asanaProjectNamesSyncedAt);
   setters.setWeek(data.week);
@@ -207,6 +211,7 @@ export function TimeTrackingView({
   initialFocusDate?: string | null;
 }) {
   const { toast } = useToast();
+  const router = useRouter();
   const today = toIsoDate(new Date());
   const defaultAnchor = initialWeekMonday ?? thisWeekMonday();
   const [periodAnchor, setPeriodAnchor] = useState(defaultAnchor);
@@ -219,6 +224,10 @@ export function TimeTrackingView({
   const [submittedAt, setSubmittedAt] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [asanaConnected, setAsanaConnected] = useState(false);
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [emailLinksByEntryId, setEmailLinksByEntryId] = useState<
+    Record<string, LinkedEmailThreadMeta[]>
+  >({});
   const [asanaImportedProjects, setAsanaImportedProjects] = useState<
     AsanaImportedProject[]
   >([]);
@@ -375,6 +384,8 @@ export function TimeTrackingView({
       setSubmittedAt,
       setProjects,
       setAsanaConnected,
+      setGmailConnected,
+      setEmailLinksByEntryId,
       setAsanaImportedProjects,
       setAsanaProjectNamesSyncedAt,
       setWeek,
@@ -413,6 +424,8 @@ export function TimeTrackingView({
         setSubmittedAt,
         setProjects,
         setAsanaConnected,
+        setGmailConnected,
+        setEmailLinksByEntryId,
         setAsanaImportedProjects,
         setAsanaProjectNamesSyncedAt,
         setWeek,
@@ -1117,6 +1130,14 @@ export function TimeTrackingView({
                           ? () => openCopyPicker(day.date, entry)
                           : undefined
                       }
+                      gmailConnected={gmailConnected}
+                      linkedEmailThreads={
+                        entry.id ? emailLinksByEntryId[entry.id] ?? [] : []
+                      }
+                      onEmailLinksChanged={() => {
+                        void load();
+                        router.refresh();
+                      }}
                     />
                   ))}
                 </AnimatePresence>

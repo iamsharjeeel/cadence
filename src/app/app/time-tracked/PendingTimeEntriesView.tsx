@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { GmailIcon } from "@/components/icons/GmailIcon";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -26,8 +27,17 @@ function formatHours(hours: number): string {
 
 export function PendingTimeEntriesView({
   pending,
+  emailLinksByEntry = new Map(),
 }: {
   pending: PendingTimeEntry[];
+  emailLinksByEntry?: Map<
+    string,
+    Array<{
+      linkId: string;
+      subject: string | null;
+      gmailPermalink: string | null;
+    }>
+  >;
 }) {
   const { toast } = useToast();
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -130,6 +140,18 @@ export function PendingTimeEntriesView({
                         {entry.description}
                       </p>
                     ) : null}
+                    {(emailLinksByEntry.get(entry.id) ?? []).map((link) => (
+                      <a
+                        key={link.linkId}
+                        href={link.gmailPermalink ?? "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 flex items-center gap-1 text-xs text-[var(--accent-strong)] hover:underline"
+                      >
+                        <GmailIcon size={12} />
+                        {link.subject || "Email thread"}
+                      </a>
+                    ))}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button
                         size="sm"

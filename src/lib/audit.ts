@@ -31,6 +31,8 @@ export type AuditAction =
   | "leave_cancelled"
   | "time_entry_approved"
   | "time_entry_rejected"
+  | "time_entry_email_linked"
+  | "time_entry_email_unlinked"
   | "expense_submitted"
   | "expense_auto_approved"
   | "expense_approved"

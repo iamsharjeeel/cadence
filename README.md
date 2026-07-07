@@ -135,6 +135,13 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - **Log time:** “From calendar” suggestions per day; prefill via `?date=&prefill=` query params
 - **Mobile nav:** sidebar overlay below 768px; topbar hamburger + Cadence wordmark + avatar/bell
 
+### Phase 11 — Gmail inbox + time entry email links
+- **Per-user Gmail OAuth:** `gmail.readonly` scope; tokens encrypted (`cadence-gmail-v1` salt); separate from Google Calendar connection
+- **`/app/inbox`:** synced thread list (full inbox, batched/resumable sync), filters, search, open in Gmail
+- **Time entry linking:** join table `time_entry_email_threads` — link/unlink from time log row without changing `time_entries` write path
+- **Settings → Connected accounts:** Gmail tile + sync controls; hidden when `GMAIL_CLIENT_ID` unset
+- **Data retention:** disconnect Gmail purges cached threads/messages and unlinks time entries
+
 ### Light polish + dark mode (Stitch reference)
 Light mode polish pass + dark mode implementation: sharp corners, hairline borders, gold-on-black stat numbers, uppercase nav labels in dark, audit action badge chips, leave balance cards with progress bars, landing hero Playfair tagline as decorative background layer, sidebar org logo block at top with "PAYROLL & HR" subtitle.
 
@@ -266,6 +273,9 @@ npm run dev                        # http://localhost:3000
 | `GOOGLE_CLIENT_ID` | server-only | Google OAuth client ID (Calendar API) |
 | `GOOGLE_CLIENT_SECRET` | server-only | Google OAuth client secret |
 | `GOOGLE_CALENDAR_REDIRECT_URI` | server-only | Must match Google console (`…/api/google-calendar/callback`) |
+| `GMAIL_CLIENT_ID` | server-only | Gmail OAuth client ID (can reuse Google Cloud app) |
+| `GMAIL_CLIENT_SECRET` | server-only | Gmail OAuth client secret |
+| `GMAIL_REDIRECT_URI` | server-only | Must match Google console (`…/api/gmail/callback`) |
 
 ## Database migrations
 
@@ -289,6 +299,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 16. `supabase/migrations/20260631000001_profiles_avatar_url.sql` — profile avatars
 17. `supabase/migrations/20260701000001_f4_api_keys_webhook_endpoints.sql` — **F4 API keys + webhook endpoints**
 18. `supabase/migrations/20260706000001_menu_abc_features.sql` — **expenses, time entry rejection, API key permissions, webhook retry scheduling, L1 anon hardening**
+19. `supabase/migrations/20260707000001_gmail_inbox.sql` — **Gmail OAuth, inbox cache, time entry email thread links**
 
 ### F1 — Org approval settings (shipped)
 - **`org_settings` table** per org: tier, timesheet/leave/expense approval toggles, `approver_scope` (`owner_only` | `owner_and_managers`)

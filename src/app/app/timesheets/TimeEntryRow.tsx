@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, Loader2, Trash2 } from "lucide-react";
+import { Check, Copy, Loader2, Mail, Trash2 } from "lucide-react";
 
 import { AsanaProjectPickerMeta } from "@/components/asana/AsanaProjectPicker";
+import { EmailThreadPicker, type LinkedEmailThread } from "@/components/gmail/EmailThreadPicker";
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
+import { GmailIcon } from "@/components/icons/GmailIcon";
 import { ProjectPicker } from "@/components/time/ProjectPicker";
 import { asanaProjectUrl, formatAsanaSyncedAt } from "@/lib/asana/urls";
+import {
+  linkEmailThreadToTimeEntry,
+  unlinkEmailThreadFromTimeEntry,
+} from "@/app/app/profile/gmail-actions";
 
 import { Button } from "@/components/ui/Button";
 import { fieldBase } from "@/components/ui/Input";
@@ -250,6 +256,9 @@ export function TimeEntryRow({
   onCreateProject,
   onExpand,
   onCopy,
+  gmailConnected = false,
+  linkedEmailThreads = [],
+  onEmailLinksChanged,
 }: {
   entry: EntryRowData;
   editable: boolean;
@@ -271,8 +280,17 @@ export function TimeEntryRow({
   onCreateProject: (name: string, color?: string) => Promise<string | null>;
   onExpand?: () => void;
   onCopy?: () => void;
+  gmailConnected?: boolean;
+  linkedEmailThreads?: LinkedEmailThread[];
+  onEmailLinksChanged?: () => void;
 }) {
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [emailPickerOpen, setEmailPickerOpen] = useState(false);
+  const [localLinks, setLocalLinks] = useState(linkedEmailThreads);
+
+  useEffect(() => {
+    setLocalLinks(linkedEmailThreads);
+  }, [linkedEmailThreads]);
 
   const isDecimalMode = entry.entry_mode === "decimal_hours";
   const overnight =
@@ -306,6 +324,63 @@ export function TimeEntryRow({
     : entry.start_time && entry.end_time
       ? `${entry.start_time} – ${entry.end_time}${displayHours != null ? ` · ${displayHours.toFixed(1)}h` : ""}`
       : "—";
+
+  async function handleLinkThread(threadId: string) {
+    if (!entry.id) return;
+    const result = await linkEmailThreadToTimeEntry({
+      timeEntryId: entry.id,
+      gmailThreadId: threadId,
+    });
+    if (result.ok) {
+      setEmailPickerOpen(false);
+      onEmailLinksChanged?.();
+    }
+  }
+
+  async function handleUnlink(linkId: string) {
+    const result = await unlinkEmailThreadFromTimeEntry({ linkId });
+    if (result.ok) {
+      setLocalLinks((prev) => prev.filter((l) => l.linkId !== linkId));
+      onEmailLinksChanged?.();
+    }
+  }
+
+  const emailLinkUi =
+    gmailConnected && entry.id ? (
+      <>
+        {localLinks.map((link) => (
+          <a
+            key={link.linkId}
+            href={link.gmailPermalink ?? "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex min-w-0 max-w-[140px] items-center gap-1 text-xs text-muted transition-colors hover:text-[var(--accent-strong)]"
+          >
+            <GmailIcon size={12} />
+            <span className="truncate">{link.subject || "Email"}</span>
+          </a>
+        ))}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEmailPickerOpen(true);
+          }}
+          className="inline-flex items-center gap-1 rounded-full bg-[var(--line)] px-2 py-0.5 text-[10px] font-medium text-muted transition-colors hover:text-ink"
+        >
+          <Mail className="h-3 w-3" />
+          Email
+        </button>
+        <EmailThreadPicker
+          open={emailPickerOpen}
+          onClose={() => setEmailPickerOpen(false)}
+          linkedThreads={localLinks}
+          onSelect={(threadId) => void handleLinkThread(threadId)}
+          onUnlink={(linkId) => void handleUnlink(linkId)}
+        />
+      </>
+    ) : null;
 
   if (isCollapsed) {
     return (
@@ -367,6 +442,12 @@ export function TimeEntryRow({
           >
             {entry.billable ? "Billable" : "Non-billable"}
           </span>
+          {emailLinkUi ? (
+            <>
+              <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />
+              <span className="flex min-w-0 items-center gap-1.5">{emailLinkUi}</span>
+            </>
+          ) : null}
           {hasCadenceProject && hasAsanaProject ? (
             <>
               <span className="h-3 w-px shrink-0 bg-[var(--line)]" aria-hidden />

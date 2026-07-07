@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-07 (Gmail inbox)
+
+- Gmail OAuth connect/disconnect (`/api/gmail/*`), encrypted tokens, batched full + incremental sync
+- `/app/inbox` — synced thread list, filters, thread detail, open in Gmail
+- `time_entry_email_threads` join table; link/unlink from time log + metadata on approval queue
+- Migration `20260707000001_gmail_inbox.sql`; env `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REDIRECT_URI`
+
 ## 2026-07-06 (GitLab mirror)
 
 - `.gitlab-ci.yml` verify pipeline (typecheck, lint, build)

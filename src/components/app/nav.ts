@@ -8,6 +8,7 @@ export type NavItem = {
     | "dashboard"
     | "profile"
     | "timesheets"
+    | "inbox"
     | "timeTracked"
     | "leave"
     | "expenses"
@@ -34,6 +35,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/app/timesheets",
     roles: ["superadmin", "admin", "employee"],
     icon: "timesheets",
+  },
+  {
+    label: "Inbox",
+    href: "/app/inbox",
+    roles: ["superadmin", "admin", "employee"],
+    icon: "inbox",
   },
   {
     label: "Time tracked",
@@ -129,6 +136,7 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
   personal: [
     "/app/dashboard",
     "/app/timesheets",
+    "/app/inbox",
     "/app/time-tracked",
     "/app/projects",
     "/app/leave",
@@ -142,6 +150,7 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
   employee: [
     "/app/dashboard",
     "/app/timesheets",
+    "/app/inbox",
     "/app/time-tracked",
     "/app/trends",
     "/app/reports",
@@ -156,6 +165,7 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
   manager: [
     "/app/dashboard",
     "/app/timesheets",
+    "/app/inbox",
     "/app/time-tracked",
     "/app/trends",
     "/app/reports",
@@ -173,6 +183,7 @@ const CONTEXT_HREFS: Record<NavContext, string[]> = {
   superadmin: [
     "/app/dashboard",
     "/app/timesheets",
+    "/app/inbox",
     "/app/time-tracked",
     "/app/trends",
     "/app/reports",

@@ -6,6 +6,8 @@ import {
   getAsanaConnection,
   hasAsanaConnection,
 } from "@/lib/asana/connection";
+import { hasGmailConnection } from "@/lib/gmail/connection";
+import { loadLinkedThreadsForEntries } from "@/lib/gmail/sync";
 import {
   addDays,
   isoWeekLabel,
@@ -253,11 +255,13 @@ export async function getTimeTrackingDataForProfile(
   const week = viewPeriodForDate(anchorDate, viewCadence);
   const db = createAdminClient();
 
-  const [ensured, projects, asanaConnected, asanaImportedProjects] = await Promise.all([
+  const [ensured, projects, asanaConnected, asanaImportedProjects, gmailConnected] =
+    await Promise.all([
     ensureTimesheetForViewPeriod(profile, anchorDate, viewCadence),
     fetchProjectsForTimeEntry(activeOrgId, profile.id),
     hasAsanaConnection(profile.id),
     loadAsanaImportedProjects(profile.id),
+    hasGmailConnection(profile.id),
   ]);
   if (!ensured.ok) return ensured;
 
@@ -280,6 +284,9 @@ export async function getTimeTrackingDataForProfile(
 
   const projectMap = new Map(projects.map((p) => [p.id, p]));
   const asanaMap = new Map(asanaImportedProjects.map((p) => [p.id, p]));
+  const entryIds = ((entryRows ?? []) as TimeEntry[]).map((e) => e.id);
+  const linkedByEntry = await loadLinkedThreadsForEntries(entryIds);
+
   const entries: TimeEntryWithProject[] = ((entryRows ?? []) as TimeEntry[]).map(
     (e) => {
       const asanaProject = e.asana_project_id
@@ -290,6 +297,7 @@ export async function getTimeTrackingDataForProfile(
         project: e.project_id ? projectMap.get(e.project_id) ?? null : null,
         asana_project: asanaProject,
         asana_project_name: asanaProject?.asana_project_name ?? null,
+        linked_email_threads: linkedByEntry.get(e.id) ?? [],
       };
     },
   );
@@ -312,6 +320,7 @@ export async function getTimeTrackingDataForProfile(
     asanaConnected,
     asanaImportedProjects,
     asanaProjectNamesSyncedAt,
+    gmailConnected,
     week,
     isoWeek: isoWeekLabel(week.start),
     weekStats,

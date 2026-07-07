@@ -6,17 +6,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
+import { GmailIcon } from "@/components/icons/GmailIcon";
 import { GoogleCalendarIcon } from "@/components/icons/GoogleCalendarIcon";
 import { Button, buttonStyles } from "@/components/ui/Button";
 import type { AsanaConnectionStatus } from "@/lib/asana/connection";
 import type { GCalConnectionStatus } from "@/lib/google-calendar/connection";
+import type { GmailConnectionStatus } from "@/lib/gmail/connection";
 import { INLINE_EXPAND } from "@/lib/motion";
 import type { AsanaImportedProject } from "@/types/db";
 import { cn } from "@/lib/utils";
 import { AsanaConnectionPanel } from "./AsanaConnectionPanel";
+import { GmailConnectionPanel } from "./GmailConnectionPanel";
 import { GoogleCalendarConnectionPanel } from "./GoogleCalendarConnectionPanel";
 
-type OpenPanel = "asana" | "gcal" | null;
+type OpenPanel = "asana" | "gcal" | "gmail" | null;
 
 function ConnectionBadge({ connected }: { connected: boolean }) {
   return (
@@ -37,14 +40,20 @@ export function ConnectedAccountsSection({
   asanaConnection,
   importedProjects,
   gcalConnection,
+  gmailConnection,
+  gmailConfigured,
   asanaFlash,
   gcalFlash,
+  gmailFlash,
 }: {
   asanaConnection: AsanaConnectionStatus;
   importedProjects: AsanaImportedProject[];
   gcalConnection: GCalConnectionStatus;
+  gmailConnection: GmailConnectionStatus;
+  gmailConfigured: boolean;
   asanaFlash?: "connected" | "error" | null;
   gcalFlash?: "connected" | "error" | null;
+  gmailFlash?: "connected" | "error" | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,19 +69,24 @@ export function ConnectedAccountsSection({
       setToast("Google Calendar connected successfully.");
     } else if (gcalFlash === "error") {
       setToast("Couldn't connect Google Calendar. Please try again.");
+    } else if (gmailFlash === "connected") {
+      setToast("Gmail connected successfully.");
+    } else if (gmailFlash === "error") {
+      setToast("Couldn't connect Gmail. Please try again.");
     }
-  }, [asanaFlash, gcalFlash]);
+  }, [asanaFlash, gcalFlash, gmailFlash]);
 
   useEffect(() => {
-    if (!asanaFlash && !gcalFlash) return;
+    if (!asanaFlash && !gcalFlash && !gmailFlash) return;
     const params = new URLSearchParams(searchParams.toString());
     params.delete("asana");
     params.delete("gcal");
+    params.delete("gmail");
     const next = params.toString();
     router.replace(next ? `/app/user-settings?${next}` : "/app/user-settings", {
       scroll: false,
     });
-  }, [asanaFlash, gcalFlash, router, searchParams]);
+  }, [asanaFlash, gcalFlash, gmailFlash, router, searchParams]);
 
   useEffect(() => {
     if (!toast) return;
@@ -95,7 +109,7 @@ export function ConnectedAccountsSection({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Asana tile */}
         <div className="min-w-0 rounded-[12px] bg-surface p-5 shadow-card">
           <div className="flex min-w-0 items-start gap-3">
@@ -185,6 +199,51 @@ export function ConnectedAccountsSection({
             )}
           </div>
         </div>
+
+        {gmailConfigured ? (
+          <div className="min-w-0 rounded-[12px] bg-surface p-5 shadow-card">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#EA4335]/10">
+                <GmailIcon size={22} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium text-ink">Gmail</p>
+                  <ConnectionBadge connected={gmailConnection.connected} />
+                </div>
+                {gmailConnection.connected ? (
+                  <p className="mt-1 truncate text-sm text-muted">
+                    {gmailConnection.gmailEmail ?? "Connected account"}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-muted">
+                    Sync inbox and link threads to time entries.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {gmailConnection.connected ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => toggle("gmail")}
+                >
+                  {openPanel === "gmail" ? "Close" : "Manage"}
+                </Button>
+              ) : (
+                <Link
+                  href="/api/gmail/connect"
+                  className={buttonStyles("primary", "sm")}
+                >
+                  Connect
+                </Link>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Inline expandable sub-section — one at a time, no modal/backdrop */}
@@ -215,6 +274,23 @@ export function ConnectedAccountsSection({
             <div className="pt-4">
               <GoogleCalendarConnectionPanel
                 connection={gcalConnection}
+                onToast={setToast}
+                onDisconnected={() => setOpenPanel(null)}
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {openPanel === "gmail" && gmailConnection.connected && gmailConfigured && (
+          <motion.div
+            key="gmail-panel"
+            {...INLINE_EXPAND}
+            className="overflow-hidden"
+          >
+            <div className="pt-4">
+              <GmailConnectionPanel
+                connection={gmailConnection}
+                gmailConfigured={gmailConfigured}
                 onToast={setToast}
                 onDisconnected={() => setOpenPanel(null)}
               />

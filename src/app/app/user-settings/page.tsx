@@ -13,6 +13,8 @@ import {
 import { requireActiveProfile } from "@/lib/auth";
 import { getAsanaConnectionStatus } from "@/lib/asana/connection";
 import { getGCalConnectionStatus } from "@/lib/google-calendar/connection";
+import { isGmailConfigured } from "@/lib/gmail/config";
+import { getGmailConnectionStatus } from "@/lib/gmail/connection";
 import { listApiKeysForScope } from "@/lib/api-keys/actions";
 import { createClient } from "@/lib/supabase/server";
 import type { AsanaImportedProject } from "@/types/db";
@@ -23,7 +25,7 @@ import { UserSettingsHashScroll } from "./UserSettingsHashScroll";
 export const metadata: Metadata = { title: "Settings" };
 
 type UserSettingsPageProps = {
-  searchParams?: { asana?: string; gcal?: string };
+  searchParams?: { asana?: string; gcal?: string; gmail?: string };
 };
 
 export default async function UserSettingsPage({
@@ -32,10 +34,11 @@ export default async function UserSettingsPage({
   const profile = await requireActiveProfile();
   if (!profile) redirect("/login");
 
-  const [asanaConnection, gcalConnection, importedProjects, apiKeys] =
+  const [asanaConnection, gcalConnection, gmailConnection, importedProjects, apiKeys] =
     await Promise.all([
       getAsanaConnectionStatus(profile.id),
       getGCalConnectionStatus(profile.id),
+      getGmailConnectionStatus(profile.id),
       loadImportedAsanaProjects(profile.id),
       listApiKeysForScope(null),
     ]);
@@ -54,6 +57,15 @@ export default async function UserSettingsPage({
         ? "error"
         : null;
 
+  const gmailFlash =
+    searchParams?.gmail === "connected"
+      ? "connected"
+      : searchParams?.gmail === "error"
+        ? "error"
+        : null;
+
+  const gmailConfigured = isGmailConfigured();
+
   return (
     <div>
       <UserSettingsHashScroll />
@@ -67,7 +79,7 @@ export default async function UserSettingsPage({
           <CardTitle className="text-base">Connected accounts</CardTitle>
           <CardDescription>
             Link personal integrations — Asana for project tagging, Google
-            Calendar for event sync.
+            Calendar for event sync, Gmail for inbox and time entry links.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -76,8 +88,11 @@ export default async function UserSettingsPage({
               asanaConnection={asanaConnection}
               importedProjects={importedProjects}
               gcalConnection={gcalConnection}
+              gmailConnection={gmailConnection}
+              gmailConfigured={gmailConfigured}
               asanaFlash={asanaFlash}
               gcalFlash={gcalFlash}
+              gmailFlash={gmailFlash}
             />
           </Suspense>
         </CardContent>

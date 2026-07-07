@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AsanaIcon } from "@/components/icons/AsanaIcon";
+import { GmailIcon } from "@/components/icons/GmailIcon";
 import { PageHeader } from "@/components/app/PageHeader";
 import {
   Card,
@@ -15,6 +16,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { fetchProjectsForTimeEntry } from "@/app/app/projects/actions";
 import { canApproveInOrg } from "@/lib/approvals";
+import { loadLinkedThreadsForEntries } from "@/lib/gmail/sync";
 import { resolveReportRange } from "@/lib/reports/queries";
 import { getPendingTimeEntries } from "@/lib/time/pending-time-entries";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -171,6 +173,12 @@ export default async function TimeTrackedPage({
     (asanaMeta.data ?? []).map((project) => [project.id, project]),
   );
 
+  const allEntryIds = [
+    ...entries.map((e) => e.id),
+    ...pendingEntries.map((e) => e.id),
+  ];
+  const emailLinksByEntry = await loadLinkedThreadsForEntries(allEntryIds);
+
   return (
     <div>
       <PageHeader
@@ -194,7 +202,10 @@ export default async function TimeTrackedPage({
       </Card>
 
       {isApprover ? (
-        <PendingTimeEntriesView pending={pendingEntries} />
+        <PendingTimeEntriesView
+          pending={pendingEntries}
+          emailLinksByEntry={emailLinksByEntry}
+        />
       ) : null}
 
       <Card>
@@ -323,8 +334,24 @@ export default async function TimeTrackedPage({
                           </span>
                         )}
                       </TD>
-                      <TD className="max-w-[300px] truncate text-muted">
-                        {entry.description?.trim() || "—"}
+                      <TD className="max-w-[300px] text-muted">
+                        <div className="space-y-1">
+                          <p className="truncate">
+                            {entry.description?.trim() || "—"}
+                          </p>
+                          {(emailLinksByEntry.get(entry.id) ?? []).map((link) => (
+                            <a
+                              key={link.linkId}
+                              href={link.gmailPermalink ?? "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 truncate text-xs text-[var(--accent-strong)] hover:underline"
+                            >
+                              <GmailIcon size={12} />
+                              {link.subject || "Email thread"}
+                            </a>
+                          ))}
+                        </div>
                       </TD>
                     </TR>
                   );
