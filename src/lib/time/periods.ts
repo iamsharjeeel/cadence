@@ -126,6 +126,23 @@ function monthPeriod(iso: string): PayPeriod {
   return { start, end, label: formatLabel(start, end) };
 }
 
+/**
+ * Shift a monthly period to the adjacent calendar month using direct
+ * calendar-month arithmetic (not a fixed day-count jump, which breaks for
+ * 31-day months). `new Date(y, m + direction, 1)` correctly rolls the year
+ * over as needed, and `monthPeriod` re-derives the full [start, end] range
+ * for that month.
+ */
+function shiftMonthPeriod(period: PayPeriod, direction: -1 | 1): PayPeriod {
+  const start = parseIso(period.start);
+  const firstOfAdjacentMonth = new Date(
+    start.getFullYear(),
+    start.getMonth() + direction,
+    1,
+  );
+  return monthPeriod(toIsoDate(firstOfAdjacentMonth));
+}
+
 function weeklyPeriod(iso: string): PayPeriod {
   const start = mondayOfWeek(iso);
   const end = addDays(start, 6);
@@ -174,14 +191,16 @@ export function shiftViewPeriod(
   cadence: ViewPeriodCadence,
   direction: -1 | 1,
 ): PayPeriod {
+  if (cadence === "monthly") {
+    return shiftMonthPeriod(period, direction);
+  }
   const span =
     Math.floor(
       (parseIso(period.end).getTime() - parseIso(period.start).getTime()) /
         86_400_000,
     ) + 1;
   const pivot = addDays(period.start, Math.floor(span / 2));
-  const step =
-    cadence === "monthly" ? 15 : cadence === "biweekly_15" ? 15 : 7;
+  const step = cadence === "biweekly_15" ? 15 : 7;
   return viewPeriodForDate(addDays(pivot, direction * step), cadence);
 }
 
@@ -218,12 +237,15 @@ export function shiftPeriod(
   cadence: PeriodCadence,
   direction: -1 | 1,
 ): PayPeriod {
+  if (cadence === "monthly") {
+    return shiftMonthPeriod(period, direction);
+  }
   const mid = addDays(period.start, Math.floor(
     (parseIso(period.end).getTime() - parseIso(period.start).getTime()) /
       86_400_000 /
       2,
   ));
-  const pivot = addDays(mid, direction * (cadence === "monthly" ? 15 : cadence === "biweekly" ? 14 : 7));
+  const pivot = addDays(mid, direction * (cadence === "biweekly" ? 14 : 7));
   return periodForDate(pivot, cadence);
 }
 
