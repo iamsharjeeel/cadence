@@ -102,12 +102,23 @@ export async function updateOrgDomains(
   );
 
   if (removed.length > 0) {
-    const { data: activeEmployees } = await db
-      .from("profiles")
-      .select("email")
+    // Org membership lives in `memberships`, not the vestigial profiles.org_id/
+    // role columns (frozen after the Track-C cutover). Resolve member user ids
+    // first, then read their (globally-scoped) profile email/status.
+    const { data: members } = await db
+      .from("memberships")
+      .select("user_id")
       .eq("org_id", orgId)
-      .eq("status", "active")
       .eq("role", "employee");
+    const memberIds = (members ?? []).map((m) => m.user_id);
+
+    const { data: activeEmployees } = memberIds.length
+      ? await db
+          .from("profiles")
+          .select("email")
+          .in("id", memberIds)
+          .eq("status", "active")
+      : { data: [] as { email: string }[] };
 
     for (const emp of activeEmployees ?? []) {
       const domain = emp.email.split("@")[1]?.toLowerCase();
@@ -252,13 +263,24 @@ export async function suspendAllEmployees(
   if (!confirmed) return { ok: false, message: "Confirmation required." };
 
   const db = createAdminClient();
-  const { data, error } = await db
-    .from("profiles")
-    .update({ status: "suspended" })
+  // Org employees are defined by `memberships`, not the vestigial
+  // profiles.org_id/role columns (frozen after the Track-C cutover). Resolve
+  // member user ids, then suspend those (globally-scoped) profiles.
+  const { data: members } = await db
+    .from("memberships")
+    .select("user_id")
     .eq("org_id", admin.org_id)
-    .eq("role", "employee")
-    .eq("status", "active")
-    .select("id");
+    .eq("role", "employee");
+  const memberIds = (members ?? []).map((m) => m.user_id);
+
+  const { data, error } = memberIds.length
+    ? await db
+        .from("profiles")
+        .update({ status: "suspended" })
+        .in("id", memberIds)
+        .eq("status", "active")
+        .select("id")
+    : { data: [] as { id: string }[], error: null };
 
   if (error) return { ok: false, message: "Couldn't suspend employees." };
 

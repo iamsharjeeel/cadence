@@ -50,19 +50,29 @@ export async function applyDefaultBalancesForOrg(
   year: number,
 ): Promise<number> {
   const db = createAdminClient();
-  const [{ data: types }, { data: employees }] = await Promise.all([
+  // Org employees are defined by `memberships`, not the vestigial
+  // profiles.org_id/role columns (frozen after the Track-C cutover).
+  const [{ data: types }, { data: members }] = await Promise.all([
     db
       .from("leave_types")
       .select("id, default_days_per_year, category")
       .eq("org_id", orgId)
       .eq("is_active", true),
     db
-      .from("profiles")
-      .select("id")
+      .from("memberships")
+      .select("user_id")
       .eq("org_id", orgId)
-      .eq("status", "active")
       .eq("role", "employee"),
   ]);
+
+  const memberIds = (members ?? []).map((m) => m.user_id);
+  const { data: employees } = memberIds.length
+    ? await db
+        .from("profiles")
+        .select("id")
+        .in("id", memberIds)
+        .eq("status", "active")
+    : { data: [] as { id: string }[] };
 
   let count = 0;
   for (const emp of employees ?? []) {
