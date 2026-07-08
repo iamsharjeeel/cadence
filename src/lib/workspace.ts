@@ -52,6 +52,24 @@ export type WorkspaceContext = {
 
 export type NavContext = "personal" | "employee" | "manager" | "superadmin";
 
+/**
+ * Minimal, non-sensitive slice of `Profile` safe to hand to the app-wide
+ * client shell/nav (AppShell -> Topbar -> TopbarUserMenu). Those components
+ * only ever need identity/display fields — never banking, tax, address, rate,
+ * or emergency-contact data. Build this explicitly rather than passing the
+ * full `Profile` row into client components, since a full row gets serialized
+ * into the RSC flight payload of every authenticated page.
+ */
+export type SessionProfile = Pick<
+  Profile,
+  "id" | "full_name" | "email" | "avatar_url"
+>;
+
+export function toSessionProfile(profile: Profile): SessionProfile {
+  const { id, full_name, email, avatar_url } = profile;
+  return { id, full_name, email, avatar_url };
+}
+
 export function navContextFor(ctx: WorkspaceContext): NavContext {
   if (ctx.isSuperadmin) return "superadmin";
   if (ctx.activeOrg) return ctx.workspaceRole === "employee" ? "employee" : "manager";

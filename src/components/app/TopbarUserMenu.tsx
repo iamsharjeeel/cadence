@@ -9,7 +9,7 @@ import { ChevronDown } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { DROPDOWN_PANEL } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import type { Profile } from "@/types/db";
+import type { SessionProfile } from "@/lib/workspace";
 
 const MENU_WIDTH = 176;
 
@@ -17,7 +17,7 @@ export function TopbarUserMenu({
   profile,
   avatarSrc,
 }: {
-  profile: Profile;
+  profile: SessionProfile;
   avatarSrc: string | null;
 }) {
   const [open, setOpen] = useState(false);

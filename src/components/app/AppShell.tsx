@@ -15,7 +15,7 @@ import type {
   SwitcherInvite,
 } from "@/components/app/WorkspaceSwitcher";
 import type { NavContext } from "@/components/app/nav";
-import type { Profile } from "@/types/db";
+import type { SessionProfile } from "@/lib/workspace";
 
 export type SwitcherData = {
   activeOrgId: string | null;
@@ -37,7 +37,7 @@ export function AppShell({
   canLoadOrgSettings,
   children,
 }: {
-  profile: Profile;
+  profile: SessionProfile;
   navContext: NavContext;
   switcher: SwitcherData;
   orgSettingsOrgId: string | null;

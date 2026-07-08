@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app/AppShell";
-import { getWorkspaceContext, navContextFor } from "@/lib/workspace";
+import { getWorkspaceContext, navContextFor, toSessionProfile } from "@/lib/workspace";
 import { titleCase } from "@/lib/utils";
 
 export default async function AppLayout({
@@ -47,7 +47,7 @@ export default async function AppLayout({
 
   return (
     <AppShell
-      profile={ctx.effectiveProfile}
+      profile={toSessionProfile(ctx.effectiveProfile)}
       navContext={navContext}
       switcher={switcher}
       orgSettingsOrgId={ctx.activeOrgId}

@@ -6,7 +6,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { TopbarUserMenu } from "@/components/app/TopbarUserMenu";
 import { useNavigation } from "./NavigationProvider";
 import { resolveAvatarUrl } from "@/lib/avatar-url";
-import type { Profile } from "@/types/db";
+import type { SessionProfile } from "@/lib/workspace";
 import { navForContext, findActiveNavItem, type NavContext } from "./nav";
 import { usePathname } from "next/navigation";
 
@@ -16,7 +16,7 @@ export function Topbar({
   mobileNavOpen,
   onMobileNavToggle,
 }: {
-  profile: Profile;
+  profile: SessionProfile;
   navContext: NavContext;
   mobileNavOpen?: boolean;
   onMobileNavToggle?: () => void;
