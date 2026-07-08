@@ -34,7 +34,7 @@ export function DeleteTimesheetControl({
   async function handleDelete() {
     setLoading(true);
     try {
-      const res = await deleteTimesheet(id);
+      const res = await deleteTimesheet(id, isApproved);
       toast(res.message, res.ok ? "success" : "error");
       if (res.ok) {
         setOpen(false);

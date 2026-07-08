@@ -415,7 +415,7 @@ export async function returnTimesheetToDraft(id: string): Promise<ActionResult> 
 }
 
 /** Deletes a timesheet (any non-approved status, plus approved with explicit confirmation). */
-export async function deleteTimesheet(id: string): Promise<ActionResult> {
+export async function deleteTimesheet(id: string, confirm = false): Promise<ActionResult> {
   const profile = await requireRole(["admin", "superadmin", "employee"]);
   if (!id) return { ok: false, message: "Timesheet not found." };
 
@@ -436,6 +436,18 @@ export async function deleteTimesheet(id: string): Promise<ActionResult> {
 
   if (!isOwner && !isOrgAdmin && !isSuperadmin) {
     return { ok: false, message: "Not authorized." };
+  }
+
+  // Approved timesheets are finalized financial records (payroll/document
+  // generation). Employees may never delete their own approved timesheet;
+  // org admins/superadmins may only do so with explicit confirmation.
+  if (ts.status === "approved") {
+    if (!isOrgAdmin && !isSuperadmin) {
+      return { ok: false, message: "Approved timesheets can't be deleted." };
+    }
+    if (!confirm) {
+      return { ok: false, message: "This timesheet is approved. Confirm deletion to proceed." };
+    }
   }
 
   // Write audit BEFORE deletion so the record exists even after rows are gone.
