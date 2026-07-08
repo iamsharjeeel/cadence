@@ -11,6 +11,7 @@ import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getWorkspaceContext } from "@/lib/workspace";
 import {
+  validateCurrency,
   validateDateRange,
   validateMaxLength,
   validateNonNegativeNumber,
@@ -61,6 +62,16 @@ export async function getExpensesForWorkspace(
   orgId: string,
   employeeId: string,
 ): Promise<ExpenseRow[]> {
+  // This is a "use server" export, so guard it independently of the page that
+  // calls it: caller must be in this org workspace, and may only read their
+  // own expenses unless they can approve.
+  const gate = await requireOrgWorkspace();
+  if (!gate.ok || gate.orgId !== orgId) return [];
+  if (gate.ctx.effectiveProfile.id !== employeeId) {
+    const allowed = await canApproveInOrg(gate.orgId, gate.ctx.workspaceRole);
+    if (!allowed) return [];
+  }
+
   const db = createAdminClient();
   const { data } = await db
     .from("expenses")
@@ -73,6 +84,10 @@ export async function getExpensesForWorkspace(
 }
 
 export async function getPendingExpenses(orgId: string): Promise<ExpenseRow[]> {
+  // "use server" export — approver-only, scoped to the caller's active org.
+  const gate = await requireExpenseApprover();
+  if (!gate.ok || gate.orgId !== orgId) return [];
+
   const db = createAdminClient();
   const { data } = await db
     .from("expenses")
@@ -121,7 +136,9 @@ export async function submitExpense(input: {
   const dates = validateDateRange(input.expenseDate, input.expenseDate);
   if (!dates.ok) return { ok: false, message: dates.error };
 
-  const currency = input.currency.trim().toUpperCase().slice(0, 3) || "USD";
+  const currencyV = validateCurrency(input.currency);
+  if (!currencyV.ok) return { ok: false, message: currencyV.error };
+  const currency = currencyV.value;
   const settings = await fetchOrgSettings(gate.orgId);
   const requiresApproval = settings?.approvals_expenses ?? false;
   const status = requiresApproval ? "pending" : "approved";

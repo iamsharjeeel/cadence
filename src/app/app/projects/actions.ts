@@ -42,6 +42,12 @@ export async function fetchProjectsForTimeEntry(
   orgId: string | null,
   userId: string,
 ): Promise<Project[]> {
+  // "use server" export — validate the args against the caller's own context
+  // so a forged call can't enumerate another user's or org's projects.
+  const ctx = await getWorkspaceContext();
+  if (!ctx || ctx.realProfile.id !== userId) return [];
+  if (orgId !== null && orgId !== ctx.activeOrgId) return [];
+
   const db = createAdminClient();
 
   if (!orgId) {
