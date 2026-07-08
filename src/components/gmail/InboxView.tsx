@@ -48,14 +48,20 @@ export function InboxView({
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const syncInFlight = useRef(false);
+  const latestThreadReq = useRef<string | null>(null);
 
   const loadThreads = useCallback(async () => {
     setLoading(true);
-    const result = await fetchInboxThreads({ filter, search });
-    if (result.ok && result.threads) {
-      setThreads(result.threads);
+    try {
+      const result = await fetchInboxThreads({ filter, search });
+      if (result.ok && result.threads) {
+        setThreads(result.threads);
+      }
+    } catch {
+      // Session expiry / network error — leave the current list, stop spinner.
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [filter, search]);
 
   useEffect(() => {
@@ -75,6 +81,8 @@ export function InboxView({
         restart = false;
         if (!done) await new Promise((r) => setTimeout(r, 300));
       }
+    } catch {
+      // Session expiry / network error — stop the sync loop quietly.
     } finally {
       syncInFlight.current = false;
     }
@@ -95,12 +103,20 @@ export function InboxView({
 
   async function openThread(threadId: string) {
     setSelectedId(threadId);
+    latestThreadReq.current = threadId;
     setDetailLoading(true);
-    const result = await fetchInboxThreadDetail(threadId);
-    if (result.ok && result.thread && result.messages) {
-      setDetail({ thread: result.thread, messages: result.messages });
+    try {
+      const result = await fetchInboxThreadDetail(threadId);
+      // Ignore a stale response if the user has since opened another thread.
+      if (latestThreadReq.current !== threadId) return;
+      if (result.ok && result.thread && result.messages) {
+        setDetail({ thread: result.thread, messages: result.messages });
+      }
+    } catch {
+      // Session expiry / network error — leave prior detail, stop spinner.
+    } finally {
+      if (latestThreadReq.current === threadId) setDetailLoading(false);
     }
-    setDetailLoading(false);
   }
 
   if (!connection.connected) {
