@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 
 import { requireActiveProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateWebhookUrl } from "@/lib/webhooks/url-guard";
 import { getWorkspaceContext } from "@/lib/workspace";
 import {
   WEBHOOK_EVENT_TYPES,
-  type WebhookDeliveryRow,
+  type WebhookDeliverySummaryRow,
   type WebhookEndpointRow,
 } from "@/types/api";
 
@@ -26,15 +27,6 @@ async function requireOrgManager(orgId: string) {
     return { ok: false as const, message: "Forbidden." };
   }
   return { ok: true as const, profile: ctx.realProfile };
-}
-
-function isValidUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "https:" || parsed.protocol === "http:";
-  } catch {
-    return false;
-  }
 }
 
 export async function listWebhookEndpoints(
@@ -60,7 +52,7 @@ export async function listWebhookEndpoints(
 export async function listWebhookDeliveries(
   endpointId: string,
   limit = 20,
-): Promise<WebhookDeliveryRow[]> {
+): Promise<WebhookDeliverySummaryRow[]> {
   await requireActiveProfile();
   const db = createAdminClient();
 
@@ -75,10 +67,14 @@ export async function listWebhookDeliveries(
   const gate = await requireOrgManager(endpoint.org_id);
   if (!gate.ok) return [];
 
+  // Note: response_body and error_message are intentionally NOT selected here.
+  // They are persisted server-side for operator debugging, but returning them
+  // to the browser would turn outbound webhook delivery into a read-oracle for
+  // SSRF (an attacker-controlled endpoint URL's response would be echoed back).
   const { data, error } = await db
     .from("webhook_deliveries")
     .select(
-      "id, org_id, webhook_endpoint_id, event_type, status, response_status, response_body, error_message, created_at, delivered_at",
+      "id, org_id, webhook_endpoint_id, event_type, status, response_status, attempts, created_at, delivered_at",
     )
     .eq("webhook_endpoint_id", endpointId)
     .order("created_at", { ascending: false })
@@ -89,7 +85,7 @@ export async function listWebhookDeliveries(
     return [];
   }
 
-  return (data ?? []) as WebhookDeliveryRow[];
+  return (data ?? []) as WebhookDeliverySummaryRow[];
 }
 
 export async function createWebhookEndpoint(input: {
@@ -103,8 +99,9 @@ export async function createWebhookEndpoint(input: {
   if (!gate.ok) return gate;
 
   const url = input.url.trim();
-  if (!isValidUrl(url)) {
-    return { ok: false, message: "Enter a valid HTTP or HTTPS URL." };
+  const urlCheck = await validateWebhookUrl(url);
+  if (!urlCheck.ok) {
+    return { ok: false, message: urlCheck.reason };
   }
 
   const secret = input.secret.trim();

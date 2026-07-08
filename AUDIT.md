@@ -20,7 +20,7 @@ Cadence is a Next.js 14 (App Router, `src/`, TypeScript) multi-tenant SaaS times
 |----|-----|------|---------|--------|
 | D1 | 🔴 Critical | Data/RLS | `timesheets_update` WITH CHECK omits status → employee self-approves own timesheet (payroll fraud) | ✅ Resolved (`20260708000000`) |
 | D2 | 🔴 Critical | Data/RLS | `documents_update` WITH CHECK omits status → employee self-verifies own pay-advice/invoice | ✅ Resolved (`20260708000000`) |
-| I1 | 🔴 Critical | Integrations | Webhook SSRF: no private/loopback/metadata IP block + response body reflected to admin (read-oracle) | Open |
+| I1 | 🔴 Critical | Integrations | Webhook SSRF: no private/loopback/metadata IP block + response body reflected to admin (read-oracle) | ✅ Resolved |
 | D3 | 🟠 High | Data/RLS | `time_entries_update` has no status predicate → employee self-approves logged hours | ✅ Resolved (`20260708000000`) |
 | F1 | 🟠 High | Frontend | Unmasked `tax_id`/`address` for every employee sent to admin on `/app/employees` load | ✅ Resolved |
 | F2 | 🟠 High | Frontend | Full banking/PII profile (`select *`) serialized into every authenticated page via AppShell/Topbar | Open |
@@ -50,7 +50,7 @@ Cadence is a Next.js 14 (App Router, `src/`, TypeScript) multi-tenant SaaS times
 | L1 | 🔵 Low | API/Integrations | Non-constant-time compare of `CRON_SECRET` and OAuth `state` | Open |
 | L2 | 🔵 Low | Integrations | One shared `DOCUMENT_ENCRYPTION_KEY` for all 4 crypto domains; `.length < 16` char gate only | Open |
 | L3 | 🔵 Low | Integrations | `scryptSync` re-derived per encrypt/decrypt call on hot paths (event-loop stall) | Open |
-| L4 | 🔵 Low | Integrations | Webhook endpoints accept `http://` (cleartext payloads) | Open |
+| L4 | 🔵 Low | Integrations | Webhook endpoints accept `http://` (cleartext payloads) | ✅ Resolved (with I1: HTTPS now required) |
 | L5 | 🔵 Low | API | `documents/generate` has no batch-size cap or rate limit → email/PDF flood | Open |
 | L6 | 🔵 Low | Auth | `notifyPendingTimeEntry` server action has no auth check (notification spoof/spam) | Open |
 | L7 | 🔵 Low | Auth | `/auth/signout` has no CSRF/origin check (forced logout) | Open |

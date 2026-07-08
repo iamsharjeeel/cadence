@@ -3,6 +3,7 @@ import "server-only";
 import crypto from "crypto";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateWebhookUrl } from "@/lib/webhooks/url-guard";
 import type { Json } from "@/types/db";
 import type { WebhookEndpointRow, WebhookEvent } from "@/types/api";
 
@@ -54,6 +55,20 @@ async function postToEndpoint(
   let errorMessage: string | null = null;
   let status: "delivered" | "failed" = "failed";
 
+  // Re-validate the endpoint URL immediately before every delivery attempt
+  // (not just at creation time). This closes the DNS-rebinding gap where a
+  // hostname resolves to a public address when the endpoint is registered
+  // but is later re-pointed at an internal/metadata address.
+  const guard = await validateWebhookUrl(endpoint.url);
+  if (!guard.ok) {
+    return {
+      status: "failed",
+      responseStatus: null,
+      responseBody: null,
+      errorMessage: "Delivery blocked: endpoint URL failed security validation.",
+    };
+  }
+
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT_MS);
@@ -67,9 +82,22 @@ async function postToEndpoint(
       },
       body,
       signal: controller.signal,
+      // Never auto-follow redirects: a 30x response could otherwise be used
+      // to bypass the SSRF guard above and reach an internal host.
+      redirect: "manual",
     });
 
     clearTimeout(timer);
+
+    if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+      return {
+        status: "failed",
+        responseStatus: res.status || null,
+        responseBody: null,
+        errorMessage: "Delivery blocked: endpoint returned a redirect.",
+      };
+    }
+
     responseStatus = res.status;
     const text = await res.text();
     responseBody = truncate(text, RESPONSE_BODY_MAX);

@@ -43,6 +43,25 @@ export type WebhookDeliveryRow = {
   created_at: string;
 };
 
+/**
+ * Client-safe subset of WebhookDeliveryRow. Deliberately omits response_body
+ * and error_message: an outbound webhook URL is attacker-configurable (org
+ * owner/admin), so echoing the raw response back to the browser would make
+ * SSRF against internal/cloud-metadata hosts a read-oracle instead of blind.
+ */
+export type WebhookDeliverySummaryRow = Pick<
+  WebhookDeliveryRow,
+  | "id"
+  | "org_id"
+  | "webhook_endpoint_id"
+  | "event_type"
+  | "status"
+  | "response_status"
+  | "attempts"
+  | "created_at"
+  | "delivered_at"
+>;
+
 export const WEBHOOK_EVENT_TYPES = [
   "timesheet.submitted",
   "timesheet.approved",

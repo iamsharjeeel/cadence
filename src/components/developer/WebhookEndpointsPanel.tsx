@@ -26,7 +26,7 @@ import {
 import { generateWebhookSecret } from "@/lib/webhooks/secret";
 import {
   WEBHOOK_EVENT_TYPES,
-  type WebhookDeliveryRow,
+  type WebhookDeliverySummaryRow,
   type WebhookEndpointRow,
 } from "@/types/api";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,9 @@ function formatTimestamp(iso: string): string {
 function DeliveriesExpander({ endpointId }: { endpointId: string }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [deliveries, setDeliveries] = useState<WebhookDeliveryRow[] | null>(null);
+  const [deliveries, setDeliveries] = useState<WebhookDeliverySummaryRow[] | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
