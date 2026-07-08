@@ -64,6 +64,20 @@ export function emailDomain(email: string | null | undefined): string | null {
   return domain || null;
 }
 
+/**
+ * Escapes HTML metacharacters so user-supplied text is safe to interpolate
+ * into an HTML email body (prevents stored-HTML injection / phishing markup).
+ */
+export function escapeHtml(value: string | null | undefined): string {
+  if (!value) return "";
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /** Builds initials for an avatar fallback. */
 export function initials(name: string | null, email: string): string {
   const source = name?.trim() || email;

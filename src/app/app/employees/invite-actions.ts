@@ -7,6 +7,7 @@ import { writeAudit } from "@/lib/audit";
 import { getOrgName } from "@/lib/invites";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getResendClient, getResendFromEmail } from "@/lib/resend";
+import { escapeHtml } from "@/lib/utils";
 import { dispatchWebhookEvent } from "@/lib/webhook-dispatcher";
 import type { UserRole } from "@/types/db";
 
@@ -119,9 +120,9 @@ export async function inviteMember(payload: {
       html: `
         <div style="font-family: Inter, system-ui, sans-serif; max-width: 480px; margin: 0 auto; color: #14151A;">
           <p style="font-size: 18px; font-weight: 600; color: #B8862F;">Cadence</p>
-          <p style="font-size: 16px; font-weight: 600;">You're invited to join ${orgName}</p>
+          <p style="font-size: 16px; font-weight: 600;">You're invited to join ${escapeHtml(orgName)}</p>
           <p style="font-size: 14px; line-height: 1.6; color: #6B6F76;">
-            Sign in with Google using <strong>${email}</strong> to get started.
+            Sign in with Google using <strong>${escapeHtml(email)}</strong> to get started.
             You'll land in onboarding to set up your profile.
           </p>
           <p style="margin: 24px 0;">
