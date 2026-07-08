@@ -18,3 +18,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+      # Dependency vulnerability gate. Non-blocking for now because Next.js
+      # 14.2.x carries known advisories whose only fix is a 15.x major upgrade
+      # (see AUDIT.md N1); flip continue-on-error to false once that lands.
+      - run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true

@@ -33,19 +33,19 @@ Cadence is a Next.js 14 (App Router, `src/`, TypeScript) multi-tenant SaaS times
 | C4 | 🟠 High | Correctness | Official-doc sign/acknowledge lack idempotency guard → double-sign/replay | ✅ Resolved |
 | D4 | 🟠 High | Data/Migrations | Migrations fail on fresh apply: `gmail_inbox` references non-existent `memberships.status`; `org_settings` calls `auth_workspace_role()` before it's defined | ✅ Resolved |
 | M1 | 🟡 Medium | API | v1 rate limiter is per-instance in-memory → bypassable across lambda instances | Open |
-| M2 | 🟡 Medium | Infra | No security headers (CSP, X-Frame-Options, HSTS, nosniff) anywhere | Open |
-| M3 | 🟡 Medium | Auth/Data | "Suspend all employees" kill switch + domain guard query vestigial `profiles.org_id/role` → match 0 rows | Open |
-| M4 | 🟡 Medium | Data | `applyDefaultBalancesForOrg` queries vestigial `profiles.org_id/role` → leave-balance seeding silently does nothing | Open |
-| M5 | 🟡 Medium | Auth | `getExpensesForWorkspace`/`getPendingExpenses`/`fetchProjectsForTimeEntry` are `"use server"` with no internal auth check | Open |
-| M6 | 🟡 Medium | Integrations | Email HTML injection: `orgName` (invites) and `employee.full_name` (pay-advice) interpolated unescaped | Open |
+| M2 | 🟡 Medium | Infra | No security headers (CSP, X-Frame-Options, HSTS, nosniff) anywhere | ✅ Resolved (safe set; full content-CSP deferred) |
+| M3 | 🟡 Medium | Auth/Data | "Suspend all employees" kill switch + domain guard query vestigial `profiles.org_id/role` → match 0 rows | ✅ Resolved |
+| M4 | 🟡 Medium | Data | `applyDefaultBalancesForOrg` queries vestigial `profiles.org_id/role` → leave-balance seeding silently does nothing | ✅ Resolved |
+| M5 | 🟡 Medium | Auth | `getExpensesForWorkspace`/`getPendingExpenses`/`fetchProjectsForTimeEntry` are `"use server"` with no internal auth check | ✅ Resolved |
+| M6 | 🟡 Medium | Integrations | Email HTML injection: `orgName` (invites) and `employee.full_name` (pay-advice) interpolated unescaped | ✅ Resolved |
 | M7 | 🟡 Medium | Frontend | `mammoth` docx→HTML rendered via `dangerouslySetInnerHTML` with no sanitization | Open |
 | M8 | 🟡 Medium | Frontend | Running-timer state not persisted → refresh/crash discards in-progress session | Open |
 | M9 | 🟡 Medium | Integrations | OAuth token refresh has no locking; Asana rotates refresh tokens → race corrupts connection | Open |
 | M10 | 🟡 Medium | Integrations | Webhook retry cron has no delivery claim/lock → concurrent runs double-deliver | Open |
 | M11 | 🟡 Medium | Data | L2 pattern applied inconsistently: `reports/pending/trends` aggregators trust raw `orgId` arg | Open |
 | M12 | 🟡 Medium | Frontend | Gmail inbox: `openThread` stale-response race + unhandled rejections on expired session | Open |
-| M13 | 🟡 Medium | Frontend | `submitExpense` skips `validateCurrency()` → garbage currency codes stored | Open |
-| M14 | 🟡 Medium | Infra/CI | CI has no `npm audit` gate and no test step | Open |
+| M13 | 🟡 Medium | Frontend | `submitExpense` skips `validateCurrency()` → garbage currency codes stored | ✅ Resolved |
+| M14 | 🟡 Medium | Infra/CI | CI has no `npm audit` gate and no test step | ✅ Resolved (audit step added, non-blocking until N1) |
 | M15 | 🟡 Medium | Infra | `qa-prod-api-webhook.mjs` hardcodes real prod UUIDs and defaults to hitting production | Open |
 | L1 | 🔵 Low | API/Integrations | Non-constant-time compare of `CRON_SECRET` and OAuth `state` | Open |
 | L2 | 🔵 Low | Integrations | One shared `DOCUMENT_ENCRYPTION_KEY` for all 4 crypto domains; `.length < 16` char gate only | Open |
@@ -55,7 +55,7 @@ Cadence is a Next.js 14 (App Router, `src/`, TypeScript) multi-tenant SaaS times
 | L6 | 🔵 Low | Auth | `notifyPendingTimeEntry` server action has no auth check (notification spoof/spam) | Open |
 | L7 | 🔵 Low | Auth | `/auth/signout` has no CSRF/origin check (forced logout) | Open |
 | L8 | 🔵 Low | Data/Perf | No index on `api_keys.user_id` / `webhook_endpoints.org_id` | Open |
-| L9 | 🔵 Low | Deps | Dead dependency `three` / `@types/three` (Three.js was dropped) | Open |
+| L9 | 🔵 Low | Deps | Dead dependency `three` / `@types/three` (Three.js was dropped) | ✅ Resolved |
 | L10 | 🔵 Low | Infra | `sync-from/to-cloud.sh` do destructive `reset --hard`/auto-commit-push with no guard | Open |
 | L11 | 🔵 Low | Infra | `unstick-test-account.mjs` defaults to a hardcoded personal email | Open |
 | L12 | 🔵 Low | Frontend/Perf | Unbounded queries (platform members, expenses) and un-virtualized 200-row lists | Open |
