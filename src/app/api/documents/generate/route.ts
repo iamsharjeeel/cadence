@@ -75,6 +75,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Cap batch size: each id synchronously generates a PDF and sends an email,
+  // so an unbounded array can time out the function or burn the email quota.
+  const MAX_BATCH = 50;
+  if (ids.length > MAX_BATCH) {
+    return NextResponse.json(
+      { error: `Too many timesheets — limit ${MAX_BATCH} per request.` },
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const results: {
     id: string;
     ok: boolean;

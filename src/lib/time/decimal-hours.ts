@@ -6,7 +6,9 @@
  * exactly N total_hours when Postgres computes (end_time - start_time).
  */
 
-const MAX_DECIMAL_HOURS = 24;
+// Strictly under 24h: exactly 24 wraps decimalHoursToEndTime back to 00:00,
+// so end_time == start_time and the generated total_hours column reads 0.
+const MAX_DECIMAL_HOURS = 23.99;
 
 export type EntryMode = "time_range" | "decimal_hours";
 

@@ -6,12 +6,18 @@ const ALGO = "aes-256-gcm";
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
+let cachedKey: Buffer | null = null;
 function key(): Buffer {
+  // Memoize: scryptSync is deliberately CPU-hard and the env secret is fixed
+  // for the process lifetime, so deriving it once avoids stalling the event
+  // loop on every encrypt/decrypt (hot on token-decrypt and sync loops).
+  if (cachedKey) return cachedKey;
   const secret = process.env.DOCUMENT_ENCRYPTION_KEY;
   if (!secret || secret.length < 16) {
     throw new Error("DOCUMENT_ENCRYPTION_KEY is not configured.");
   }
-  return scryptSync(secret, "cadence-bank-v1", 32);
+  cachedKey = scryptSync(secret, "cadence-bank-v1", 32);
+  return cachedKey;
 }
 
 /** Encrypts sensitive bank fields for storage. Returns base64 payload. */

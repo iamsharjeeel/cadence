@@ -6,12 +6,16 @@ const ALGO = "aes-256-gcm";
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
+let cachedKey: Buffer | null = null;
 function key(): Buffer {
+  // Memoize the scrypt-derived key (see bank-crypto for rationale).
+  if (cachedKey) return cachedKey;
   const secret = process.env.DOCUMENT_ENCRYPTION_KEY;
   if (!secret || secret.length < 16) {
     throw new Error("DOCUMENT_ENCRYPTION_KEY is not configured.");
   }
-  return scryptSync(secret, "cadence-gcal-v1", 32);
+  cachedKey = scryptSync(secret, "cadence-gcal-v1", 32);
+  return cachedKey;
 }
 
 /** Encrypts Google Calendar OAuth tokens for storage. Returns base64 payload. */
