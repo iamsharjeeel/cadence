@@ -18,10 +18,10 @@ Cadence is a Next.js 14 (App Router, `src/`, TypeScript) multi-tenant SaaS times
 
 | ID | Sev | Area | Finding | Status |
 |----|-----|------|---------|--------|
-| D1 | 🔴 Critical | Data/RLS | `timesheets_update` WITH CHECK omits status → employee self-approves own timesheet (payroll fraud) | Open |
-| D2 | 🔴 Critical | Data/RLS | `documents_update` WITH CHECK omits status → employee self-verifies own pay-advice/invoice | Open |
+| D1 | 🔴 Critical | Data/RLS | `timesheets_update` WITH CHECK omits status → employee self-approves own timesheet (payroll fraud) | ✅ Resolved (`20260708000000`) |
+| D2 | 🔴 Critical | Data/RLS | `documents_update` WITH CHECK omits status → employee self-verifies own pay-advice/invoice | ✅ Resolved (`20260708000000`) |
 | I1 | 🔴 Critical | Integrations | Webhook SSRF: no private/loopback/metadata IP block + response body reflected to admin (read-oracle) | Open |
-| D3 | 🟠 High | Data/RLS | `time_entries_update` has no status predicate → employee self-approves logged hours | Open |
+| D3 | 🟠 High | Data/RLS | `time_entries_update` has no status predicate → employee self-approves logged hours | ✅ Resolved (`20260708000000`) |
 | F1 | 🟠 High | Frontend | Unmasked `tax_id`/`address` for every employee sent to admin on `/app/employees` load | Open |
 | F2 | 🟠 High | Frontend | Full banking/PII profile (`select *`) serialized into every authenticated page via AppShell/Topbar | Open |
 | A1 | 🟠 High | API | API keys keep working after owner is suspended or removed from org | Open |
