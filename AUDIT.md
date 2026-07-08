@@ -171,3 +171,25 @@ Highest severity and blast radius first. RLS regressions and the SSRF are the to
 8. Remaining Medium/Low items as capacity allows.
 
 Each fix is dispatched to a scoped subagent, its diff reviewed here, verified with `typecheck`/`lint`/`build` (and tests where added), then marked resolved in the table above.
+
+---
+
+## Phase 2 status (2026-07-08)
+
+**Resolved: 34 of 43** — all 3 Critical, all 11 High (except N1, see below), 10 of 15 Medium, and 10 of 14 Low. Every change was reviewed against its diff and verified with `tsc --noEmit` + `next build` (correctness fixes C1/C2/C3 also have runnable checks; C1 ships a `node:test`). All fixes are committed and pushed to `claude/cadence-audit-fixes-cz2037`.
+
+**Remaining (9) — needs a decision or larger effort, not yet done:**
+
+| ID | Sev | Why it's still open |
+|----|-----|---------------------|
+| N1 | 🟠 High | Next.js 14→15 is a breaking major upgrade; needs runtime testing across all routes + owner sign-off. CI `npm audit` gate is in place (non-blocking) to track it. |
+| M1 | 🟡 Medium | A cross-instance rate limiter needs a shared store (Upstash/Redis/Supabase) — an infra provisioning decision. |
+| M7 | 🟡 Medium | Sanitizing `mammoth` docx HTML wants a vetted sanitizer (`isomorphic-dompurify`) — a new dependency; recommend adding it. |
+| M8 | 🟡 Medium | Persisting/rehydrating running-timer state is a moderate client-state change worth designing (localStorage vs server record). |
+| M9 | 🟡 Medium | Serializing OAuth token refresh needs a per-connection advisory lock or optimistic-concurrency column. |
+| M10 | 🟡 Medium | Atomic webhook-retry claim needs a `claimed_at`/`processing` schema addition wired into the delivery-recording path to avoid double-counting attempts. |
+| L2 | 🔵 Low | Per-domain key isolation / KMS is a key-management design decision. |
+| L10 | 🔵 Low | Dirty-tree guards on the sync bash scripts (dev tooling only). |
+| L12 | 🔵 Low | Pagination on platform-members/expenses/inbox lists — moderate, low urgency at current scale. |
+
+Partial notes: **M2** shipped the safe header set; a full content-CSP (`script-src`/`style-src`) is deferred pending per-route testing. **M15** gated prod writes; moving the hardcoded UUIDs to env is a minor follow-up. **L5** capped the batch at 50; a rate limit is deferred. **L13** added the aria-label; a typed-name signature fallback is deferred.
