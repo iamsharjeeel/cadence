@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getProfile } from "@/lib/auth";
+import { timingSafeStringEqual } from "@/lib/timing-safe";
 import { exchangeGoogleCalendarCode } from "@/lib/google-calendar/config";
 import { upsertGCalConnection } from "@/lib/google-calendar/connection";
 
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(errorUrl);
   }
 
-  if (stored.state !== state) {
+  if (!timingSafeStringEqual(stored.state, state)) {
     console.error("[gcal/callback] State mismatch");
     return NextResponse.redirect(errorUrl);
   }

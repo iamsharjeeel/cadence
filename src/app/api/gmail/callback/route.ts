@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getProfile } from "@/lib/auth";
+import { timingSafeStringEqual } from "@/lib/timing-safe";
 import { exchangeGmailCode } from "@/lib/gmail/config";
 import { upsertGmailConnection } from "@/lib/gmail/connection";
 
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(errorUrl);
   }
 
-  if (stored.state !== state) {
+  if (!timingSafeStringEqual(stored.state, state)) {
     console.error("[gmail/callback] State mismatch");
     return NextResponse.redirect(errorUrl);
   }

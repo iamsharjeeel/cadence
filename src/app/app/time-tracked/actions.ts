@@ -174,6 +174,18 @@ export async function notifyPendingTimeEntry(params: {
   employeeName: string;
   entryDate: string;
 }): Promise<void> {
+  // "use server" export — only the acting employee, in their own org
+  // workspace, may raise a pending-entry notification for themselves. Blocks
+  // forged/spoofed notifications to arbitrary orgs.
+  const ctx = await getWorkspaceContext();
+  if (
+    !ctx ||
+    ctx.activeOrgId !== params.orgId ||
+    ctx.realProfile.id !== params.employeeId
+  ) {
+    return;
+  }
+
   await notifyOrgAdmins({
     orgId: params.orgId,
     type: "time_entry_pending",

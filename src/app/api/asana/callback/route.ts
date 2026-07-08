@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getProfile } from "@/lib/auth";
+import { timingSafeStringEqual } from "@/lib/timing-safe";
 import { exchangeAsanaCode } from "@/lib/asana/config";
 import { upsertAsanaConnection } from "@/lib/asana/connection";
 
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${settingsUrl}?asana=error`);
   }
 
-  if (stored.state !== state) {
+  if (!timingSafeStringEqual(stored.state, state)) {
     console.error("[asana/callback] State mismatch");
     return NextResponse.redirect(`${settingsUrl}?asana=error`);
   }
