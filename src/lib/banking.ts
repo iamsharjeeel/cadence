@@ -32,13 +32,15 @@ export function bankingToDbPayload(
   existing?: {
     bank_account_number: string | null;
     bank_bsb_swift: string | null;
+    tax_id?: string | null;
+    address?: string | null;
   },
 ): TablesUpdate<"profiles"> {
   const payload: TablesUpdate<"profiles"> = {
     bank_name: input.bank_name || null,
     bank_account_name: input.bank_account_name || null,
-    tax_id: input.tax_id || null,
-    address: input.address || null,
+    tax_id: input.tax_id || existing?.tax_id || null,
+    address: input.address || existing?.address || null,
     payment_terms_days: input.payment_terms_days,
   };
 

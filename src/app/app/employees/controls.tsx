@@ -173,17 +173,19 @@ export function BankingEditor({
   defaults,
   accountMasked,
   bsbMasked,
+  taxIdMasked,
+  addressMasked,
 }: {
   id: string;
   defaults: {
     bank_name: string;
     bank_account_name: string;
-    tax_id: string;
-    address: string;
     payment_terms_days: number;
   };
   accountMasked: string;
   bsbMasked: string;
+  taxIdMasked: string;
+  addressMasked: string;
 }) {
   const [open, setOpen] = useState(false);
   const [state, action] = useFormState(setEmployeeBanking, null);
@@ -208,8 +210,8 @@ export function BankingEditor({
       <Input label="Account name" name="bank_account_name" defaultValue={defaults.bank_account_name} className="h-9 text-sm" />
       <Input label="Account number" name="bank_account_number" placeholder={accountMasked} className="h-9 text-sm" />
       <Input label="BSB / SWIFT" name="bank_bsb_swift" placeholder={bsbMasked} className="h-9 text-sm" />
-      <Input label="Tax ID" name="tax_id" defaultValue={defaults.tax_id} className="h-9 text-sm" />
-      <Input label="Address" name="address" defaultValue={defaults.address} className="h-9 text-sm" />
+      <Input label="Tax ID" name="tax_id" placeholder={taxIdMasked} className="h-9 text-sm" />
+      <Input label="Address" name="address" placeholder={addressMasked} className="h-9 text-sm" />
       <Input label="Payment terms (days)" name="payment_terms_days" type="number" defaultValue={String(defaults.payment_terms_days)} className="h-9 text-sm" />
       <div className="flex gap-2">
         <SubmitButton size="sm">Save</SubmitButton>

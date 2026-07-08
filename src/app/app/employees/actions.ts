@@ -268,6 +268,8 @@ export async function setEmployeeBanking(
       bankingToDbPayload(input, {
         bank_account_number: auth.target.bank_account_number,
         bank_bsb_swift: auth.target.bank_bsb_swift,
+        tax_id: auth.target.tax_id,
+        address: auth.target.address,
       }),
     )
     .eq("id", targetId);

@@ -269,12 +269,12 @@ export async function OrgTeamView({
                             defaults={{
                               bank_name: m.bank_name ?? "",
                               bank_account_name: m.bank_account_name ?? "",
-                              tax_id: m.tax_id ?? "",
-                              address: m.address ?? "",
                               payment_terms_days: m.payment_terms_days ?? 14,
                             }}
                             accountMasked={maskSensitive(m.bank_account_number)}
                             bsbMasked={maskSensitive(m.bank_bsb_swift)}
+                            taxIdMasked={maskPlain(m.tax_id)}
+                            addressMasked={maskPlain(m.address)}
                           />
                         ) : null}
                       </TD>
@@ -301,6 +301,17 @@ export async function OrgTeamView({
       </Card>
     </div>
   );
+}
+
+/**
+ * Masks a plaintext PII value for display in the list payload (last 4 chars
+ * only). Unlike maskSensitive(), this never attempts to decrypt — tax_id and
+ * address are stored as plaintext, not encrypted bank fields.
+ */
+function maskPlain(value: string | null | undefined): string {
+  if (!value) return "—";
+  if (value.length <= 4) return "••••";
+  return `••••${value.slice(-4)}`;
 }
 
 function MemberCell({ member }: { member: Profile }) {
