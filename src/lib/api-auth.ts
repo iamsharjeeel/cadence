@@ -39,6 +39,25 @@ export async function validateApiKey(
     return null;
   }
 
+  const { data: profile } = await db
+    .from("profiles")
+    .select("status")
+    .eq("id", row.user_id)
+    .maybeSingle();
+
+  if (!profile || profile.status !== "active") return null;
+
+  if (row.org_id) {
+    const { data: membership } = await db
+      .from("memberships")
+      .select("user_id")
+      .eq("user_id", row.user_id)
+      .eq("org_id", row.org_id)
+      .maybeSingle();
+
+    if (!membership) return null;
+  }
+
   void db
     .from("api_keys")
     .update({ last_used_at: new Date().toISOString() })

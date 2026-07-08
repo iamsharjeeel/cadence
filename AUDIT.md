@@ -23,9 +23,9 @@ Cadence is a Next.js 14 (App Router, `src/`, TypeScript) multi-tenant SaaS times
 | I1 | 🔴 Critical | Integrations | Webhook SSRF: no private/loopback/metadata IP block + response body reflected to admin (read-oracle) | ✅ Resolved |
 | D3 | 🟠 High | Data/RLS | `time_entries_update` has no status predicate → employee self-approves logged hours | ✅ Resolved (`20260708000000`) |
 | F1 | 🟠 High | Frontend | Unmasked `tax_id`/`address` for every employee sent to admin on `/app/employees` load | ✅ Resolved |
-| F2 | 🟠 High | Frontend | Full banking/PII profile (`select *`) serialized into every authenticated page via AppShell/Topbar | Open |
-| A1 | 🟠 High | API | API keys keep working after owner is suspended or removed from org | Open |
-| A2 | 🟠 High | API | `deleteTimesheet` permanently deletes `approved`/paid timesheets with no confirmation gate | Open |
+| F2 | 🟠 High | Frontend | Full banking/PII profile (`select *`) serialized into every authenticated page via AppShell/Topbar | ✅ Resolved |
+| A1 | 🟠 High | API | API keys keep working after owner is suspended or removed from org | ✅ Resolved |
+| A2 | 🟠 High | API | `deleteTimesheet` permanently deletes `approved`/paid timesheets with no confirmation gate | ✅ Resolved |
 | N1 | 🟠 High | Infra/Deps | Next.js 14.2.35 in range of 9+ security advisories; fix path is a 15.x major upgrade | Open |
 | C1 | 🟠 High | Correctness | Monthly Next/Previous navigation silently no-ops for 31-day months (reproduced) | Open |
 | C2 | 🟠 High | Correctness | Money math float-rounding cent drift in `calc.ts`/`amounts.ts` (reproduced) | Open |
