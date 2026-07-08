@@ -42,19 +42,19 @@ Cadence is a Next.js 14 (App Router, `src/`, TypeScript) multi-tenant SaaS times
 | M8 | 🟡 Medium | Frontend | Running-timer state not persisted → refresh/crash discards in-progress session | Open |
 | M9 | 🟡 Medium | Integrations | OAuth token refresh has no locking; Asana rotates refresh tokens → race corrupts connection | Open |
 | M10 | 🟡 Medium | Integrations | Webhook retry cron has no delivery claim/lock → concurrent runs double-deliver | Open |
-| M11 | 🟡 Medium | Data | L2 pattern applied inconsistently: `reports/pending/trends` aggregators trust raw `orgId` arg | Open |
+| M11 | 🟡 Medium | Data | L2 pattern applied inconsistently: `reports/pending/trends` aggregators trust raw `orgId` arg | ✅ Resolved |
 | M12 | 🟡 Medium | Frontend | Gmail inbox: `openThread` stale-response race + unhandled rejections on expired session | Open |
 | M13 | 🟡 Medium | Frontend | `submitExpense` skips `validateCurrency()` → garbage currency codes stored | ✅ Resolved |
 | M14 | 🟡 Medium | Infra/CI | CI has no `npm audit` gate and no test step | ✅ Resolved (audit step added, non-blocking until N1) |
 | M15 | 🟡 Medium | Infra | `qa-prod-api-webhook.mjs` hardcodes real prod UUIDs and defaults to hitting production | Open |
-| L1 | 🔵 Low | API/Integrations | Non-constant-time compare of `CRON_SECRET` and OAuth `state` | Open |
+| L1 | 🔵 Low | API/Integrations | Non-constant-time compare of `CRON_SECRET` and OAuth `state` | ✅ Resolved |
 | L2 | 🔵 Low | Integrations | One shared `DOCUMENT_ENCRYPTION_KEY` for all 4 crypto domains; `.length < 16` char gate only | Open |
 | L3 | 🔵 Low | Integrations | `scryptSync` re-derived per encrypt/decrypt call on hot paths (event-loop stall) | Open |
 | L4 | 🔵 Low | Integrations | Webhook endpoints accept `http://` (cleartext payloads) | ✅ Resolved (with I1: HTTPS now required) |
 | L5 | 🔵 Low | API | `documents/generate` has no batch-size cap or rate limit → email/PDF flood | Open |
-| L6 | 🔵 Low | Auth | `notifyPendingTimeEntry` server action has no auth check (notification spoof/spam) | Open |
-| L7 | 🔵 Low | Auth | `/auth/signout` has no CSRF/origin check (forced logout) | Open |
-| L8 | 🔵 Low | Data/Perf | No index on `api_keys.user_id` / `webhook_endpoints.org_id` | Open |
+| L6 | 🔵 Low | Auth | `notifyPendingTimeEntry` server action has no auth check (notification spoof/spam) | ✅ Resolved |
+| L7 | 🔵 Low | Auth | `/auth/signout` has no CSRF/origin check (forced logout) | ✅ Resolved |
+| L8 | 🔵 Low | Data/Perf | No index on `api_keys.user_id` / `webhook_endpoints.org_id` | ✅ Resolved (`20260708000002`) |
 | L9 | 🔵 Low | Deps | Dead dependency `three` / `@types/three` (Three.js was dropped) | ✅ Resolved |
 | L10 | 🔵 Low | Infra | `sync-from/to-cloud.sh` do destructive `reset --hard`/auto-commit-push with no guard | Open |
 | L11 | 🔵 Low | Infra | `unstick-test-account.mjs` defaults to a hardcoded personal email | Open |
