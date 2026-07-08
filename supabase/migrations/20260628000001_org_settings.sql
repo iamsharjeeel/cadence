@@ -1,5 +1,14 @@
 -- F1: org_settings table + RLS + get_or_create_org_settings RPC
 -- (May already be applied on live Supabase — idempotent.)
+--
+-- NOTE: originally dated 20260616000001, but its policies and
+-- get_or_create_org_settings() reference auth_workspace_role()/auth_org(),
+-- which are first defined in 20260628000000_track_c2_atomic_cutover_rls_rewrite
+-- (and depend on the memberships/active_workspace tables from track_c1/c2).
+-- It was renumbered to 20260628000001 so a from-scratch replay
+-- (`supabase db reset`, CI, disaster recovery) applies it AFTER those helpers
+-- exist. Live prod already has it applied (under an MCP-managed name), so this
+-- only affects fresh replays.
 
 create table if not exists public.org_settings (
   id uuid primary key default gen_random_uuid(),

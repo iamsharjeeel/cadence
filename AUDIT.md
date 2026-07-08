@@ -27,11 +27,11 @@ Cadence is a Next.js 14 (App Router, `src/`, TypeScript) multi-tenant SaaS times
 | A1 | 🟠 High | API | API keys keep working after owner is suspended or removed from org | ✅ Resolved |
 | A2 | 🟠 High | API | `deleteTimesheet` permanently deletes `approved`/paid timesheets with no confirmation gate | ✅ Resolved |
 | N1 | 🟠 High | Infra/Deps | Next.js 14.2.35 in range of 9+ security advisories; fix path is a 15.x major upgrade | Open |
-| C1 | 🟠 High | Correctness | Monthly Next/Previous navigation silently no-ops for 31-day months (reproduced) | Open |
-| C2 | 🟠 High | Correctness | Money math float-rounding cent drift in `calc.ts`/`amounts.ts` (reproduced) | Open |
-| C3 | 🟠 High | Correctness | Timer: `end == start` treated as overnight → saves a 24h shift, skips overlap checks | Open |
-| C4 | 🟠 High | Correctness | Official-doc sign/acknowledge lack idempotency guard → double-sign/replay | Open |
-| D4 | 🟠 High | Data/Migrations | Migrations fail on fresh apply: `gmail_inbox` references non-existent `memberships.status`; `org_settings` calls `auth_workspace_role()` before it's defined | Open |
+| C1 | 🟠 High | Correctness | Monthly Next/Previous navigation silently no-ops for 31-day months (reproduced) | ✅ Resolved (+test) |
+| C2 | 🟠 High | Correctness | Money math float-rounding cent drift in `calc.ts`/`amounts.ts` (reproduced) | ✅ Resolved |
+| C3 | 🟠 High | Correctness | Timer: `end == start` treated as overnight → saves a 24h shift, skips overlap checks | ✅ Resolved |
+| C4 | 🟠 High | Correctness | Official-doc sign/acknowledge lack idempotency guard → double-sign/replay | ✅ Resolved |
+| D4 | 🟠 High | Data/Migrations | Migrations fail on fresh apply: `gmail_inbox` references non-existent `memberships.status`; `org_settings` calls `auth_workspace_role()` before it's defined | ✅ Resolved |
 | M1 | 🟡 Medium | API | v1 rate limiter is per-instance in-memory → bypassable across lambda instances | Open |
 | M2 | 🟡 Medium | Infra | No security headers (CSP, X-Frame-Options, HSTS, nosniff) anywhere | Open |
 | M3 | 🟡 Medium | Auth/Data | "Suspend all employees" kill switch + domain guard query vestigial `profiles.org_id/role` → match 0 rows | Open |

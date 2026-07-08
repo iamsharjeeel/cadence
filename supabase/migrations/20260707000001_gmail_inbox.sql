@@ -106,8 +106,7 @@ CREATE POLICY "Users select own time entry email links"
       JOIN memberships m ON m.org_id = te.org_id
       WHERE te.id = time_entry_email_threads.time_entry_id
         AND m.user_id = auth.uid()
-        AND m.status = 'active'
-        AND m.role IN ('owner', 'admin', 'superadmin')
+        AND m.role IN ('owner', 'admin')
     )
   );
 
