@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { trustOrgScope } from "@/lib/org-scope";
+import { trustOrgScope, trustRequiredOrgScope } from "@/lib/org-scope";
 import type { PeriodCadence, Profile } from "@/types/db";
 import { periodForDate, shiftPeriod, toIsoDate } from "@/lib/time/periods";
 import { durationHours } from "@/lib/time/validation";
@@ -194,6 +194,8 @@ export async function getEmployeeTrends(profile: Profile, range: TrendRange) {
 }
 
 export async function getOrgAggregateTrends(orgId: string, range: TrendRange) {
+  // Defense-in-depth: re-assert the caller's org matches the requested one.
+  orgId = await trustRequiredOrgScope(orgId);
   const db = createAdminClient();
   const since = rangeStart(range);
 
@@ -254,6 +256,8 @@ export async function getTrendsBundle(
 }
 
 export async function getAdminTrends(orgId: string, range: TrendRange) {
+  // Defense-in-depth: re-assert the caller's org matches the requested one.
+  orgId = await trustRequiredOrgScope(orgId);
   const db = createAdminClient();
   const since = rangeStart(range);
 

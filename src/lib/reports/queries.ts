@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { trustRequiredOrgScope } from "@/lib/org-scope";
 import type { Profile } from "@/types/db";
 
 export type ReportDatePreset =
@@ -183,6 +184,9 @@ export async function getOrgReport(
   orgId: string,
   range: ReportDateRange,
 ): Promise<OrgReportData> {
+  // Defense-in-depth: re-assert the caller's org matches the requested one
+  // (service-role queries below bypass RLS). Mirrors dashboard/audit queries.
+  orgId = await trustRequiredOrgScope(orgId);
   const db = createAdminClient();
   const expected = expectedHoursInRange(range.from, range.to);
 

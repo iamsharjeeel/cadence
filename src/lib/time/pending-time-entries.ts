@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { trustRequiredOrgScope } from "@/lib/org-scope";
 import { durationHours } from "@/lib/time/validation";
 import type { TimeEntry } from "@/types/db";
 
@@ -41,6 +42,8 @@ function entryHours(row: {
 export async function getPendingTimeEntries(
   orgId: string,
 ): Promise<PendingTimeEntry[]> {
+  // Defense-in-depth: re-assert the caller's org matches the requested one.
+  orgId = await trustRequiredOrgScope(orgId);
   const db = createAdminClient();
   const { data } = await db
     .from("time_entries")
