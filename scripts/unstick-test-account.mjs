@@ -5,9 +5,13 @@
  */
 import { createClient } from "@supabase/supabase-js";
 
-const email = (process.argv[2] ?? process.env.TEST_EMAIL ?? "iamsharjeeel@gmail.com")
-  .trim()
-  .toLowerCase();
+const email = (process.argv[2] ?? process.env.TEST_EMAIL ?? "").trim().toLowerCase();
+if (!email) {
+  console.error(
+    "Usage: node scripts/unstick-test-account.mjs <email>  (or set TEST_EMAIL)",
+  );
+  process.exit(1);
+}
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

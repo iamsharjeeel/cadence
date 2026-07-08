@@ -5,8 +5,24 @@ import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const APP_URL =
-  process.env.CADENCE_APP_URL ?? "https://cadence-eta-five.vercel.app";
+// This script writes live api_keys/webhook_endpoints/time_entries rows with the
+// service-role key, so it must never silently default to production. Require an
+// explicit target URL (and pass --yes-i-mean-prod when that URL is prod).
+const APP_URL = process.env.CADENCE_APP_URL;
+if (!APP_URL) {
+  console.error(
+    "Set CADENCE_APP_URL to the target (e.g. http://localhost:3000). " +
+      "This script performs service-role writes — it will not default to prod.",
+  );
+  process.exit(1);
+}
+const IS_PROD = /vercel\.app|cadence-eta-five/.test(APP_URL);
+if (IS_PROD && !process.argv.includes("--yes-i-mean-prod")) {
+  console.error(
+    `Refusing to run against ${APP_URL} without --yes-i-mean-prod.`,
+  );
+  process.exit(1);
+}
 const API_PREFIX = `${APP_URL}/api/v1`;
 
 function loadEnv() {

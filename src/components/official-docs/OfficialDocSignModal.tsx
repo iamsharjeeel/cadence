@@ -124,6 +124,8 @@ export function OfficialDocSignModal({
               ref={sigRef}
               canvasProps={{
                 className: "h-32 w-full rounded-[var(--radius-card)] bg-white",
+                "aria-label": "Signature drawing area — draw your signature here",
+                role: "img",
               }}
             />
             <Button
