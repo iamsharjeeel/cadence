@@ -15,7 +15,10 @@ export function hoursBetween(start: string, end: string, overnight: boolean): nu
   const [eh, em] = e.split(":").map(Number);
   let startMin = sh! * 60 + sm!;
   let endMin = eh! * 60 + em!;
-  if (overnight || endMin <= startMin) endMin += 24 * 60;
+  // Identical start/end is a zero-duration entry, never a 24h shift — reject
+  // it regardless of the overnight flag (a caller may force overnight=true).
+  if (startMin === endMin) return null;
+  if (overnight || endMin < startMin) endMin += 24 * 60;
   if (endMin <= startMin) return null;
   return Math.round(((endMin - startMin) / 60) * 100) / 100;
 }
@@ -38,7 +41,10 @@ export function isOvernightShift(start: string, end: string): boolean {
   if (!s || !e) return false;
   const [sh, sm] = s.split(":").map(Number);
   const [eh, em] = e.split(":").map(Number);
-  return eh! * 60 + em! <= sh! * 60 + sm!;
+  // Strictly earlier end means the shift wraps past midnight. Equal times are
+  // NOT overnight — they are zero-duration and rejected by the duration/range
+  // helpers.
+  return eh! * 60 + em! < sh! * 60 + sm!;
 }
 
 /** Derived from clock times — end before start on the same calendar day. */
@@ -61,7 +67,9 @@ export function toRange(start: string, end: string, overnight: boolean): TimeRan
   const [eh, em] = e.split(":").map(Number);
   let startMin = sh! * 60 + sm!;
   let endMin = eh! * 60 + em!;
-  if (overnight || endMin <= startMin) endMin += 24 * 60;
+  // Zero-duration (identical start/end) is invalid regardless of overnight.
+  if (startMin === endMin) return null;
+  if (overnight || endMin < startMin) endMin += 24 * 60;
   if (endMin <= startMin) return null;
   return { startMin, endMin };
 }
