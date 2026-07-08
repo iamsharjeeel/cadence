@@ -235,16 +235,25 @@ export async function acknowledgeOfficialDocument(
   if (doc.signing_type !== "acknowledgement") {
     return { ok: false, message: "This document requires a signature." };
   }
+  if (doc.status !== "pending") {
+    return { ok: false, message: "This document is no longer pending acknowledgement." };
+  }
 
-  const { error } = await db
+  const { data: updated, error } = await db
     .from("official_documents")
     .update({
       status: "acknowledged",
       signed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("status", "pending")
+    .select("id");
   if (error) return { ok: false, message: "Couldn't acknowledge document." };
+  if (!updated || updated.length === 0) {
+    // Another request already acknowledged this document; don't overwrite or re-notify.
+    return { ok: true, message: "Document acknowledged." };
+  }
 
   await writeAudit({
     actorId: profile.id,
@@ -293,8 +302,11 @@ export async function signOfficialDocument(
   if (signatureData.length > MAX_SIGNATURE_BYTES) {
     return { ok: false, message: "Signature image is too large." };
   }
+  if (doc.status !== "pending") {
+    return { ok: false, message: "This document is no longer pending signature." };
+  }
 
-  const { error } = await db
+  const { data: updated, error } = await db
     .from("official_documents")
     .update({
       status: "signed",
@@ -302,8 +314,14 @@ export async function signOfficialDocument(
       signature_data: signatureData,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("status", "pending")
+    .select("id");
   if (error) return { ok: false, message: "Couldn't sign document." };
+  if (!updated || updated.length === 0) {
+    // Another request already signed this document; don't overwrite or re-notify.
+    return { ok: true, message: "Document signed." };
+  }
 
   await writeAudit({
     actorId: profile.id,
