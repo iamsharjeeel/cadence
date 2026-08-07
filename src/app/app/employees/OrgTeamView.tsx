@@ -82,10 +82,13 @@ export async function OrgTeamView({
   const pendingInvites = (invites ?? []) as OrgInvite[];
   const orgName = org?.name ?? "Organization";
   const team = members.filter((m) => m.status !== "pending" || m.org_id);
-  const canInvite = workspaceRole === "owner";
-  const canChangeRoles = workspaceRole === "owner";
-  const canRemove = workspaceRole === "owner";
-  const canManageMembers = workspaceRole === "owner" || workspaceRole === "admin";
+  const canInvite = workspaceRole === "owner" || workspaceRole === "admin";
+  const canChangeRoles = workspaceRole === "owner" || workspaceRole === "admin";
+  const canEditCompensation = workspaceRole === "owner";
+  const canRemove = workspaceRole === "owner" || workspaceRole === "admin";
+  const canManageMembers = canInvite;
+  const actorSelectRole = workspaceRole === "owner" ? "owner" : "admin";
+  const showMemberActions = canInvite || canRemove;
 
   const onboardingByEmployee = new Map<
     string,
@@ -139,7 +142,11 @@ export async function OrgTeamView({
                 </TR>
               </THead>
               <TBody>
-                {pendingInvites.map((inv) => (
+                {pendingInvites.map((inv) => {
+                  const canCancelInvite =
+                    workspaceRole === "owner" ||
+                    (workspaceRole === "admin" && inv.role === "employee");
+                  return (
                   <TR key={inv.id} className="odd:bg-surface-low">
                     <TD className="text-sm text-ink">{inv.email}</TD>
                     <TD>
@@ -150,11 +157,16 @@ export async function OrgTeamView({
                     </TD>
                     {canInvite && (
                       <TD className="text-right">
-                        <CancelInviteButton inviteId={inv.id} email={inv.email} />
+                        {canCancelInvite ? (
+                          <CancelInviteButton inviteId={inv.id} email={inv.email} />
+                        ) : (
+                          <span className="text-sm text-muted">—</span>
+                        )}
                       </TD>
                     )}
                   </TR>
-                ))}
+                  );
+                })}
               </TBody>
             </Table>
           </CardContent>
@@ -190,7 +202,7 @@ export async function OrgTeamView({
                   <TH className="hidden md:table-cell">Rate</TH>
                   <TH className="hidden md:table-cell">Onboarding</TH>
                   <TH className="hidden md:table-cell">Banking</TH>
-                  {canInvite && <TH className="text-right">Actions</TH>}
+                  {showMemberActions && <TH className="text-right">Actions</TH>}
                 </TR>
               </THead>
               <TBody>
@@ -200,14 +212,17 @@ export async function OrgTeamView({
                   const locked = isSelf || isSuper;
                   const actorIsManager = workspaceRole === "admin";
                   const targetIsOwner = m.role === "owner";
+                  const targetIsManager = m.role === "admin";
                   const roleLocked =
                     locked ||
                     !canChangeRoles ||
-                    (actorIsManager && targetIsOwner);
+                    targetIsOwner ||
+                    (actorIsManager && targetIsManager);
                   const canRemoveMember =
                     canRemove &&
                     !locked &&
-                    !(actorIsManager && (targetIsOwner || m.role === "admin"));
+                    !targetIsOwner &&
+                    !(actorIsManager && targetIsManager);
 
                   return (
                     <TR key={m.id} className="odd:bg-surface-low">
@@ -215,18 +230,18 @@ export async function OrgTeamView({
                         <MemberCell member={m} />
                       </TD>
                       <TD>
-                        {roleLocked || !canChangeRoles ? (
+                        {roleLocked ? (
                           <RolePill role={m.role} />
                         ) : (
                           <RoleSelect
                             id={m.id}
                             current={m.role as "owner" | "admin" | "employee"}
-                            actorRole="owner"
+                            actorRole={actorSelectRole}
                           />
                         )}
                       </TD>
                       <TD>
-                        {locked || !canChangeRoles ? (
+                        {locked || !canEditCompensation ? (
                           <StatusPill status={m.status} />
                         ) : (
                           <StatusSelect id={m.id} current={m.status} />
@@ -240,7 +255,7 @@ export async function OrgTeamView({
                               · {roleLabel(m.rate_type)}
                             </span>
                           </span>
-                          {canChangeRoles && (!isSuper || isSelf) && (
+                          {canEditCompensation && (!isSuper || isSelf) && (
                             <RateEditor
                               id={m.id}
                               rate={m.rate}
@@ -263,7 +278,7 @@ export async function OrgTeamView({
                         )}
                       </TD>
                       <TD className="hidden md:table-cell">
-                        {canChangeRoles && (!isSuper || isSelf) ? (
+                        {canEditCompensation && (!isSuper || isSelf) ? (
                           <BankingEditor
                             id={m.id}
                             defaults={{
@@ -278,7 +293,7 @@ export async function OrgTeamView({
                           />
                         ) : null}
                       </TD>
-                      {canInvite && (
+                      {showMemberActions && (
                         <TD className="text-right">
                           {canRemoveMember ? (
                             <RemoveMemberModal

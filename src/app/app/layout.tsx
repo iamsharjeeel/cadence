@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app/AppShell";
+import { runOnboarding } from "@/lib/onboarding";
+import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext, navContextFor } from "@/lib/workspace";
 import { titleCase } from "@/lib/utils";
 
@@ -13,6 +15,23 @@ export default async function AppLayout({
   if (!ctx) redirect("/login");
   if (ctx.realProfile.status === "suspended") {
     redirect("/login?error=suspended");
+  }
+
+  if (ctx.realProfile.status === "pending") {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.email) redirect("/login");
+    const updated = await runOnboarding(user.id, user.email);
+    if (updated?.status !== "active") redirect("/login?error=session");
+    redirect(
+      updated.onboarding_complete ? "/app/dashboard" : "/app/onboarding",
+    );
+  }
+
+  if (ctx.realProfile.status !== "active") {
+    redirect("/login");
   }
 
   const navContext = navContextFor(ctx);

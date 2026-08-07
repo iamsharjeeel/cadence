@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-07 (Invite + pending-gate review)
+
+- Close pending-status app access hole: layout activates pending users; `requireActiveProfile` requires active
+- Stop invite redeem / `accept_invite` from overwriting existing membership roles
+- Restore Manager invite/remove/role UI (Employee-only); drop Pending from status controls
+
 ## 2026-07-07 (Gmail inbox)
 
 - Gmail OAuth connect/disconnect (`/api/gmail/*`), encrypted tokens, batched full + incremental sync

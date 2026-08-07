@@ -123,6 +123,13 @@ export async function cancelOrgInvite(inviteId: string): Promise<ActionResult> {
     return { ok: false, message: "Invite not found or already accepted." };
   }
 
+  if (wsRole === "admin" && invite.role !== "employee") {
+    return {
+      ok: false,
+      message: "Managers can only cancel employee invites.",
+    };
+  }
+
   const { error } = await db.from("org_invites").delete().eq("id", inviteId);
 
   if (error) {

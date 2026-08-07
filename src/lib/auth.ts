@@ -35,6 +35,9 @@ export async function requireActiveProfile(): Promise<Profile> {
   if (profile.status === "suspended") {
     redirect("/login?error=suspended");
   }
+  if (profile.status !== "active") {
+    redirect("/login");
+  }
   return profile;
 }
 

@@ -77,18 +77,18 @@ export function StatusSelect({
   const [state, action] = useFormState(setStatus, null);
   useResultToast(state);
   const formRef = useRef<HTMLFormElement>(null);
+  const value = current === "pending" ? "active" : current;
   return (
     <form ref={formRef} action={action}>
       <input type="hidden" name="id" value={id} />
       <Select
         name="status"
-        defaultValue={current}
+        defaultValue={value}
         onChange={() => formRef.current?.requestSubmit()}
         className="h-9 w-32 text-sm"
         options={[
           { value: "active", label: "Active" },
           { value: "suspended", label: "Suspended" },
-          { value: "pending", label: "Pending" },
         ]}
       />
     </form>

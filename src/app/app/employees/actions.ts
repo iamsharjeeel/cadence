@@ -14,7 +14,7 @@ export type ActionResult = { ok: boolean; message: string };
 
 // Neither admin nor superadmin may assign the superadmin role from this screen.
 const ASSIGNABLE_ROLES: UserRole[] = ["owner", "admin", "employee"];
-const ASSIGNABLE_STATUSES: UserStatus[] = ["active", "suspended", "pending"];
+const ASSIGNABLE_STATUSES: UserStatus[] = ["active", "suspended"];
 
 /**
  * Track C: asserts the caller may act on a target. Authorization is keyed on
@@ -76,8 +76,8 @@ async function authorizeTarget(
     .maybeSingle();
 
   if (!mem) return { ok: false, message: "That member isn't in this organization." };
-  if (mem.role === "owner" && callerRole === "admin") {
-    return { ok: false, message: "Managers can't modify owners." };
+  if (callerRole === "admin" && mem.role !== "employee") {
+    return { ok: false, message: "Managers can only modify employees." };
   }
 
   return {

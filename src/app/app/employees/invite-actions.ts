@@ -20,6 +20,10 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function escapeIlike(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 export async function inviteMember(payload: {
   email: string;
   role: InviteRoleOption;
@@ -58,7 +62,7 @@ export async function inviteMember(payload: {
   const { data: existingProfile } = await db
     .from("profiles")
     .select("id")
-    .ilike("email", email)
+    .ilike("email", escapeIlike(email))
     .maybeSingle();
 
   if (existingProfile) {
@@ -80,7 +84,7 @@ export async function inviteMember(payload: {
     .from("org_invites")
     .select("id")
     .eq("org_id", orgId)
-    .ilike("email", email)
+    .ilike("email", escapeIlike(email))
     .is("accepted_at", null)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
@@ -140,7 +144,7 @@ export async function inviteMember(payload: {
         .from("org_invites")
         .delete()
         .eq("org_id", orgId)
-        .ilike("email", email)
+        .ilike("email", escapeIlike(email))
         .is("accepted_at", null);
       return {
         ok: false,
@@ -153,7 +157,7 @@ export async function inviteMember(payload: {
       .from("org_invites")
       .delete()
       .eq("org_id", orgId)
-      .ilike("email", email)
+      .ilike("email", escapeIlike(email))
       .is("accepted_at", null);
     return {
       ok: false,

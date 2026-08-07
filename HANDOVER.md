@@ -46,11 +46,20 @@ Fable plans and oversees; Composer 2.5 writes, debugs, audits, and runs heavy ex
 
 ### Open items / pending
 
+- **MANUAL SQL:** apply `supabase/migrations/20260708000001_accept_invite_no_role_overwrite.sql` in Supabase SQL editor (closes accept_invite role-overwrite race)
 - **GitLab display name:** set **Project name** to `Cadence` in GitLab UI; git URL `…/s1mplesolutions.cc-project.git`
 - **Gmail inbox:** apply migration #19; configure `GMAIL_*` env; connect in Settings → sync inbox → link threads on time log
 - Preview OAuth redirects to production URL (infra — needs owner sign-off)
 - Live vs repo migration naming drift (functionally aligned; MCP names differ from repo filenames)
 - Optional: add `CRON_SECRET` to Preview env if preview cron matters
+
+### Session — Invite + pending-gate security review (2026-08-07)
+
+- **Pending bypass closed:** `app/layout` activates leftover `pending` profiles via `runOnboarding`; `requireActiveProfile` requires `status === "active"`
+- **Invite role overwrite closed:** `redeemOrgInvites` inserts only when no membership; migration hardens `accept_invite` (no `ON CONFLICT DO UPDATE` role swap)
+- **Manager invite UI restored:** Owners + Managers see Invite; managers limited to Employee invite/cancel/remove/role
+- **Status gate cleanup:** Status select no longer offers `pending` after approval-gate removal
+- **Files:** `src/lib/invites.ts`, `src/lib/auth.ts`, `src/app/app/layout.tsx`, `src/lib/supabase/middleware.ts`, `src/app/app/employees/{OrgTeamView,actions,controls,invite-actions,remove-actions}.tsx|ts`, migration `20260708000001_*`
 
 ### Shipped this session (Menu A+B+C)
 

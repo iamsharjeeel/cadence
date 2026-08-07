@@ -89,7 +89,7 @@ Isolation is enforced at the database layer (RLS keyed on the validated active w
 - **Invite flow:** owners/managers send email invites from `/app/employees`; Resend delivery; invite redeemed on Google OAuth sign-in
 - **Pending invites panel** on Employees — sent invites appear immediately; 30s poll while invites are pending
 - **Remove from org:** owners/managers remove membership (clears `profiles.org_id` + pending invites; does not delete accounts)
-- **No pending gate:** new sign-ups land **active** immediately (invite redemption or domain match); onboarding wizard when incomplete
+- **No pending gate:** new sign-ups land **active** immediately (invite redemption into memberships); leftover `pending` profiles are activated on first `/app` load; onboarding wizard when incomplete
 - **Suspended-only block:** middleware and auth redirect suspended users to login with an error banner
 
 ### Phase 8b — Decimal hours & test-account tooling
@@ -306,7 +306,7 @@ Apply migrations in order via the Supabase SQL editor or `supabase db push`:
 - **`get_or_create_org_settings(p_org_id)`** RPC — upserts defaults; callable by owner/manager in active org
 - **`useOrgSettings()`** client hook via `OrgSettingsProvider` in app shell (cached in React context)
 - **Organization page** (`/app/employees`): **Members | Settings** tabs; Settings owner-only with approval toggles, approver radio group, plan badge (display only)
-- Members tab respects role matrix: owner manages roles/invite/remove; manager read-only list; employee redirected; superadmin platform audit view
+- Members tab respects role matrix: owner manages invite/role/remove + rate/status/banking; manager invites/removes/assigns Employee only; employee redirected; superadmin platform audit view
 
 ### F2 — Toggl-style timer (shipped)
 - **Floating timer** in app shell (all `/app/*` pages) — bottom-right, collapsible

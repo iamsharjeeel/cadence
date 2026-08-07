@@ -62,8 +62,8 @@ export async function updateSession(request: NextRequest) {
         .single();
 
       const suspended = profile?.status === "suspended";
-      const needsOnboarding =
-        profile?.status === "active" && !profile?.onboarding_complete;
+      const isActive = profile?.status === "active";
+      const needsOnboarding = isActive && !profile?.onboarding_complete;
 
       if (isApp && suspended) {
         const url = request.nextUrl.clone();
@@ -80,11 +80,12 @@ export async function updateSession(request: NextRequest) {
 
       if (isOnboarding && (profile?.onboarding_complete || suspended)) {
         const url = request.nextUrl.clone();
-        url.pathname = "/app/dashboard";
+        url.pathname = suspended ? "/login" : "/app/dashboard";
+        if (suspended) url.searchParams.set("error", "suspended");
         return NextResponse.redirect(url);
       }
 
-      if ((isLogin || isHome) && !suspended) {
+      if ((isLogin || isHome) && !suspended && isActive) {
         const url = request.nextUrl.clone();
         url.pathname = needsOnboarding
           ? "/app/onboarding"
