@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { trustOrgScope } from "@/lib/org-scope";
-import { durationHours } from "@/lib/time/validation";
+import { entryHoursWithOptionalPersistedFallback } from "@/lib/time/entry-hours";
 import type { Profile, Timesheet } from "@/types/db";
 import { currentMonthRange, isoWeekKey, lastNWeeks } from "./period";
 
@@ -19,18 +19,7 @@ type EntryHoursRow = {
 
 /** Hours for a single entry, wrapping overnight (never the negative generated column). */
 function entryHours(r: EntryHoursRow): number {
-  if (r.entry_mode === "decimal_hours" && r.decimal_hours != null) {
-    return Number(r.decimal_hours);
-  }
-  if (r.start_time && r.end_time) {
-    return (
-      durationHours(
-        String(r.start_time).slice(0, 5),
-        String(r.end_time).slice(0, 5),
-      ) ?? 0
-    );
-  }
-  return Number(r.total_hours ?? 0);
+  return entryHoursWithOptionalPersistedFallback(r);
 }
 
 export type CurrencyTotals = Record<string, number>;

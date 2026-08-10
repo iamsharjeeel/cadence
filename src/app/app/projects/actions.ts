@@ -84,44 +84,9 @@ export async function listProjects(): Promise<ProjectListItem[]> {
   const ctx = await getWorkspaceContext();
   if (!ctx) return [];
 
-  const db = createAdminClient();
   const userId = ctx.realProfile.id;
   const activeOrgId = ctx.activeOrgId;
-
-  let projects: Project[] = [];
-
-  if (!activeOrgId) {
-    const { data } = await db
-      .from("projects")
-      .select("*")
-      .is("org_id", null)
-      .eq("owner_id", userId)
-      .eq("is_active", true)
-      .order("name");
-    projects = (data ?? []) as Project[];
-  } else {
-    const [{ data: orgWide }, { data: personal }] = await Promise.all([
-      db
-        .from("projects")
-        .select("*")
-        .eq("org_id", activeOrgId)
-        .eq("is_active", true)
-        .eq("is_org_wide", true)
-        .order("name"),
-      db
-        .from("projects")
-        .select("*")
-        .eq("org_id", activeOrgId)
-        .eq("is_active", true)
-        .eq("owner_id", userId)
-        .order("name"),
-    ]);
-    const byId = new Map<string, Project>();
-    for (const p of [...(orgWide ?? []), ...(personal ?? [])] as Project[]) {
-      byId.set(p.id, p);
-    }
-    projects = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }
+  const projects = await fetchProjectsForTimeEntry(activeOrgId, userId);
 
   return projects.map((project) => ({
     ...project,

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { durationHours } from "@/lib/time/validation";
+import { entryHoursWithZeroFallback } from "@/lib/time/entry-hours";
 import type { TimeEntry } from "@/types/db";
 
 export type PendingTimeEntry = Pick<
@@ -24,18 +24,7 @@ function entryHours(row: {
   start_time: string | null;
   end_time: string | null;
 }): number {
-  if (row.entry_mode === "decimal_hours" && row.decimal_hours != null) {
-    return Number(row.decimal_hours);
-  }
-  if (row.start_time && row.end_time) {
-    return (
-      durationHours(
-        String(row.start_time).slice(0, 5),
-        String(row.end_time).slice(0, 5),
-      ) ?? 0
-    );
-  }
-  return 0;
+  return entryHoursWithZeroFallback(row);
 }
 
 export async function getPendingTimeEntries(

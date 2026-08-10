@@ -21,6 +21,7 @@ import { resolveReportRange } from "@/lib/reports/queries";
 import { getPendingTimeEntries } from "@/lib/time/pending-time-entries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { durationHours } from "@/lib/time/validation";
+import { entryHoursWithPersistedFallback } from "@/lib/time/entry-hours";
 import { getWorkspaceContext } from "@/lib/workspace";
 import type { AsanaImportedProject, TimeEntry } from "@/types/db";
 import { PendingTimeEntriesView } from "./PendingTimeEntriesView";
@@ -47,15 +48,7 @@ type EntryRow = Pick<
 
 /** Correct hours — wraps overnight (DB total_hours goes negative). */
 function entryHours(e: EntryRow): number {
-  if (e.entry_mode === "decimal_hours" && e.decimal_hours != null) {
-    return Number(e.decimal_hours);
-  }
-  return (
-    durationHours(
-      String(e.start_time).slice(0, 5),
-      String(e.end_time).slice(0, 5),
-    ) ?? Number(e.total_hours)
-  );
+  return entryHoursWithPersistedFallback(e);
 }
 
 function formatDuration(totalHours: number): string {

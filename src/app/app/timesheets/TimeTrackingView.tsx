@@ -27,6 +27,7 @@ import {
   saveTimeEntryClient,
 } from "@/lib/time/time-entry-client";
 import { durationHours } from "@/lib/time/validation";
+import { entryHoursWithPersistedFallback } from "@/lib/time/entry-hours";
 import {
   computeWeekStatsFromPersisted,
   groupHoursByProject,
@@ -97,10 +98,12 @@ function entryToDraft(e: TimeEntryWithProject): DraftEntry {
   const end = formatTime(e.end_time);
   // Never trust the DB `total_hours` (generated, negative for overnight) —
   // recompute with overnight wrapping for display/aggregation.
-  const computedHours =
-    mode === "decimal_hours" && e.decimal_hours != null
-      ? Number(e.decimal_hours)
-      : durationHours(start, end) ?? Number(e.total_hours);
+  const computedHours = entryHoursWithPersistedFallback({
+    ...e,
+    entry_mode: mode,
+    start_time: start,
+    end_time: end,
+  });
   return {
     clientId: e.id,
     id: e.id,

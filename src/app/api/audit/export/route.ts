@@ -3,13 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { summarizePayload } from "@/lib/audit/summarize";
+import { csvEscape } from "@/lib/csv";
 import { ISO_DATE } from "@/lib/validation";
-
-function csvEscape(value: string | number | null | undefined): string {
-  const s = value === null || value === undefined ? "" : String(value);
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
 
 function defaultDateRange(): { from: string; to: string } {
   const to = new Date();

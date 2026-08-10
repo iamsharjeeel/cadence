@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { trustOrgScope } from "@/lib/org-scope";
 import type { PeriodCadence, Profile } from "@/types/db";
 import { periodForDate, shiftPeriod, toIsoDate } from "@/lib/time/periods";
-import { durationHours } from "@/lib/time/validation";
+import { entryHoursWithZeroFallback } from "@/lib/time/entry-hours";
 
 export type TrendRange = "weekly" | "fortnightly" | "monthly" | "6month" | "yearly";
 
@@ -42,15 +42,7 @@ function withWrappedHours(rows: RawEntryRow[]): EntryRow[] {
     billable: r.billable,
     project_id: r.project_id,
     employee_id: r.employee_id,
-    total_hours:
-      r.entry_mode === "decimal_hours" && r.decimal_hours != null
-        ? Number(r.decimal_hours)
-        : r.start_time && r.end_time
-          ? durationHours(
-              String(r.start_time).slice(0, 5),
-              String(r.end_time).slice(0, 5),
-            ) ?? 0
-          : 0,
+    total_hours: entryHoursWithZeroFallback(r),
   }));
 }
 

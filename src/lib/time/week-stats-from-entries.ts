@@ -4,7 +4,7 @@ import {
   SUBMIT_MIN_HOURS,
   type WeekStats,
 } from "@/lib/time/week-constants";
-import { durationHours } from "@/lib/time/validation";
+import { entryHoursWithOptionalPersistedFallback } from "@/lib/time/entry-hours";
 
 type EntrySlice = {
   entry_date: string;
@@ -17,18 +17,7 @@ type EntrySlice = {
 
 /** Hours for a slice, wrapping overnight — never the negative generated column. */
 function sliceHours(e: EntrySlice): number {
-  if (e.entry_mode === "decimal_hours" && e.decimal_hours != null) {
-    return Number(e.decimal_hours);
-  }
-  if (e.start_time && e.end_time) {
-    return (
-      durationHours(
-        String(e.start_time).slice(0, 5),
-        String(e.end_time).slice(0, 5),
-      ) ?? 0
-    );
-  }
-  return Number(e.total_hours ?? 0);
+  return entryHoursWithOptionalPersistedFallback(e);
 }
 
 /** Derive week stats from entry rows already in hand — avoids a redundant DB query. */
