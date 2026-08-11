@@ -2,7 +2,10 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
-import { getWorkspaceContext } from "@/lib/workspace";
+import {
+  getWorkspaceContext,
+  type WorkspaceContext,
+} from "@/lib/workspace";
 import type { Profile, UserRole } from "@/types/db";
 
 /**
@@ -36,6 +39,16 @@ export async function requireActiveProfile(): Promise<Profile> {
     redirect("/login?error=suspended");
   }
   return profile;
+}
+
+/** Requires an authenticated, active caller and returns their full workspace context. */
+export async function requireActiveWorkspaceContext(): Promise<WorkspaceContext> {
+  const ctx = await getWorkspaceContext();
+  if (!ctx) redirect("/login");
+  if (ctx.realProfile.status === "suspended") {
+    redirect("/login?error=suspended");
+  }
+  return ctx;
 }
 
 /**

@@ -7,7 +7,7 @@ import { canApproveInOrg } from "@/lib/approvals";
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
 import { fetchOrgSettings } from "@/lib/org-settings/actions";
-import { requireActiveProfile } from "@/lib/auth";
+import { requireActiveWorkspaceContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getWorkspaceContext } from "@/lib/workspace";
 import {
@@ -106,10 +106,12 @@ export async function submitExpense(input: {
   description: string;
   expenseDate: string;
 }): Promise<ActionResult> {
-  const gate = await requireOrgWorkspace();
-  if (!gate.ok) return gate;
-
-  const profile = await requireActiveProfile();
+  const ctx = await requireActiveWorkspaceContext();
+  if (!ctx.activeOrgId) {
+    return { ok: false, message: "Switch to an organization workspace." };
+  }
+  const gate = { orgId: ctx.activeOrgId };
+  const profile = ctx.effectiveProfile;
   const amountV = validateNonNegativeNumber(input.amount, "Amount");
   if (!amountV.ok || amountV.value <= 0) {
     return { ok: false, message: "Amount must be greater than zero." };

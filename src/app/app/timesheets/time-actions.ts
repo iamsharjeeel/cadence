@@ -27,8 +27,6 @@ import {
   hoursBetween,
   isOvernightShift,
   parseTime,
-  rangesOverlap,
-  toRange,
 } from "@/lib/time/validation";
 import type { TimesheetStatus } from "@/types/db";
 import {
@@ -38,6 +36,11 @@ import {
   linkOrphanEntriesToTimesheet,
 } from "@/lib/time/get-time-tracking-data";
 import type { TimeEntry, TimeEntryWithProject } from "@/types/time-tracking";
+import {
+  assertEditableTimesheet,
+  checkOverlap,
+  editableStatus,
+} from "@/lib/time/actions/timesheet-access";
 
 export type ActionResult = { ok: boolean; message: string; id?: string };
 
@@ -45,10 +48,6 @@ export type SaveEntryResult = ActionResult & { weekStats?: WeekStats };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ACTIVE_STATUSES: TimesheetStatus[] = ["draft", "submitted", "rejected"];
-
-function editableStatus(status: TimesheetStatus): boolean {
-  return status === "draft" || status === "submitted" || status === "rejected";
-}
 
 /** Fetch-or-create the single active draft timesheet for (employee, week Monday). */
 export async function ensureTimesheetForWeek(
@@ -77,57 +76,6 @@ export async function getTimeTrackingData(
 ) {
   const profile = await requireActiveProfile();
   return getTimeTrackingDataForProfile(profile, anchorDate, viewCadence ?? "weekly");
-}
-
-async function assertEditableTimesheet(timesheetId: string, employeeId: string) {
-  const db = createAdminClient();
-  const { data: ts } = await db
-    .from("timesheets")
-    .select("id, status, employee_id, org_id")
-    .eq("id", timesheetId)
-    .single();
-  if (!ts) return { ok: false as const, message: "Timesheet not found." };
-  if (ts.employee_id !== employeeId) {
-    return { ok: false as const, message: "Not authorized." };
-  }
-  if (!editableStatus(ts.status as TimesheetStatus)) {
-    return { ok: false as const, message: "This timesheet is locked." };
-  }
-  return { ok: true as const, ts };
-}
-
-async function checkOverlap(
-  employeeId: string,
-  entryDate: string,
-  startTime: string,
-  endTime: string,
-  overnight: boolean,
-  excludeId?: string,
-): Promise<string | null> {
-  const range = toRange(startTime, endTime, overnight);
-  if (!range) return "Invalid time range.";
-
-  const db = createAdminClient();
-  const { data: siblings } = await db
-    .from("time_entries")
-    .select("id, start_time, end_time")
-    .eq("employee_id", employeeId)
-    .eq("entry_date", entryDate);
-
-  for (const s of siblings ?? []) {
-    if (excludeId && s.id === excludeId) continue;
-    const otherStart = String(s.start_time).slice(0, 5);
-    const otherEnd = String(s.end_time).slice(0, 5);
-    const other = toRange(
-      otherStart,
-      otherEnd,
-      isOvernightShift(otherStart, otherEnd),
-    );
-    if (other && rangesOverlap(range, other)) {
-      return "This entry overlaps another on the same day.";
-    }
-  }
-  return null;
 }
 
 type EntryPayload = {

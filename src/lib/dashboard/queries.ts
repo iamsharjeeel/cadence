@@ -301,53 +301,62 @@ export async function getSuperadminOrgSummaries(): Promise<OrgSummaryCard[]> {
   const db = createAdminClient();
   const { start } = monthRange();
 
-  const { data: orgs } = await db
-    .from("organizations")
-    .select("id, name, slug, logo_url")
-    .order("name");
-
-  const cards: OrgSummaryCard[] = [];
-
-  for (const org of orgs ?? []) {
-    // Track C: members come from `memberships`.
-    const { count: employeeCount } = await db
-      .from("memberships")
-      .select("user_id", { count: "exact", head: true })
-      .eq("org_id", org.id);
-
-    const { count: pendingCount } = await db
+  const [
+    { data: orgs },
+    { data: memberships },
+    { data: submitted },
+    { data: approved },
+  ] = await Promise.all([
+    db.from("organizations").select("id, name, slug, logo_url").order("name"),
+    db.from("memberships").select("org_id"),
+    db.from("timesheets").select("org_id").eq("status", "submitted"),
+    db
       .from("timesheets")
-      .select("id", { count: "exact", head: true })
-      .eq("org_id", org.id)
-      .eq("status", "submitted");
-
-    const { data: approved } = await db
-      .from("timesheets")
-      .select("id")
-      .eq("org_id", org.id)
+      .select("id, org_id")
       .eq("status", "approved")
-      .gte("approved_at", start);
+      .gte("approved_at", start),
+  ]);
 
-    let approvedHoursPeriod = 0;
-    const ids = (approved ?? []).map((t) => t.id);
-    if (ids.length > 0) {
-      const { data: entries } = await db
-        .from("time_entries")
-        .select(ENTRY_HOURS_SELECT)
-        .in("timesheet_id", ids);
-      approvedHoursPeriod = sumEntryHours(entries ?? []);
-    }
+  const approvedById = new Map((approved ?? []).map((row) => [row.id, row.org_id]));
+  const approvedIds = [...approvedById.keys()];
+  const entries = approvedIds.length
+    ? (
+        await db
+          .from("time_entries")
+          .select(`timesheet_id, ${ENTRY_HOURS_SELECT}`)
+          .in("timesheet_id", approvedIds)
+      ).data ?? []
+    : [];
 
-    cards.push({
+  const memberCounts = new Map<string, number>();
+  for (const row of memberships ?? []) {
+    memberCounts.set(row.org_id, (memberCounts.get(row.org_id) ?? 0) + 1);
+  }
+  const pendingCounts = new Map<string, number>();
+  for (const row of submitted ?? []) {
+    if (!row.org_id) continue;
+    pendingCounts.set(row.org_id, (pendingCounts.get(row.org_id) ?? 0) + 1);
+  }
+  const approvedHours = new Map<string, number>();
+  for (const row of entries) {
+    const orgId = row.timesheet_id ? approvedById.get(row.timesheet_id) : null;
+    if (!orgId) continue;
+    approvedHours.set(
+      orgId,
+      (approvedHours.get(orgId) ?? 0) + entryHours(row),
+    );
+  }
+
+  return (orgs ?? []).map((org) => {
+    return {
       id: org.id,
       name: org.name,
       slug: org.slug,
       logoUrl: org.logo_url ?? null,
-      employeeCount: employeeCount ?? 0,
-      pendingCount: pendingCount ?? 0,
-      approvedHoursPeriod,
-    });
-  }
-
-  return cards;
+      employeeCount: memberCounts.get(org.id) ?? 0,
+      pendingCount: pendingCounts.get(org.id) ?? 0,
+      approvedHoursPeriod:
+        Math.round((approvedHours.get(org.id) ?? 0) * 100) / 100,
+    };
+  });
 }

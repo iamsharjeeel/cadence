@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireActiveProfile } from "@/lib/auth";
+import { requireActiveWorkspaceContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getWorkspaceContext, type WorkspaceContext } from "@/lib/workspace";
 import type { Project } from "@/types/time-tracking";
@@ -80,9 +80,7 @@ export async function fetchProjectsForTimeEntry(
 }
 
 export async function listProjects(): Promise<ProjectListItem[]> {
-  await requireActiveProfile();
-  const ctx = await getWorkspaceContext();
-  if (!ctx) return [];
+  const ctx = await requireActiveWorkspaceContext();
 
   const userId = ctx.realProfile.id;
   const activeOrgId = ctx.activeOrgId;
@@ -113,9 +111,7 @@ export async function createProject(payload: {
   clientName?: string;
   billableDefault?: boolean;
 }): Promise<ActionResult> {
-  await requireActiveProfile();
-  const ctx = await getWorkspaceContext();
-  if (!ctx) return { ok: false, message: "Not signed in." };
+  const ctx = await requireActiveWorkspaceContext();
 
   const name = payload.name.trim();
   if (!name || name.length > 80) {
@@ -169,9 +165,7 @@ export async function updateProject(payload: {
   clientName?: string;
   billableDefault?: boolean;
 }): Promise<ActionResult> {
-  await requireActiveProfile();
-  const ctx = await getWorkspaceContext();
-  if (!ctx) return { ok: false, message: "Not signed in." };
+  const ctx = await requireActiveWorkspaceContext();
 
   const db = createAdminClient();
   const { data: project } = await db
@@ -211,9 +205,7 @@ export async function updateProject(payload: {
 }
 
 export async function archiveProject(id: string): Promise<ActionResult> {
-  await requireActiveProfile();
-  const ctx = await getWorkspaceContext();
-  if (!ctx) return { ok: false, message: "Not signed in." };
+  const ctx = await requireActiveWorkspaceContext();
 
   const db = createAdminClient();
   const { data: project } = await db
