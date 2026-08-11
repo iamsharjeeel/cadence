@@ -28,22 +28,14 @@ import type {
   TimesheetStatus,
 } from "@/types/db";
 import type { TimeEntryWithProject } from "@/types/time-tracking";
-import { durationHours } from "@/lib/time/validation";
+import { entryHoursWithPersistedFallback } from "@/lib/time/entry-hours";
 
 export const metadata: Metadata = { title: "Timesheet" };
 
 /** Correct hours for an entry — wraps overnight (the DB total_hours column is
  *  generated as (end - start)/3600 and goes negative for overnight ranges). */
 function entryHours(e: TimeEntryWithProject): number {
-  if (e.entry_mode === "decimal_hours" && e.decimal_hours != null) {
-    return Number(e.decimal_hours);
-  }
-  return (
-    durationHours(
-      String(e.start_time).slice(0, 5),
-      String(e.end_time).slice(0, 5),
-    ) ?? Number(e.total_hours)
-  );
+  return entryHoursWithPersistedFallback(e);
 }
 
 export default async function TimesheetDetailPage({

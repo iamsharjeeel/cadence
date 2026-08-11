@@ -201,12 +201,27 @@ export default async function DocumentsPage({
     : [];
 
   const downloadUrls = new Map<string, string>();
-  for (const doc of documents) {
-    if (doc.file_path) {
-      const { data: signed } = await adminDb.storage
-        .from("documents")
-        .createSignedUrl(doc.file_path, 60 * 60);
-      if (signed?.signedUrl) downloadUrls.set(doc.id, signed.signedUrl);
+  const documentsWithFiles = documents.filter(
+    (doc): doc is DocRow & { file_path: string } => Boolean(doc.file_path),
+  );
+  if (documentsWithFiles.length > 0) {
+    const { data: signedUrls } = await adminDb.storage
+      .from("documents")
+      .createSignedUrls(
+        documentsWithFiles.map((doc) => doc.file_path),
+        60 * 60,
+      );
+    const signedUrlByPath = new Map(
+      (signedUrls ?? [])
+        .filter(
+          (signed): signed is typeof signed & { path: string; signedUrl: string } =>
+            Boolean(signed.path && signed.signedUrl),
+        )
+        .map((signed) => [signed.path, signed.signedUrl]),
+    );
+    for (const doc of documentsWithFiles) {
+      const signedUrl = signedUrlByPath.get(doc.file_path);
+      if (signedUrl) downloadUrls.set(doc.id, signedUrl);
     }
   }
 

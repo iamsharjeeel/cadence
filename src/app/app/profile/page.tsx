@@ -9,8 +9,7 @@ import {
   CardDescription,
 } from "@/components/ui/Card";
 import { Badge, RolePill, StatusPill } from "@/components/ui/Badge";
-import { requireActiveProfile } from "@/lib/auth";
-import { getWorkspaceContext } from "@/lib/workspace";
+import { requireActiveWorkspaceContext } from "@/lib/auth";
 import { ProfileHashScroll } from "./ProfileHashScroll";
 import { maskSensitive } from "@/lib/bank-crypto";
 import { ProfileBankingForm } from "./ProfileBankingForm";
@@ -24,8 +23,8 @@ import { ProfileCompleteness } from "./ProfileCompleteness";
 export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
-  const ctx = await getWorkspaceContext();
-  const profile = await requireActiveProfile();
+  const ctx = await requireActiveWorkspaceContext();
+  const profile = ctx.effectiveProfile;
   const inOrg = Boolean(ctx?.activeOrgId);
 
   return (

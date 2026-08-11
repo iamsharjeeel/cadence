@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, Loader2, Mail, Trash2 } from "lucide-react";
+import { Copy, Mail, Trash2 } from "lucide-react";
 
 import { AsanaProjectPickerMeta } from "@/components/asana/AsanaProjectPicker";
 import { EmailThreadPicker, type LinkedEmailThread } from "@/components/gmail/EmailThreadPicker";
@@ -18,13 +18,14 @@ import {
 import { Button } from "@/components/ui/Button";
 import { fieldBase } from "@/components/ui/Input";
 import { TimePicker } from "@/components/ui/TimePicker";
-import { MotionModal } from "@/components/motion/MotionModal";
 import { cn } from "@/lib/utils";
 import { parseDecimalHours, type EntryMode } from "@/lib/time/decimal-hours";
 import { hoursBetween, isOvernightShift } from "@/lib/time/validation";
-import { PROJECT_PRESET_COLORS } from "@/types/time-tracking";
 import type { Project } from "@/types/time-tracking";
 import type { AsanaImportedProject } from "@/types/db";
+import { BillableToggle } from "./BillableToggle";
+import { CreateProjectModal } from "./CreateProjectModal";
+import { SaveIndicator } from "./SaveIndicator";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -54,189 +55,6 @@ const ROW_MOTION = {
   exit: { opacity: 0, height: 0 },
   transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
 };
-
-const SAVED_INDICATOR_MOTION = {
-  initial: { opacity: 0, scale: 0.9 },
-  animate: { opacity: 1, scale: 1 },
-  exit: { opacity: 0 },
-};
-
-function BillableToggle({
-  checked,
-  disabled,
-  onChange,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-soft)]",
-        checked
-          ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-          : "bg-[var(--line)] text-muted",
-        disabled && "cursor-not-allowed opacity-60",
-      )}
-    >
-      Billable
-    </button>
-  );
-}
-
-function SaveIndicator({
-  state,
-  error,
-  onRetry,
-}: {
-  state: SaveState;
-  error?: string;
-  onRetry?: () => void;
-}) {
-  if (state === "saving") {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-muted">
-        <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-        Saving
-      </span>
-    );
-  }
-  if (state === "saved") {
-    return (
-      <motion.span
-        {...SAVED_INDICATOR_MOTION}
-        className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)]"
-      >
-        <Check className="h-3 w-3" aria-hidden />
-        Saved
-      </motion.span>
-    );
-  }
-  if (state === "error") {
-    return (
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        <span className="text-xs text-muted">{error ?? "Couldn't save"}</span>
-        {onRetry && (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="text-xs font-medium text-[var(--accent-strong)] hover:underline"
-          >
-            Retry
-          </button>
-        )}
-      </div>
-    );
-  }
-  return null;
-}
-
-function CreateProjectModal({
-  open,
-  onClose,
-  onCreate,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onCreate: (name: string, color: string) => Promise<void>;
-}) {
-  const [name, setName] = useState("");
-  const [color, setColor] = useState<(typeof PROJECT_PRESET_COLORS)[number]>(
-    PROJECT_PRESET_COLORS[0],
-  );
-  const [loading, setLoading] = useState(false);
-
-  async function handleCreate() {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setLoading(true);
-    try {
-      await onCreate(trimmed, color);
-      setName("");
-      setColor(PROJECT_PRESET_COLORS[0]);
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <MotionModal open={open} onClose={onClose} panelClassName="max-w-sm">
-      <div>
-        <h3 className="font-display text-base font-semibold tracking-tightest text-ink">
-          New project
-        </h3>
-        <div className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-ink" htmlFor="new-project-name">
-              Name
-            </label>
-            <input
-              id="new-project-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void handleCreate();
-                if (e.key === "Escape") onClose();
-              }}
-              placeholder="Project name"
-              autoFocus
-              className={cn(fieldBase, "h-9 text-sm")}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Color</span>
-            <div className="flex flex-wrap gap-2">
-              {PROJECT_PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={c}
-                  onClick={() => setColor(c)}
-                  className={cn(
-                    "h-7 w-7 rounded-full transition-all",
-                    color === c
-                      ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-surface"
-                      : "hover:scale-110",
-                  )}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="mt-6 flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            loading={loading}
-            disabled={!name.trim()}
-            onClick={() => void handleCreate()}
-          >
-            Create
-          </Button>
-        </div>
-      </div>
-    </MotionModal>
-  );
-}
 
 export function TimeEntryRow({
   entry,

@@ -169,24 +169,77 @@ export async function bulkApproveTimesheets(
   const db = createAdminClient();
   let approved = 0;
 
+  const uniqueIds = [...new Set(ids)];
+  const { data: prefetchedTimesheets } = await db
+    .from("timesheets")
+    .select("*")
+    .in("id", uniqueIds);
+  const timesheetById = new Map(
+    (prefetchedTimesheets ?? []).map((timesheet) => [timesheet.id, timesheet]),
+  );
+  const employeeIds = [
+    ...new Set((prefetchedTimesheets ?? []).map((timesheet) => timesheet.employee_id)),
+  ];
+  const [{ data: prefetchedEmployees }, { data: entryRows }, { data: legacyRows }] =
+    await Promise.all([
+      employeeIds.length
+        ? db
+            .from("profiles")
+            .select("id, rate, rate_type, currency, full_name, email")
+            .in("id", employeeIds)
+        : Promise.resolve({ data: [] }),
+      db
+        .from("time_entries")
+        .select("timesheet_id, start_time, end_time, entry_mode, decimal_hours")
+        .in("timesheet_id", uniqueIds),
+      db
+        .from("timesheet_rows")
+        .select("timesheet_id, hours")
+        .in("timesheet_id", uniqueIds),
+    ]);
+  const employeeById = new Map(
+    (prefetchedEmployees ?? []).map((employee) => [employee.id, employee]),
+  );
+  const entriesByTimesheet = new Map<string, typeof entryRows>();
+  for (const row of entryRows ?? []) {
+    if (!row.timesheet_id) continue;
+    const rows = entriesByTimesheet.get(row.timesheet_id) ?? [];
+    rows.push(row);
+    entriesByTimesheet.set(row.timesheet_id, rows);
+  }
+  const legacyHoursByTimesheet = new Map<string, number>();
+  for (const row of legacyRows ?? []) {
+    legacyHoursByTimesheet.set(
+      row.timesheet_id,
+      (legacyHoursByTimesheet.get(row.timesheet_id) ?? 0) + Number(row.hours),
+    );
+  }
+
   for (const id of ids) {
-    const { data: ts } = await db
-      .from("timesheets")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const ts = timesheetById.get(id);
     if (!ts) continue;
     if (actor.role === "admin" && (!actor.org_id || ts.org_id !== actor.org_id)) continue;
     if (ts.status !== "submitted") continue;
 
-    const { data: employee } = await db
-      .from("profiles")
-      .select("rate, rate_type, currency, full_name, email")
-      .eq("id", ts.employee_id)
-      .single();
+    const employee = employeeById.get(ts.employee_id);
     if (!employee) continue;
 
-    const totalHours = await totalHoursForTimesheet(db, id);
+    const calculatedHours = Math.round(
+      (entriesByTimesheet.get(id) ?? []).reduce((sum, row) => {
+        const hours =
+          row.entry_mode === "decimal_hours" && row.decimal_hours != null
+            ? Number(row.decimal_hours)
+            : durationHours(
+                String(row.start_time).slice(0, 5),
+                String(row.end_time).slice(0, 5),
+              ) ?? 0;
+        return sum + hours;
+      }, 0) * 100,
+    ) / 100;
+    const totalHours =
+      calculatedHours === 0
+        ? legacyHoursByTimesheet.get(id) ?? 0
+        : calculatedHours;
     const total = calculateTotal(
       totalHours,
       employee.rate,
@@ -207,6 +260,7 @@ export async function bulkApproveTimesheets(
       })
       .eq("id", id);
     if (updErr) continue;
+    ts.status = "approved";
 
     if (ts.org_id) {
       void dispatchWebhookEvent(ts.org_id, {

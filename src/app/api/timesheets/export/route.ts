@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getProfile } from "@/lib/auth";
+import { csvEscape } from "@/lib/csv";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-function csvEscape(value: string | number | null | undefined): string {
-  const s = value === null || value === undefined ? "" : String(value);
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
 
 /**
  * Streams approved timesheets as CSV. Admin/superadmin only; re-checks role

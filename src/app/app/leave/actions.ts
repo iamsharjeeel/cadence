@@ -6,7 +6,10 @@ import { redirect } from "next/navigation";
 import { canApproveInOrg } from "@/lib/approvals";
 import { writeAudit } from "@/lib/audit";
 import { notifyOrgAdmins, notifyUser } from "@/lib/notifications";
-import { requireActiveProfile } from "@/lib/auth";
+import {
+  requireActiveProfile,
+  requireActiveWorkspaceContext,
+} from "@/lib/auth";
 import { countBusinessDays } from "@/lib/leave/days";
 import { applyDefaultBalancesForOrg } from "@/lib/leave/seed";
 import { pushLeaveToGoogleCalendar, removeLeaveFromGoogleCalendar } from "@/lib/google-calendar/push-leave";
@@ -21,35 +24,13 @@ import {
   validateYear,
 } from "@/lib/validation";
 import type { LeaveUnit } from "@/lib/leave/types";
+import {
+  requireLeaveOrgManager,
+  requireLeaveOrgWorkspace,
+} from "@/lib/leave/actions/access";
+import { googleCalendarWarningSuffix } from "@/lib/leave/actions/calendar-effects";
 
 export type ActionResult = { ok: boolean; message: string };
-
-async function requireOrgWorkspace() {
-  const ctx = await getWorkspaceContext();
-  if (!ctx) redirect("/login");
-  if (!ctx.activeOrgId) {
-    return { ok: false as const, message: "Switch to an organization workspace." };
-  }
-  const orgId = ctx.activeOrgId;
-  return { ok: true as const, ctx, orgId };
-}
-
-async function requireOrgManager() {
-  const gate = await requireOrgWorkspace();
-  if (!gate.ok) return gate;
-  const { ctx, orgId } = gate;
-  if (ctx.workspaceRole !== "owner" && ctx.workspaceRole !== "admin") {
-    return { ok: false as const, message: "Forbidden." };
-  }
-  return { ok: true as const, ctx, orgId, profile: ctx.effectiveProfile };
-}
-
-function gcalWarningSuffix(
-  push: Awaited<ReturnType<typeof pushLeaveToGoogleCalendar>>,
-): string {
-  if (push.pushed || push.reason === "not_connected") return "";
-  return " (Google Calendar sync failed — your leave was still saved.)";
-}
 
 /** Personal workspace — mark days off immediately (no approval). */
 export async function markPersonalLeave(input: {
@@ -120,7 +101,7 @@ export async function markPersonalLeave(input: {
   revalidatePath("/app/leave");
   return {
     ok: true,
-    message: `Time off marked.${gcalWarningSuffix(push)}`,
+    message: `Time off marked.${googleCalendarWarningSuffix(push)}`,
   };
 }
 
@@ -133,7 +114,7 @@ export async function requestLeave(input: {
   hoursRequested?: number;
   note?: string;
 }): Promise<ActionResult> {
-  const gate = await requireOrgWorkspace();
+  const gate = await requireLeaveOrgWorkspace();
   if (!gate.ok) return gate;
 
   const { ctx, orgId } = gate;
@@ -272,7 +253,7 @@ export async function requestLeave(input: {
     revalidatePath("/app/leave");
     return {
       ok: true,
-      message: `Time off added.${gcalWarningSuffix(push)}`,
+      message: `Time off added.${googleCalendarWarningSuffix(push)}`,
     };
   }
 
@@ -333,8 +314,8 @@ export async function requestLeave(input: {
 }
 
 export async function cancelLeaveRequest(id: string): Promise<ActionResult> {
-  const profile = await requireActiveProfile();
-  const ctx = await getWorkspaceContext();
+  const ctx = await requireActiveWorkspaceContext();
+  const profile = ctx.effectiveProfile;
   const db = createAdminClient();
 
   const { data: req } = await db
@@ -385,9 +366,9 @@ export async function cancelLeaveRequest(id: string): Promise<ActionResult> {
 }
 
 export async function deletePersonalLeave(id: string): Promise<ActionResult> {
-  const profile = await requireActiveProfile();
-  const ctx = await getWorkspaceContext();
-  if (ctx?.activeOrgId && !ctx.isSuperadmin) {
+  const ctx = await requireActiveWorkspaceContext();
+  const profile = ctx.effectiveProfile;
+  if (ctx.activeOrgId && !ctx.isSuperadmin) {
     return { ok: false, message: "Switch to Personal to remove time off." };
   }
 
@@ -415,7 +396,7 @@ export async function deletePersonalLeave(id: string): Promise<ActionResult> {
 }
 
 export async function approveLeaveRequest(id: string): Promise<ActionResult> {
-  const gate = await requireOrgManager();
+  const gate = await requireLeaveOrgManager();
   if (!gate.ok) return gate;
 
   const allowed = await canApproveInOrg(gate.orgId, gate.ctx.workspaceRole);
@@ -512,7 +493,7 @@ export async function approveLeaveRequest(id: string): Promise<ActionResult> {
   revalidatePath("/app/leave");
   return {
     ok: true,
-    message: `Leave approved.${gcalWarningSuffix(push)}`,
+    message: `Leave approved.${googleCalendarWarningSuffix(push)}`,
   };
 }
 
@@ -520,7 +501,7 @@ export async function rejectLeaveRequest(
   id: string,
   note: string,
 ): Promise<ActionResult> {
-  const gate = await requireOrgManager();
+  const gate = await requireLeaveOrgManager();
   if (!gate.ok) return gate;
 
   const allowed = await canApproveInOrg(gate.orgId, gate.ctx.workspaceRole);
@@ -608,7 +589,7 @@ export async function applyDefaultBalances(
   orgId: string,
   year: number,
 ): Promise<ActionResult> {
-  const gate = await requireOrgManager();
+  const gate = await requireLeaveOrgManager();
   if (!gate.ok) return gate;
   if (gate.orgId !== orgId) {
     return { ok: false, message: "Forbidden." };

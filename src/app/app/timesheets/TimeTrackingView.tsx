@@ -17,10 +17,7 @@ import {
   type GoogleCalendarPrefill,
 } from "@/lib/google-calendar/prefill";
 import type { GoogleCalendarEventWithMeta } from "@/lib/google-calendar/sync";
-import {
-  canPersistDecimalEntry,
-  type EntryMode,
-} from "@/lib/time/decimal-hours";
+import { canPersistDecimalEntry } from "@/lib/time/decimal-hours";
 import {
   canPersistTimeEntry,
   deleteTimeEntryClient,
@@ -39,7 +36,6 @@ import {
   thisWeekMonday,
   toIsoDate,
   viewPeriodForDate,
-  VIEW_PERIOD_OPTIONS,
   type PayPeriod,
   type ViewPeriodCadence,
 } from "@/lib/time/periods";
@@ -51,7 +47,7 @@ import {
 } from "@/lib/time/week-constants";
 import type { TimesheetStatus } from "@/types/db";
 import type { AsanaImportedProject } from "@/types/db";
-import type { Project, TimeEntryWithProject } from "@/types/time-tracking";
+import type { Project } from "@/types/time-tracking";
 import type { LinkedEmailThreadMeta, TimeTrackingData } from "@/types/time-tracking";
 import {
   copyEntriesFromPreviousPeriod,
@@ -63,139 +59,23 @@ import {
 } from "./time-actions";
 import { createProject } from "../projects/actions";
 import { syncImportedAsanaProjectNames } from "../profile/asana-actions";
-import { LogSummarySkeleton, LogWeekSkeleton } from "./LogWeekSkeleton";
-import { TimeEntryRow, type EntryRowData } from "./TimeEntryRow";
+import { LogWeekSkeleton } from "./LogWeekSkeleton";
+import { TimeEntryRow } from "./TimeEntryRow";
 import { cn } from "@/lib/utils";
 
-type DraftEntry = EntryRowData;
-
-function formatTime(value: string): string {
-  return value.slice(0, 5);
-}
-
-function newDraft(date: string, lastEnd?: string): DraftEntry {
-  return {
-    clientId: crypto.randomUUID(),
-    entry_date: date,
-    entry_mode: "time_range",
-    start_time: lastEnd ?? "09:00",
-    end_time: lastEnd ? "" : "17:00",
-    decimal_hours: "",
-    project_id: null,
-    asana_project_id: null,
-    description: "",
-    billable: true,
-    billableTouched: false,
-    saveState: "idle",
-    collapsed: false,
-  };
-}
-
-function entryToDraft(e: TimeEntryWithProject): DraftEntry {
-  const mode = (e.entry_mode ?? "time_range") as EntryMode;
-  const start = formatTime(e.start_time);
-  const end = formatTime(e.end_time);
-  // Never trust the DB `total_hours` (generated, negative for overnight) —
-  // recompute with overnight wrapping for display/aggregation.
-  const computedHours =
-    mode === "decimal_hours" && e.decimal_hours != null
-      ? Number(e.decimal_hours)
-      : durationHours(start, end) ?? Number(e.total_hours);
-  return {
-    clientId: e.id,
-    id: e.id,
-    entry_date: e.entry_date,
-    entry_mode: mode,
-    start_time: start,
-    end_time: end,
-    decimal_hours:
-      mode === "decimal_hours" && e.decimal_hours != null
-        ? String(e.decimal_hours)
-        : "",
-    project_id: e.project_id,
-    asana_project_id: e.asana_project_id ?? null,
-    description: e.description ?? "",
-    billable: e.billable,
-    billableTouched: true,
-    total_hours: computedHours,
-    saveState: "saved",
-    collapsed: true,
-  };
-}
-
-function entriesGrouped(entries: TimeEntryWithProject[]): Record<string, DraftEntry[]> {
-  const grouped: Record<string, DraftEntry[]> = {};
-  for (const e of entries) {
-    grouped[e.entry_date] = grouped[e.entry_date] ?? [];
-    grouped[e.entry_date]!.push(entryToDraft(e));
-  }
-  return grouped;
-}
-
-function applyTrackingData(
-  data: TimeTrackingData,
-  setters: {
-    setTimesheetId: (v: string) => void;
-    setOrgId: (v: string) => void;
-    setEmployeeId: (v: string) => void;
-    setStatus: (v: TimesheetStatus) => void;
-    setSubmittedAt: (v: string | null) => void;
-    setProjects: (v: Project[]) => void;
-    setAsanaConnected: (v: boolean) => void;
-    setGmailConnected: (v: boolean) => void;
-    setEmailLinksByEntryId: (v: Record<string, LinkedEmailThreadMeta[]>) => void;
-    setAsanaImportedProjects: (v: AsanaImportedProject[]) => void;
-    setAsanaProjectNamesSyncedAt: (v: string | null) => void;
-    setWeek: (v: PayPeriod) => void;
-    setRate: (v: number | null) => void;
-    setRateType: (v: string) => void;
-    setCurrency: (v: string | null) => void;
-    setEntriesByDay: (v: Record<string, DraftEntry[]>) => void;
-  },
-) {
-  setters.setTimesheetId(data.timesheetId);
-  setters.setOrgId(data.orgId ?? "");
-  setters.setEmployeeId(data.employeeId);
-  setters.setStatus(data.status);
-  setters.setSubmittedAt(data.submittedAt ?? null);
-  setters.setProjects(data.projects);
-  setters.setAsanaConnected(data.asanaConnected);
-  setters.setGmailConnected(data.gmailConnected);
-  const linksMap: Record<string, LinkedEmailThreadMeta[]> = {};
-  for (const e of data.entries) {
-    if (e.linked_email_threads?.length) {
-      linksMap[e.id] = e.linked_email_threads;
-    }
-  }
-  setters.setEmailLinksByEntryId(linksMap);
-  setters.setAsanaImportedProjects(data.asanaImportedProjects);
-  setters.setAsanaProjectNamesSyncedAt(data.asanaProjectNamesSyncedAt);
-  setters.setWeek(data.week);
-  setters.setRate(data.rate);
-  setters.setRateType(data.rateType);
-  setters.setCurrency(data.currency);
-  setters.setEntriesByDay(entriesGrouped(data.entries));
-}
-
-function daysUntil(isoDate: string): number {
-  const today = new Date(toIsoDate(new Date()));
-  const target = new Date(isoDate);
-  return Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
-}
-
-function daysSince(isoTimestamp: string | null): number {
-  if (!isoTimestamp) return 0;
-  const submitted = new Date(isoTimestamp);
-  const now = new Date();
-  return Math.floor((now.getTime() - submitted.getTime()) / 86_400_000);
-}
-
-function editWindowLabel(submittedAt: string | null): string | null {
-  if (!submittedAt) return null;
-  const daysLeft = 3 - daysSince(submittedAt);
-  if (daysLeft <= 0) return null;
-  return daysLeft === 1 ? "1 day left to edit" : `${daysLeft} days left to edit`;
-}
+import { CopyEntriesDialog } from "./CopyEntriesDialog";
+import { RequestEditDialog } from "./RequestEditDialog";
+import { TimeTrackingPeriodNavigation } from "./TimeTrackingPeriodNavigation";
+import { TimeTrackingSummary } from "./TimeTrackingSummary";
+import { useTimeEntryPersistence } from "./useTimeEntryPersistence";
+import {
+  applyTrackingData,
+  daysSince,
+  daysUntil,
+  editWindowLabel,
+  newDraft,
+  type DraftEntry,
+} from "./time-tracking-view-helpers";
 
 export function TimeTrackingView({
   initialWeekMonday,
@@ -265,10 +145,7 @@ export function TimeTrackingView({
   const orgIdRef = useRef(orgId);
   const employeeIdRef = useRef(employeeId);
   const editableRef = useRef(status === "draft" || status === "submitted" || status === "rejected");
-  const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map(),
-  );
-  const inFlightSaves = useRef<Map<string, Promise<void>>>(new Map());
+  const { debounceTimers, inFlightSaves } = useTimeEntryPersistence();
 
   entriesByDayRef.current = entriesByDay;
   timesheetIdRef.current = timesheetId;
@@ -441,13 +318,6 @@ export function TimeTrackingView({
   }, [load, periodAnchor, viewCadence, initialData, ssrPeriodAnchor]);
 
   useEffect(() => {
-    const timers = debounceTimers.current;
-    return () => {
-      for (const t of timers.values()) clearTimeout(t);
-    };
-  }, []);
-
-  useEffect(() => {
     if (prefillApplied.current || !initialPrefill) return;
     prefillApplied.current = true;
 
@@ -603,7 +473,7 @@ export function TimeTrackingView({
       inFlightSaves.current.set(clientId, promise);
       await promise;
     },
-    [],
+    [inFlightSaves],
   );
 
   const scheduleSave = useCallback(
@@ -627,7 +497,7 @@ export function TimeTrackingView({
         }, 600),
       );
     },
-    [persistEntry],
+    [debounceTimers, persistEntry],
   );
 
   function addEntry(date: string) {
@@ -819,66 +689,23 @@ export function TimeTrackingView({
               )}
             </div>
           </div>
-          <div className="flex flex-col gap-2 sm:items-end">
-            <div
-              className="inline-flex rounded-full border border-[var(--line)] p-0.5"
-              role="group"
-              aria-label="Period view"
-            >
-              {VIEW_PERIOD_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    setViewCadence(opt.value);
-                    setPeriodAnchor(today);
-                  }}
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                    viewCadence === opt.value
-                      ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                      : "text-muted hover:text-ink",
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-card)] bg-surface p-1.5 shadow-card">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const period = week ?? viewPeriodForDate(periodAnchor, viewCadence);
-                  const prev = shiftViewPeriod(period, viewCadence, -1);
-                  setPeriodAnchor(prev.start);
-                }}
-              >
-                ← Prev
-              </Button>
-              <Button
-                type="button"
-                variant={isCurrentPeriod ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setPeriodAnchor(currentViewPeriod.start)}
-              >
-                This period
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const period = week ?? viewPeriodForDate(periodAnchor, viewCadence);
-                  const next = shiftViewPeriod(period, viewCadence, 1);
-                  setPeriodAnchor(next.start);
-                }}
-              >
-                Next →
-              </Button>
-            </div>
-          </div>
+          <TimeTrackingPeriodNavigation
+            viewCadence={viewCadence}
+            isCurrentPeriod={isCurrentPeriod}
+            onCadenceChange={(cadence) => {
+              setViewCadence(cadence);
+              setPeriodAnchor(today);
+            }}
+            onPrevious={() => {
+              const period = week ?? viewPeriodForDate(periodAnchor, viewCadence);
+              setPeriodAnchor(shiftViewPeriod(period, viewCadence, -1).start);
+            }}
+            onCurrent={() => setPeriodAnchor(currentViewPeriod.start)}
+            onNext={() => {
+              const period = week ?? viewPeriodForDate(periodAnchor, viewCadence);
+              setPeriodAnchor(shiftViewPeriod(period, viewCadence, 1).start);
+            }}
+          />
         </div>
 
         {isPersonalLocked && (
@@ -896,107 +723,28 @@ export function TimeTrackingView({
           </div>
         )}
 
-        {requestEditOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-[var(--radius-card)] bg-surface p-6 shadow-float">
-              <h3 className="font-display text-base font-semibold text-ink">
-                Note edit request
-              </h3>
-              <p className="mt-1 text-sm text-muted">
-                Locked timesheets stay read-only. Your note is recorded in the
-                audit trail for record-keeping only — it does not unlock this
-                timesheet.
-              </p>
-              <textarea
-                className="mt-3 w-full rounded-[var(--radius-input)] border border-[var(--line)] bg-surface p-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                rows={3}
-                placeholder="Optional note for your records…"
-                value={requestEditNote}
-                onChange={(e) => setRequestEditNote(e.target.value)}
-              />
-              <div className="mt-4 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRequestEditOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void handleRequestEdit()}
-                >
-                  Save note
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        <RequestEditDialog
+          open={requestEditOpen}
+          note={requestEditNote}
+          onNoteChange={setRequestEditNote}
+          onClose={() => setRequestEditOpen(false)}
+          onSave={() => void handleRequestEdit()}
+        />
 
-        {copyPickerOpen && copySource && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="flex w-full max-w-md flex-col rounded-[var(--radius-card)] bg-surface p-6 shadow-float">
-              <h3 className="font-display text-base font-semibold text-ink">
-                Copy entry to days
-              </h3>
-              <p className="mt-1 text-sm text-muted">
-                Select which days in this period should receive a copy of this
-                entry.
-              </p>
-              <div className="mt-4 max-h-64 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--line)]">
-                {days
-                  .filter((day) => day.date !== copySource.date)
-                  .map((day) => {
-                    const checked = copySelectedDates.has(day.date);
-                    return (
-                      <label
-                        key={day.date}
-                        className={cn(
-                          "flex cursor-pointer items-center gap-3 border-b border-[var(--line)] px-3 py-2.5 last:border-0",
-                          "hover:bg-[var(--surface-low)]",
-                          day.isWeekend && "bg-[var(--surface-low)]/50",
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCopyTarget(day.date)}
-                          className="h-4 w-4 rounded border-[var(--line)] accent-[var(--accent)]"
-                        />
-                        <span className="text-sm text-ink">
-                          {formatCopyDayLabel(day.date, day.dayName)}
-                        </span>
-                      </label>
-                    );
-                  })}
-              </div>
-              <div className="mt-4 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setCopyPickerOpen(false);
-                    setCopySource(null);
-                    setCopySelectedDates(new Set());
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={copySelectedDates.size === 0}
-                  onClick={() => void confirmCopyToSelectedDays()}
-                >
-                  Copy to selected
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        <CopyEntriesDialog
+          open={copyPickerOpen}
+          sourceDate={copySource?.date ?? null}
+          days={days}
+          selectedDates={copySelectedDates}
+          onToggle={toggleCopyTarget}
+          onCancel={() => {
+            setCopyPickerOpen(false);
+            setCopySource(null);
+            setCopySelectedDates(new Set());
+          }}
+          onConfirm={() => void confirmCopyToSelectedDays()}
+          formatDayLabel={formatCopyDayLabel}
+        />
 
         {loading ? (
           <LogWeekSkeleton />
@@ -1187,10 +935,7 @@ export function TimeTrackingView({
         )}
       </div>
 
-      <aside className="flex flex-col gap-5 rounded-[var(--radius-card)] bg-surface p-5 shadow-card lg:sticky lg:top-6 lg:self-start">
-        {loading ? (
-          <LogSummarySkeleton />
-        ) : (
+      <TimeTrackingSummary loading={loading}>
           <>
             <h3 className="font-display text-base font-medium tracking-tightest text-ink">
               {isPersonalWorkspace ? "Period summary" : "Week summary"}
@@ -1409,8 +1154,7 @@ export function TimeTrackingView({
               Manage projects
             </Link>
           </>
-        )}
-      </aside>
+      </TimeTrackingSummary>
     </div>
   );
 }

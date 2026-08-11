@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney, roleLabel } from "@/lib/utils";
 import type { Profile } from "@/types/db";
 import { maskSensitive } from "@/lib/bank-crypto";
-import { getOnboardingProgress, getOnboardingStepsDetail } from "@/lib/onboarding/progress";
+import { getOnboardingDetailsForEmployees } from "@/lib/onboarding/progress";
 import {
   BankingEditor,
   RateEditor,
@@ -87,17 +87,9 @@ export async function OrgTeamView({
   const canRemove = workspaceRole === "owner";
   const canManageMembers = workspaceRole === "owner" || workspaceRole === "admin";
 
-  const onboardingByEmployee = new Map<
-    string,
-    { label: string; steps: { step: string; completed_at: string | null }[] }
-  >();
-  for (const m of team.filter((x) => x.role === "employee")) {
-    const [progress, steps] = await Promise.all([
-      getOnboardingProgress(m.id),
-      getOnboardingStepsDetail(m.id),
-    ]);
-    onboardingByEmployee.set(m.id, { label: progress.label, steps });
-  }
+  const onboardingByEmployee = await getOnboardingDetailsForEmployees(
+    team.filter((member) => member.role === "employee").map((member) => member.id),
+  );
 
   return (
     <div>
